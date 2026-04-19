@@ -1,4 +1,3 @@
-import '../entities/usuario.dart';
 import '../repositories/auth_repository.dart';
 
 class IniciarSesionUseCase {
