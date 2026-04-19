@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1032953486615",
+    "project_id": "ciemsi-493603",
+    "storage_bucket": "ciemsi-493603.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1032953486615:android:c8c3ff267c838bfa6c2b52",
+        "android_client_info": {
+          "package_name": "com.example.ciemsi_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1032953486615-6vgv44audsfi18bnmfvoqd4kek8ligll.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.ciemsi_app",
+            "certificate_hash": "742eb62e765d3caff52d2cefe52fd8b3148e8f3e"
+          }
+        },
+        {
+          "client_id": "1032953486615-k99d99l04jd64j7s6icussfkpkc2fb6n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsb9zajw4W2CsD2ZmQhu97U1T47JGV_Ik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1032953486615-k99d99l04jd64j7s6icussfkpkc2fb6n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
