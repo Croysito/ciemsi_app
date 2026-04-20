@@ -18,6 +18,8 @@ class ObtenerPacienteEvent extends PacienteEvent {
 class RegistrarPacienteEvent extends PacienteEvent {
   final String ci;
   final String nombre;
+  final String apellido;
+  final String email;
   final int? edad;
   final String? telefono;
   final DateTime? fechaNacimiento;
@@ -26,6 +28,8 @@ class RegistrarPacienteEvent extends PacienteEvent {
   RegistrarPacienteEvent({
     required this.ci,
     required this.nombre,
+    required this.apellido,
+    required this.email,
     this.edad,
     this.telefono,
     this.fechaNacimiento,
@@ -36,6 +40,8 @@ class RegistrarPacienteEvent extends PacienteEvent {
   List<Object?> get props => [
     ci,
     nombre,
+    apellido,
+    email,
     edad,
     telefono,
     fechaNacimiento,
@@ -46,7 +52,6 @@ class RegistrarPacienteEvent extends PacienteEvent {
 class ModificarPacienteEvent extends PacienteEvent {
   final int id;
   final String ci;
-  final String nombre;
   final int? edad;
   final String? telefono;
   final DateTime? fechaNacimiento;
@@ -55,7 +60,6 @@ class ModificarPacienteEvent extends PacienteEvent {
   ModificarPacienteEvent({
     required this.id,
     required this.ci,
-    required this.nombre,
     this.edad,
     this.telefono,
     this.fechaNacimiento,
@@ -63,7 +67,7 @@ class ModificarPacienteEvent extends PacienteEvent {
   });
 
   @override
-  List<Object?> get props => [id, ci, nombre, ciudadId];
+  List<Object?> get props => [id, ci, ciudadId];
 }
 
 class CargarCiudadesEvent extends PacienteEvent {}

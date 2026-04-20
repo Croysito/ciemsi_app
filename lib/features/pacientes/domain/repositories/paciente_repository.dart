@@ -4,9 +4,11 @@ import '../entities/ciudad.dart';
 abstract class PacienteRepository {
   Future<List<Paciente>> listarPacientes();
   Future<Paciente> obtenerPaciente(int id);
-  Future<void> registrarPaciente({
+  Future<Map<String, dynamic>> registrarPaciente({
     required String ci,
     required String nombre,
+    required String apellido,
+    required String email,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
@@ -15,7 +17,6 @@ abstract class PacienteRepository {
   Future<void> modificarPaciente({
     required int id,
     required String ci,
-    required String nombre,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,

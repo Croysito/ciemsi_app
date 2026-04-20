@@ -32,7 +32,7 @@ class _HistorialPageState extends State<HistorialPage> {
       backgroundColor: const Color(0xFFF4F4F4),
       appBar: AppBar(
         title: Text(
-          'Historial - ${widget.paciente.nombre}',
+          'Historial - ${widget.paciente.nombreCompleto}',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,

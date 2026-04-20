@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../bloc/historial_bloc.dart';
 import '../bloc/historial_event.dart';
 import '../bloc/historial_state.dart';
@@ -14,10 +15,69 @@ class AgregarNotaPage extends StatefulWidget {
 
 class _AgregarNotaPageState extends State<AgregarNotaPage> {
   final _detalleController = TextEditingController();
+  final SpeechToText _speechToText = SpeechToText();
+
+  bool _speechEnabled = false;
+  bool _isListening = false;
+  String _lastWords = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  Future<void> _initSpeech() async {
+    _speechEnabled = await _speechToText.initialize(
+      onError: (error) {
+        print('❌ Speech error: ${error.errorMsg}');
+        setState(() => _isListening = false);
+      },
+      onStatus: (status) {
+        print('📢 Speech status: $status');
+        if (status == 'done' || status == 'notListening') {
+          setState(() => _isListening = false);
+        }
+      },
+      debugLogging: true,
+    );
+    print('🎤 Speech enabled: $_speechEnabled');
+    setState(() {});
+  }
+
+  Future<void> _startListening() async {
+    await _speechToText.listen(
+      onResult: (result) {
+        setState(() {
+          _lastWords = result.recognizedWords;
+          // Agrega el texto dictado al campo existente
+          final textoActual = _detalleController.text;
+          if (textoActual.isEmpty) {
+            _detalleController.text = _lastWords;
+          } else {
+            _detalleController.text = '$textoActual $_lastWords';
+          }
+          // Mueve el cursor al final
+          _detalleController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _detalleController.text.length),
+          );
+        });
+      },
+      localeId: 'es_ES', // Español
+      pauseFor: const Duration(seconds: 3),
+    );
+    setState(() => _isListening = true);
+  }
+
+  Future<void> _stopListening() async {
+    await _speechToText.stop();
+    setState(() => _isListening = false);
+  }
 
   @override
   void dispose() {
     _detalleController.dispose();
+    _speechToText.stop();
     super.dispose();
   }
 
@@ -57,26 +117,114 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              TextField(
-                controller: _detalleController,
-                maxLines: 10,
-                decoration: InputDecoration(
-                  hintText: 'Escribe la nota de evolución...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
+              // Indicador de escucha
+              if (_isListening)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF00B5C8),
-                      width: 2,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00B5C8).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF00B5C8)),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.mic, color: Color(0xFF00B5C8), size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Escuchando... habla ahora',
+                        style: TextStyle(
+                          color: Color(0xFF00B5C8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Campo de texto
+              Expanded(
+                child: Stack(
+                  children: [
+                    TextField(
+                      controller: _detalleController,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: InputDecoration(
+                        hintText: 'Escribe o dicta la nota de evolución...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF00B5C8),
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.fromLTRB(
+                          16,
+                          16,
+                          16,
+                          60,
+                        ),
+                      ),
                     ),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
+
+                    // Botón micrófono flotante dentro del campo
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: _speechEnabled
+                          ? GestureDetector(
+                              onTap: _isListening
+                                  ? _stopListening
+                                  : _startListening,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: _isListening
+                                      ? Colors.red
+                                      : const Color(0xFF00B5C8),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          (_isListening
+                                                  ? Colors.red
+                                                  : const Color(0xFF00B5C8))
+                                              .withOpacity(0.4),
+                                      blurRadius: 8,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  _isListening ? Icons.stop : Icons.mic,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                            )
+                          : const Tooltip(
+                              message: 'Micrófono no disponible',
+                              child: Icon(Icons.mic_off, color: Colors.grey),
+                            ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              // Botón guardar
               BlocBuilder<HistorialBloc, HistorialState>(
                 builder: (context, state) {
                   return SizedBox(
@@ -97,6 +245,8 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
                                 );
                                 return;
                               }
+                              // Detener escucha si está activa
+                              if (_isListening) _stopListening();
                               context.read<HistorialBloc>().add(
                                 AgregarNotaEvent(
                                   pacienteId: widget.pacienteId,

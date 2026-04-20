@@ -31,26 +31,31 @@ class PacienteRemoteDatasource {
     }
   }
 
-  Future<void> registrarPaciente({
+  Future<Map<String, dynamic>> registrarPaciente({
     required String ci,
     required String nombre,
+    required String apellido,
+    required String email,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
   }) async {
     try {
-      await apiClient.dio.post(
+      final response = await apiClient.dio.post(
         '/pacientes',
         data: {
           'ci': ci,
           'nombre': nombre,
+          'apellido': apellido,
+          'email': email,
           'edad': edad,
           'telefono': telefono,
           'fechaNacimiento': fechaNacimiento?.toIso8601String(),
           'ciudadId': ciudadId,
         },
       );
+      return response.data;
     } on DioException catch (e) {
       throw Exception(
         e.response?.data['mensaje'] ?? 'Error al registrar paciente',
@@ -61,7 +66,6 @@ class PacienteRemoteDatasource {
   Future<void> modificarPaciente({
     required int id,
     required String ci,
-    required String nombre,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
@@ -72,7 +76,6 @@ class PacienteRemoteDatasource {
         '/pacientes/$id',
         data: {
           'ci': ci,
-          'nombre': nombre,
           'edad': edad,
           'telefono': telefono,
           'fechaNacimiento': fechaNacimiento?.toIso8601String(),

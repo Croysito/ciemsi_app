@@ -16,9 +16,11 @@ class PacienteRepositoryImpl implements PacienteRepository {
       remoteDatasource.obtenerPaciente(id);
 
   @override
-  Future<void> registrarPaciente({
+  Future<Map<String, dynamic>> registrarPaciente({
     required String ci,
     required String nombre,
+    required String apellido,
+    required String email,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
@@ -26,6 +28,8 @@ class PacienteRepositoryImpl implements PacienteRepository {
   }) => remoteDatasource.registrarPaciente(
     ci: ci,
     nombre: nombre,
+    apellido: apellido,
+    email: email,
     edad: edad,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
@@ -36,7 +40,6 @@ class PacienteRepositoryImpl implements PacienteRepository {
   Future<void> modificarPaciente({
     required int id,
     required String ci,
-    required String nombre,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
@@ -44,7 +47,6 @@ class PacienteRepositoryImpl implements PacienteRepository {
   }) => remoteDatasource.modificarPaciente(
     id: id,
     ci: ci,
-    nombre: nombre,
     edad: edad,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,

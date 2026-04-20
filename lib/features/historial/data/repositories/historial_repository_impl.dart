@@ -49,4 +49,7 @@ class HistorialRepositoryImpl implements HistorialRepository {
   @override
   Future<List<LinkArchivo>> obtenerLinksPorTipo(int notaId, String tipo) =>
       remoteDatasource.obtenerLinksPorTipo(notaId, tipo);
+  @override
+  Future<HistorialClinico> obtenerMiHistorial() =>
+      remoteDatasource.obtenerMiHistorial();
 }

@@ -22,7 +22,7 @@ class DetallePacientePage extends StatelessWidget {
       backgroundColor: const Color(0xFFF4F4F4),
       appBar: AppBar(
         title: Text(
-          paciente.nombre,
+          paciente.nombreCompleto,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -40,7 +40,7 @@ class DetallePacientePage extends StatelessWidget {
               radius: 50,
               backgroundColor: const Color(0xFF00B5C8),
               child: Text(
-                paciente.nombre[0].toUpperCase(),
+                paciente.nombreCompleto[0].toUpperCase(),
                 style: const TextStyle(
                   fontSize: 40,
                   color: Colors.white,
@@ -50,7 +50,7 @@ class DetallePacientePage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              paciente.nombre,
+              paciente.nombreCompleto,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
@@ -116,6 +116,7 @@ class DetallePacientePage extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (_) => BlocProvider(
                         create: (_) => HistorialBloc(
+                          repository: repository,
                           obtenerHistorialUseCase: ObtenerHistorialUseCase(
                             repository,
                           ),

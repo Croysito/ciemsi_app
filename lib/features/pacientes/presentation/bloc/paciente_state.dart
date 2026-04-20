@@ -27,7 +27,15 @@ class PacienteObtenido extends PacienteState {
   List<Object?> get props => [paciente];
 }
 
-class PacienteRegistrado extends PacienteState {}
+class PacienteRegistrado extends PacienteState {
+  final String email;
+  final String password;
+
+  PacienteRegistrado({required this.email, required this.password});
+
+  @override
+  List<Object?> get props => [email, password];
+}
 
 class PacienteModificado extends PacienteState {}
 

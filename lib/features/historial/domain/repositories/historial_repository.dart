@@ -20,4 +20,5 @@ abstract class HistorialRepository {
     required String mimeType,
   });
   Future<List<LinkArchivo>> obtenerLinksPorTipo(int notaId, String tipo);
+  Future<HistorialClinico> obtenerMiHistorial();
 }

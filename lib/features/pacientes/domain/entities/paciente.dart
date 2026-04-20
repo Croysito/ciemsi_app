@@ -1,33 +1,36 @@
 import 'package:equatable/equatable.dart';
 import 'ciudad.dart';
+import '../../../auth/domain/entities/usuario.dart';
 
 class Paciente extends Equatable {
   final int id;
   final String ci;
-  final String nombre;
   final int? edad;
   final String? telefono;
   final DateTime? fechaNacimiento;
   final Ciudad ciudad;
+  final Usuario usuario;
 
   const Paciente({
     required this.id,
     required this.ci,
-    required this.nombre,
     this.edad,
     this.telefono,
     this.fechaNacimiento,
     required this.ciudad,
+    required this.usuario,
   });
+
+  String get nombreCompleto => '${usuario.nombre} ${usuario.apellido}';
 
   @override
   List<Object?> get props => [
     id,
     ci,
-    nombre,
     edad,
     telefono,
     fechaNacimiento,
     ciudad,
+    usuario,
   ];
 }

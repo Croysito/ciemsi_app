@@ -88,4 +88,15 @@ class HistorialRemoteDatasource {
       throw Exception(e.response?.data['mensaje'] ?? 'Error al obtener links');
     }
   }
+
+  Future<HistorialModel> obtenerMiHistorial() async {
+    try {
+      final response = await apiClient.dio.get('/historial/mi-historial');
+      return HistorialModel.fromJson(response.data['historial']);
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['mensaje'] ?? 'Error al obtener historial',
+      );
+    }
+  }
 }

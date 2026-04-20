@@ -128,7 +128,7 @@ class _PacientesPageState extends State<PacientesPage> {
                   final pacientes = state.pacientes
                       .where(
                         (p) =>
-                            p.nombre.toLowerCase().contains(
+                            p.nombreCompleto.toLowerCase().contains(
                               _busqueda.toLowerCase(),
                             ) ||
                             p.ci.toLowerCase().contains(
@@ -171,7 +171,7 @@ class _PacientesPageState extends State<PacientesPage> {
                           leading: CircleAvatar(
                             backgroundColor: const Color(0xFF00B5C8),
                             child: Text(
-                              paciente.nombre[0].toUpperCase(),
+                              paciente.nombreCompleto[0].toUpperCase(),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -179,7 +179,7 @@ class _PacientesPageState extends State<PacientesPage> {
                             ),
                           ),
                           title: Text(
-                            paciente.nombre,
+                            paciente.nombreCompleto,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Text(

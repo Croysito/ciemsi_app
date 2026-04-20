@@ -7,7 +7,6 @@ class ModificarPacienteUseCase {
   Future<void> execute({
     required int id,
     required String ci,
-    required String nombre,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
@@ -15,7 +14,6 @@ class ModificarPacienteUseCase {
   }) => repository.modificarPaciente(
     id: id,
     ci: ci,
-    nombre: nombre,
     edad: edad,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,

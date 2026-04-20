@@ -7,6 +7,7 @@ import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import 'login_page.dart';
 import '../../../pacientes/presentation/pages/pacientes_page.dart';
+import '../../../historial/presentation/pages/mi_historial_page.dart';
 
 class HomePage extends StatelessWidget {
   final Usuario usuario;
@@ -47,7 +48,7 @@ class HomePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '¡Bienvenida, ${usuario.nombre}!',
+              '¡Bienvenido, ${usuario.nombreCompleto}!',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             Text(
@@ -56,23 +57,54 @@ class HomePage extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // Módulos disponibles
-            _buildModulo(
-              context,
-              icon: Icons.people_outlined,
-              titulo: 'Pacientes',
-              subtitulo: 'Gestionar pacientes e historiales',
-              color: const Color(0xFF00B5C8),
-              onTap: () => Navigator.push(
+            // Mostrar módulos según rol
+            if (usuario.rol == 'Doctora') ...[
+              _buildModulo(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider.value(
-                    value: context.read<PacienteBloc>(),
-                    child: const PacientesPage(),
+                icon: Icons.people_outlined,
+                titulo: 'Pacientes',
+                subtitulo: 'Gestionar pacientes e historiales',
+                color: const Color(0xFF00B5C8),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: context.read<PacienteBloc>(),
+                      child: const PacientesPage(),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ] else if (usuario.rol == 'Enfermera') ...[
+              _buildModulo(
+                context,
+                icon: Icons.people_outlined,
+                titulo: 'Pacientes',
+                subtitulo: 'Ver pacientes e historiales',
+                color: const Color(0xFF00B5C8),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: context.read<PacienteBloc>(),
+                      child: const PacientesPage(),
+                    ),
+                  ),
+                ),
+              ),
+            ] else if (usuario.rol == 'Paciente') ...[
+              _buildModulo(
+                context,
+                icon: Icons.history,
+                titulo: 'Mi Historial',
+                subtitulo: 'Ver mis notas, imágenes y videos',
+                color: const Color(0xFF00B5C8),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MiHistorialPage()),
+                ),
+              ),
+            ],
           ],
         ),
       ),

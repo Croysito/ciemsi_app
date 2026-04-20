@@ -4,9 +4,11 @@ class RegistrarPacienteUseCase {
   final PacienteRepository repository;
   RegistrarPacienteUseCase(this.repository);
 
-  Future<void> execute({
+  Future<Map<String, dynamic>> execute({
     required String ci,
     required String nombre,
+    required String apellido,
+    required String email,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
@@ -14,6 +16,8 @@ class RegistrarPacienteUseCase {
   }) => repository.registrarPaciente(
     ci: ci,
     nombre: nombre,
+    apellido: apellido,
+    email: email,
     edad: edad,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,

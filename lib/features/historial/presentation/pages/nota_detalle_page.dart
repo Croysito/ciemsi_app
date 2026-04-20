@@ -230,7 +230,7 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
         backgroundColor: const Color(0xFF00B5C8),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: BlocListener<HistorialBloc, HistorialState>(
+      body: BlocConsumer<HistorialBloc, HistorialState>(
         listener: (context, state) {
           if (state is LinkAgregado || state is ArchivoSubido) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -239,12 +239,9 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
                 backgroundColor: Colors.green,
               ),
             );
-            // Recargar el historial completo
             context.read<HistorialBloc>().add(
               ObtenerHistorialEvent(widget.nota.historialId),
             );
-            // Volver a la página anterior para ver los cambios
-            Navigator.pop(context, true);
           }
           if (state is HistorialError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -255,111 +252,128 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
             );
           }
         },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Fecha
-              Row(
-                children: [
-                  const Icon(
-                    Icons.calendar_today_outlined,
-                    color: Color(0xFF00B5C8),
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    DateFormat('dd/MM/yyyy').format(widget.nota.fecha),
-                    style: const TextStyle(
+        builder: (context, state) {
+          // Obtener links actualizados del estado
+          List links = widget.nota.links;
+          if (state is HistorialObtenido) {
+            final notaActualizada = state.historial.notas
+                .where((n) => n.id == widget.nota.id)
+                .toList();
+            if (notaActualizada.isNotEmpty) {
+              links = notaActualizada.first.links;
+            }
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Fecha
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_outlined,
                       color: Color(0xFF00B5C8),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      size: 18,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Detalle nota
-              Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('dd/MM/yyyy').format(widget.nota.fecha),
+                      style: const TextStyle(
+                        color: Color(0xFF00B5C8),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    widget.nota.detalle,
-                    style: const TextStyle(fontSize: 15, height: 1.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-              // Botones agregar archivos
-              const Text(
-                'Archivos adjuntos',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _mostrarDialogoLink,
-                      icon: const Icon(Icons.link, color: Color(0xFF00B5C8)),
-                      label: const Text(
-                        'Link manual',
-                        style: TextStyle(color: Color(0xFF00B5C8)),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF00B5C8)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
+                // Detalle nota
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _subirArchivoDrive,
-                      icon: const Icon(
-                        Icons.upload_file,
-                        color: Color(0xFF8DC63F),
-                      ),
-                      label: const Text(
-                        'Subir a Drive',
-                        style: TextStyle(color: Color(0xFF8DC63F)),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFF8DC63F)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Lista de links
-              if (widget.nota.links.isNotEmpty) ...[
-                ...widget.nota.links.map((link) => _buildLinkCard(link)),
-              ] else
-                const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     child: Text(
-                      'No hay archivos adjuntos',
-                      style: TextStyle(color: Colors.grey),
+                      widget.nota.detalle,
+                      style: const TextStyle(fontSize: 15, height: 1.5),
                     ),
                   ),
                 ),
-            ],
-          ),
-        ),
+                const SizedBox(height: 24),
+
+                // Botones agregar archivos
+                const Text(
+                  'Archivos adjuntos',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _mostrarDialogoLink,
+                        icon: const Icon(Icons.link, color: Color(0xFF00B5C8)),
+                        label: const Text(
+                          'Link manual',
+                          style: TextStyle(color: Color(0xFF00B5C8)),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF00B5C8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _subirArchivoDrive,
+                        icon: const Icon(
+                          Icons.upload_file,
+                          color: Color(0xFF8DC63F),
+                        ),
+                        label: const Text(
+                          'Subir a Drive',
+                          style: TextStyle(color: Color(0xFF8DC63F)),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF8DC63F)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Lista de links actualizada
+                if (state is HistorialLoading)
+                  const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00B5C8)),
+                  )
+                else if (links.isNotEmpty)
+                  ...links.map((link) => _buildLinkCard(link))
+                else
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'No hay archivos adjuntos',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

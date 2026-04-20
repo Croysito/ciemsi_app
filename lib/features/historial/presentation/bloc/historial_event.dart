@@ -13,6 +13,8 @@ class ObtenerHistorialEvent extends HistorialEvent {
   List<Object?> get props => [pacienteId];
 }
 
+class ObtenerMiHistorialEvent extends HistorialEvent {}
+
 class AgregarNotaEvent extends HistorialEvent {
   final int pacienteId;
   final String detalle;

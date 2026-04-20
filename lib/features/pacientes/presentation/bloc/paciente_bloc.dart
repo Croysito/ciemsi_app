@@ -43,15 +43,22 @@ class PacienteBloc extends Bloc<PacienteEvent, PacienteState> {
   ) async {
     emit(PacienteLoading());
     try {
-      await registrarPacienteUseCase.execute(
+      final resultado = await registrarPacienteUseCase.execute(
         ci: event.ci,
         nombre: event.nombre,
+        apellido: event.apellido,
+        email: event.email,
         edad: event.edad,
         telefono: event.telefono,
         fechaNacimiento: event.fechaNacimiento,
         ciudadId: event.ciudadId,
       );
-      emit(PacienteRegistrado());
+      emit(
+        PacienteRegistrado(
+          email: resultado['credenciales']['email'],
+          password: resultado['credenciales']['password'],
+        ),
+      );
     } catch (e) {
       emit(PacienteError(e.toString().replaceAll('Exception: ', '')));
     }
@@ -66,7 +73,6 @@ class PacienteBloc extends Bloc<PacienteEvent, PacienteState> {
       await modificarPacienteUseCase.execute(
         id: event.id,
         ci: event.ci,
-        nombre: event.nombre,
         edad: event.edad,
         telefono: event.telefono,
         fechaNacimiento: event.fechaNacimiento,

@@ -16,6 +16,8 @@ class RegistrarPacientePage extends StatefulWidget {
 class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
   final _ciController = TextEditingController();
   final _nombreController = TextEditingController();
+  final _apellidoController = TextEditingController();
+  final _emailController = TextEditingController();
   final _edadController = TextEditingController();
   final _telefonoController = TextEditingController();
   DateTime? _fechaNacimiento;
@@ -32,6 +34,8 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
   void dispose() {
     _ciController.dispose();
     _nombreController.dispose();
+    _apellidoController.dispose();
+    _emailController.dispose();
     _edadController.dispose();
     _telefonoController.dispose();
     super.dispose();
@@ -53,6 +57,93 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
     if (fecha != null) setState(() => _fechaNacimiento = fecha);
   }
 
+  void _mostrarCredenciales(String email, String password) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Paciente Registrado'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Comparte estas credenciales con el paciente:',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            _buildCredencial('Email', email),
+            const SizedBox(height: 8),
+            _buildCredencial('Contraseña', password),
+            const SizedBox(height: 12),
+            const Text(
+              '⚠️ La contraseña es el CI del paciente.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.orange,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // cierra dialog
+              Navigator.pop(context, true); // vuelve a lista
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00B5C8),
+            ),
+            child: const Text(
+              'Entendido',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCredencial(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -71,13 +162,7 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
             setState(() => _ciudades = state.ciudades);
           }
           if (state is PacienteRegistrado) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Paciente registrado correctamente'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            Navigator.pop(context, true);
+            _mostrarCredenciales(state.email, state.password);
           }
           if (state is PacienteError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -93,30 +178,47 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                'Datos personales',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF00B5C8),
+                ),
+              ),
+              const SizedBox(height: 12),
               _buildField('CI', _ciController, Icons.badge_outlined),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              _buildField('Nombre', _nombreController, Icons.person_outlined),
+              const SizedBox(height: 12),
               _buildField(
-                'Nombre completo',
-                _nombreController,
+                'Apellido',
+                _apellidoController,
                 Icons.person_outlined,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildField(
-                'Edad',
-                _edadController,
-                Icons.cake_outlined,
-                keyboardType: TextInputType.number,
+                'Email',
+                _emailController,
+                Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildField(
                 'Teléfono',
                 _telefonoController,
                 Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              _buildField(
+                'Edad',
+                _edadController,
+                Icons.cake_outlined,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
 
-              // Fecha de nacimiento
+              // Fecha nacimiento
               GestureDetector(
                 onTap: _seleccionarFecha,
                 child: Container(
@@ -151,7 +253,7 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Ciudad
               Container(
@@ -193,11 +295,13 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
                           : () {
                               if (_ciController.text.isEmpty ||
                                   _nombreController.text.isEmpty ||
+                                  _apellidoController.text.isEmpty ||
+                                  _emailController.text.isEmpty ||
                                   _ciudadSeleccionada == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text(
-                                      'CI, nombre y ciudad son requeridos',
+                                      'CI, nombre, apellido, email y ciudad son requeridos',
                                     ),
                                     backgroundColor: Colors.orange,
                                   ),
@@ -208,6 +312,8 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
                                 RegistrarPacienteEvent(
                                   ci: _ciController.text.trim(),
                                   nombre: _nombreController.text.trim(),
+                                  apellido: _apellidoController.text.trim(),
+                                  email: _emailController.text.trim(),
                                   edad: int.tryParse(_edadController.text),
                                   telefono: _telefonoController.text.trim(),
                                   fechaNacimiento: _fechaNacimiento,

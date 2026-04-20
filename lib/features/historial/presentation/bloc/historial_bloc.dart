@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain/repositories/historial_repository.dart';
 import '../../domain/usecases/obtener_historial.dart';
 import '../../domain/usecases/agregar_nota.dart';
 import '../../domain/usecases/agregar_link.dart';
@@ -11,8 +12,10 @@ class HistorialBloc extends Bloc<HistorialEvent, HistorialState> {
   final AgregarNotaUseCase agregarNotaUseCase;
   final AgregarLinkUseCase agregarLinkUseCase;
   final SubirArchivoDriveUseCase subirArchivoDriveUseCase;
+  final HistorialRepository repository;
 
   HistorialBloc({
+    required this.repository,
     required this.obtenerHistorialUseCase,
     required this.agregarNotaUseCase,
     required this.agregarLinkUseCase,
@@ -22,6 +25,7 @@ class HistorialBloc extends Bloc<HistorialEvent, HistorialState> {
     on<AgregarNotaEvent>(_onAgregarNota);
     on<AgregarLinkEvent>(_onAgregarLink);
     on<SubirArchivoDriveEvent>(_onSubirArchivo);
+    on<ObtenerMiHistorialEvent>(_onObtenerMiHistorial);
   }
 
   Future<void> _onObtener(
@@ -86,6 +90,19 @@ class HistorialBloc extends Bloc<HistorialEvent, HistorialState> {
         mimeType: event.mimeType,
       );
       emit(ArchivoSubido(link));
+    } catch (e) {
+      emit(HistorialError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onObtenerMiHistorial(
+    ObtenerMiHistorialEvent event,
+    Emitter<HistorialState> emit,
+  ) async {
+    emit(HistorialLoading());
+    try {
+      final historial = await repository.obtenerMiHistorial();
+      emit(HistorialObtenido(historial));
     } catch (e) {
       emit(HistorialError(e.toString().replaceAll('Exception: ', '')));
     }
