@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
-import 'ciudad.dart';
-import '../../../auth/domain/entities/usuario.dart';
+import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
+import 'package:ciemsi_app/features/auth/domain/entities/usuario.dart';
 
 class Paciente extends Equatable {
   final int id;
@@ -8,7 +8,6 @@ class Paciente extends Equatable {
   final int? edad;
   final String? telefono;
   final DateTime? fechaNacimiento;
-  final Ciudad ciudad;
   final Usuario usuario;
 
   const Paciente({
@@ -17,20 +16,12 @@ class Paciente extends Equatable {
     this.edad,
     this.telefono,
     this.fechaNacimiento,
-    required this.ciudad,
     required this.usuario,
   });
 
-  String get nombreCompleto => '${usuario.nombre} ${usuario.apellido}';
+  String get nombreCompleto => usuario.nombreCompleto;
+  Ciudad? get ciudad => usuario.ciudad;
 
   @override
-  List<Object?> get props => [
-    id,
-    ci,
-    edad,
-    telefono,
-    fechaNacimiento,
-    ciudad,
-    usuario,
-  ];
+  List<Object?> get props => [id, ci, edad, telefono, fechaNacimiento, usuario];
 }

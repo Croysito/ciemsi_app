@@ -1,5 +1,5 @@
-import '../entities/paciente.dart';
-import '../entities/ciudad.dart';
+import 'package:ciemsi_app/features/pacientes/domain/entities/paciente.dart';
+import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 
 abstract class PacienteRepository {
   Future<List<Paciente>> listarPacientes();

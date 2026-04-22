@@ -52,7 +52,7 @@ class HomePage extends StatelessWidget {
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             Text(
-              'Rol: ${usuario.rol}',
+              'Rol: ${usuario.rol}${usuario.ciudad != null ? ' • ${usuario.ciudad!.nombreCiudad}' : ''}',
               style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 32),

@@ -55,7 +55,7 @@ class DetallePacientePage extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              paciente.ciudad.nombreCiudad,
+              paciente.ciudad!.nombreCiudad,
               style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 24),
@@ -93,7 +93,7 @@ class DetallePacientePage extends StatelessWidget {
                     _buildInfoRow(
                       Icons.location_city_outlined,
                       'Ciudad',
-                      paciente.ciudad.nombreCiudad,
+                      paciente.ciudad?.nombreCiudad ?? 'Sin ciudad',
                     ),
                   ],
                 ),

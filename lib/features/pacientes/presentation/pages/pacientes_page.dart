@@ -183,7 +183,7 @@ class _PacientesPageState extends State<PacientesPage> {
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Text(
-                            'CI: ${paciente.ci} • ${paciente.ciudad.nombreCiudad}',
+                            'CI: ${paciente.ci} • ${paciente.ciudad?.nombreCiudad ?? 'Sin ciudad'}',
                             style: const TextStyle(color: Colors.grey),
                           ),
                           trailing: const Icon(

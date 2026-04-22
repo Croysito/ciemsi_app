@@ -1,6 +1,5 @@
-import '../../domain/entities/paciente.dart';
-import 'ciudad_model.dart';
-import '../../../auth/data/models/usuario_model.dart';
+import 'package:ciemsi_app/features/pacientes/domain/entities/paciente.dart';
+import 'package:ciemsi_app/features/auth/data/models/usuario_model.dart';
 
 class PacienteModel extends Paciente {
   const PacienteModel({
@@ -9,7 +8,6 @@ class PacienteModel extends Paciente {
     super.edad,
     super.telefono,
     super.fechaNacimiento,
-    required super.ciudad,
     required super.usuario,
   });
 
@@ -22,7 +20,6 @@ class PacienteModel extends Paciente {
       fechaNacimiento: json['fechaNacimiento'] != null
           ? DateTime.parse(json['fechaNacimiento'])
           : null,
-      ciudad: CiudadModel.fromJson(json['ciudad']),
       usuario: UsuarioModel.fromJson(json['usuario']),
     );
   }
