@@ -41,10 +41,15 @@ class _SplashPageState extends State<SplashPage>
       ),
     );
 
-    _animController.forward();
-
-    // Verificar sesión después de la animación
-    Future.delayed(const Duration(milliseconds: 2000), _verificarSesion);
+    // Precargar imagen antes de animar
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await precacheImage(
+        const AssetImage('assets/images/logo_ciemsi.png'),
+        context,
+      );
+      _animController.forward();
+      Future.delayed(const Duration(milliseconds: 2000), _verificarSesion);
+    });
   }
 
   Future<void> _verificarSesion() async {
