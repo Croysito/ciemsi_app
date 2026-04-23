@@ -1,3 +1,4 @@
+import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import '../../../historial/domain/usecases/agregar_nota.dart';
 import '../../../historial/domain/usecases/agregar_link.dart';
 import '../../../historial/domain/usecases/subir_archivo_drive.dart';
 import '../../../../core/network/api_client_provider.dart';
+import 'package:ciemsi_app/features/pacientes/presentation/pages/modificar_paciente_page.dart';
 
 class DetallePacientePage extends StatelessWidget {
   final Paciente paciente;
@@ -142,6 +144,42 @@ class DetallePacientePage extends StatelessWidget {
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00B5C8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final modificado = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider.value(
+                        value: context.read<PacienteBloc>(),
+                        child: ModificarPacientePage(paciente: paciente),
+                      ),
+                    ),
+                  );
+                  if (modificado == true) {
+                    Navigator.pop(context, true);
+                  }
+                },
+                icon: const Icon(Icons.edit_outlined, color: Color(0xFF8DC63F)),
+                label: const Text(
+                  'Modificar Datos',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF8DC63F),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF8DC63F)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

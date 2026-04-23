@@ -1,10 +1,10 @@
 import 'package:dio/dio.dart';
-import '../../../../core/network/api_client.dart';
+import 'package:ciemsi_app/core/network/api_client.dart';
+import 'package:ciemsi_app/core/services/auth_storage_service.dart';
 import '../models/usuario_model.dart';
 
 class AuthRemoteDatasource {
   final ApiClient apiClient;
-
   AuthRemoteDatasource(this.apiClient);
 
   Future<Map<String, dynamic>> iniciarSesion(
@@ -18,10 +18,17 @@ class AuthRemoteDatasource {
       );
 
       final token = response.data['token'];
-      final usuario = UsuarioModel.fromJson(response.data['usuario']);
+      final usuarioJson = response.data['usuario'];
+      final usuario = UsuarioModel.fromJson(usuarioJson);
 
-      // Guardar token para futuros requests
+      // Guardar token en el cliente
       apiClient.setToken(token);
+
+      // Guardar sesión de forma segura
+      await AuthStorageService.guardarSesion(
+        token: token,
+        usuario: usuarioJson,
+      );
 
       return {'token': token, 'usuario': usuario};
     } on DioException catch (e) {
@@ -46,6 +53,8 @@ class AuthRemoteDatasource {
     try {
       await apiClient.dio.post('/auth/logout');
       apiClient.removeToken();
+      // Eliminar sesión guardada
+      await AuthStorageService.eliminarSesion();
     } on DioException catch (e) {
       throw Exception(e.response?.data['mensaje'] ?? 'Error al cerrar sesión');
     }

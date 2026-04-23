@@ -1,3 +1,5 @@
+import 'package:ciemsi_app/features/auth/presentation/pages/splash_page.dart';
+import 'package:ciemsi_app/features/historial/presentation/pages/mi_historial_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../pacientes/presentation/bloc/paciente_bloc.dart';
@@ -7,7 +9,8 @@ import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import 'login_page.dart';
 import '../../../pacientes/presentation/pages/pacientes_page.dart';
-import '../../../historial/presentation/pages/mi_historial_page.dart';
+import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_bloc.dart';
+import 'package:ciemsi_app/features/asistentes/presentation/pages/asistentes_page.dart';
 
 class HomePage extends StatelessWidget {
   final Usuario usuario;
@@ -29,7 +32,7 @@ class HomePage extends StatelessWidget {
               if (state is CerrarSesionSuccess) {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  MaterialPageRoute(builder: (_) => const SplashPage()),
                   (route) => false,
                 );
               }
@@ -48,7 +51,7 @@ class HomePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '¡Bienvenido, ${usuario.nombreCompleto}!',
+              '¡Hola, ${usuario.nombreCompleto}!',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             Text(
@@ -75,7 +78,24 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
               ),
-            ] else if (usuario.rol == 'Enfermera') ...[
+              const SizedBox(height: 12),
+              _buildModulo(
+                context,
+                icon: Icons.badge_outlined,
+                titulo: 'Asistentes',
+                subtitulo: 'Gestionar asistentes por ciudad',
+                color: const Color(0xFF8DC63F),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider(
+                      create: (_) => AsistenteBloc(),
+                      child: const AsistentesPage(),
+                    ),
+                  ),
+                ),
+              ),
+            ] else if (usuario.rol == 'Asistente') ...[
               _buildModulo(
                 context,
                 icon: Icons.people_outlined,

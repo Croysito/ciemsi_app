@@ -123,7 +123,14 @@ class _PacientesPageState extends State<PacientesPage> {
                     ),
                   );
                 }
-
+                if (state is PacienteModificado ||
+                    state is PacienteRegistrado ||
+                    state is PacienteInitial) {
+                  context.read<PacienteBloc>().add(ListarPacientesEvent());
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00B5C8)),
+                  );
+                }
                 if (state is PacientesListados) {
                   final pacientes = state.pacientes
                       .where(
@@ -190,8 +197,8 @@ class _PacientesPageState extends State<PacientesPage> {
                             Icons.chevron_right,
                             color: Color(0xFF00B5C8),
                           ),
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => BlocProvider.value(
@@ -202,6 +209,12 @@ class _PacientesPageState extends State<PacientesPage> {
                                 ),
                               ),
                             );
+                            // Recargar lista al volver siempre
+                            if (mounted) {
+                              context.read<PacienteBloc>().add(
+                                ListarPacientesEvent(),
+                              );
+                            }
                           },
                         ),
                       );
