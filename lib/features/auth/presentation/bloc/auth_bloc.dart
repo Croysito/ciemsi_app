@@ -1,3 +1,4 @@
+import 'package:ciemsi_app/core/services/notification_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/iniciar_sesion.dart';
 import '../../domain/usecases/recuperar_contrasena.dart';
@@ -28,6 +29,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         event.email,
         event.password,
       );
+
+      // Inicializar notificaciones después del login
+      await NotificationService.inicializar();
+
       emit(
         AuthSuccess(
           usuario: resultado['usuario'] as Usuario,

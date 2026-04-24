@@ -1,3 +1,4 @@
+import 'package:ciemsi_app/core/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:ciemsi_app/core/services/auth_storage_service.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
@@ -58,18 +59,28 @@ class _SplashPageState extends State<SplashPage>
     if (!mounted) return;
 
     if (haySesion) {
-      // Restaurar token en el cliente
       final token = await AuthStorageService.obtenerToken();
       final usuarioData = await AuthStorageService.obtenerUsuario();
 
       if (token != null && usuarioData != null) {
-        ApiClientProvider.instance.setToken(token);
-        final usuario = UsuarioModel.fromJson(usuarioData);
+        try {
+          ApiClientProvider.instance.setToken(token);
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => HomePage(usuario: usuario)),
-        );
+          // Verificar que el token sigue válido
+          await ApiClientProvider.instance.dio.get('/ciudades');
+
+          final usuario = UsuarioModel.fromJson(usuarioData);
+          await NotificationService.inicializar();
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => HomePage(usuario: usuario)),
+          );
+        } catch (e) {
+          // Token expirado, ir al login
+          await AuthStorageService.eliminarSesion();
+          _irAlLogin();
+        }
       } else {
         _irAlLogin();
       }

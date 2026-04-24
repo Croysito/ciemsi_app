@@ -100,7 +100,7 @@ class _LoginPageState extends State<LoginPage>
                     child: FadeTransition(
                       opacity: _fadeAnim,
                       child: Image.asset(
-                        'assets/images/logo.png',
+                        'assets/images/logo_ciemsi.png',
                         width: 130,
                         height: 130,
                         fit: BoxFit.contain,

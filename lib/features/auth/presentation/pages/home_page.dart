@@ -7,7 +7,6 @@ import '../../domain/entities/usuario.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
-import 'login_page.dart';
 import '../../../pacientes/presentation/pages/pacientes_page.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_bloc.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/pages/asistentes_page.dart';
