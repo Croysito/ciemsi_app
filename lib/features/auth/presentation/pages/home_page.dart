@@ -1,4 +1,7 @@
+import 'package:ciemsi_app/features/agenda/presentation/pages/agenda_page.dart';
 import 'package:ciemsi_app/features/auth/presentation/pages/splash_page.dart';
+import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
+import 'package:ciemsi_app/features/citas/presentation/pages/citas_page.dart';
 import 'package:ciemsi_app/features/historial/presentation/pages/mi_historial_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -94,12 +97,39 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
               ),
+              _buildModulo(
+                context,
+                icon: Icons.event_note_outlined,
+                titulo: 'Agenda',
+                subtitulo: 'Configurar horarios por ciudad',
+                color: const Color(0xFF8DC63F),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AgendaPage()),
+                ),
+              ),
+              _buildModulo(
+                context,
+                icon: Icons.calendar_month_outlined,
+                titulo: 'Citas',
+                subtitulo: 'Gestionar citas médicas',
+                color: Colors.purple,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider(
+                      create: (_) => CitaBloc(),
+                      child: CitasPage(usuario: usuario),
+                    ),
+                  ),
+                ),
+              ),
             ] else if (usuario.rol == 'Asistente') ...[
               _buildModulo(
                 context,
                 icon: Icons.people_outlined,
                 titulo: 'Pacientes',
-                subtitulo: 'Ver pacientes e historiales',
+                subtitulo: 'Ver pacientes de tu ciudad',
                 color: const Color(0xFF00B5C8),
                 onTap: () => Navigator.push(
                   context,
@@ -107,6 +137,23 @@ class HomePage extends StatelessWidget {
                     builder: (_) => BlocProvider.value(
                       value: context.read<PacienteBloc>(),
                       child: const PacientesPage(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildModulo(
+                context,
+                icon: Icons.calendar_month_outlined,
+                titulo: 'Citas',
+                subtitulo: 'Gestionar citas de tu ciudad',
+                color: Colors.purple,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider(
+                      create: (_) => CitaBloc(),
+                      child: CitasPage(usuario: usuario),
                     ),
                   ),
                 ),
@@ -121,6 +168,22 @@ class HomePage extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const MiHistorialPage()),
+                ),
+              ),
+              _buildModulo(
+                context,
+                icon: Icons.calendar_month_outlined,
+                titulo: 'Mis Citas',
+                subtitulo: 'Ver y reservar citas',
+                color: Colors.purple,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider(
+                      create: (_) => CitaBloc(),
+                      child: CitasPage(usuario: usuario),
+                    ),
+                  ),
                 ),
               ),
             ],

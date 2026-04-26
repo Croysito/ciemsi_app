@@ -15,12 +15,14 @@ import 'package:ciemsi_app/features/pacientes/domain/usecases/listar_pacientes.d
 import 'package:ciemsi_app/features/pacientes/domain/usecases/registrar_paciente.dart';
 import 'package:ciemsi_app/features/pacientes/domain/usecases/modificar_paciente.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_bloc.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   // Inicializar Firebase
   await Firebase.initializeApp();
+
+  await initializeDateFormatting('es', null);
 
   runApp(const MyApp());
 }
