@@ -30,24 +30,28 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
   Future<void> _initSpeech() async {
     _speechEnabled = await _speechToText.initialize(
       onError: (error) {
-        print('❌ Speech error: ${error.errorMsg}');
+        debugPrint('Speech error: ${error.errorMsg}');
+        if (!mounted) return;
         setState(() => _isListening = false);
       },
       onStatus: (status) {
-        print('📢 Speech status: $status');
+        debugPrint('Speech status: $status');
         if (status == 'done' || status == 'notListening') {
+          if (!mounted) return;
           setState(() => _isListening = false);
         }
       },
-      debugLogging: true,
+      debugLogging: false,
     );
-    print('🎤 Speech enabled: $_speechEnabled');
+    debugPrint('Speech enabled: $_speechEnabled');
+    if (!mounted) return;
     setState(() {});
   }
 
   Future<void> _startListening() async {
     await _speechToText.listen(
       onResult: (result) {
+        if (!mounted) return;
         setState(() {
           _lastWords = result.recognizedWords;
           // Agrega el texto dictado al campo existente
@@ -66,11 +70,13 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
       localeId: 'es_ES', // Español
       pauseFor: const Duration(seconds: 3),
     );
+    if (!mounted) return;
     setState(() => _isListening = true);
   }
 
   Future<void> _stopListening() async {
     await _speechToText.stop();
+    if (!mounted) return;
     setState(() => _isListening = false);
   }
 
@@ -126,7 +132,7 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
                   ),
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF00B5C8).withOpacity(0.1),
+                    color: const Color(0xFF00B5C8).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFF00B5C8)),
                   ),
@@ -201,7 +207,7 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
                                           (_isListening
                                                   ? Colors.red
                                                   : const Color(0xFF00B5C8))
-                                              .withOpacity(0.4),
+                                              .withValues(alpha: 0.4),
                                       blurRadius: 8,
                                       spreadRadius: 2,
                                     ),

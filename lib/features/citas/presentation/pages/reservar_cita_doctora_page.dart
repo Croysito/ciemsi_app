@@ -7,6 +7,7 @@ import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_event.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 class ReservarCitaDoctoraPage extends StatefulWidget {
   const ReservarCitaDoctoraPage({super.key});
@@ -32,6 +33,7 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
   bool _cargandoCalendario = false;
   bool _cargandoHoras = false;
   final _notasController = TextEditingController();
+  final _pacienteController = TextEditingController();
 
   @override
   void initState() {
@@ -43,6 +45,7 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
   @override
   void dispose() {
     _notasController.dispose();
+    _pacienteController.dispose();
     super.dispose();
   }
 
@@ -170,25 +173,95 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
                         color: Color(0xFF00B5C8),
                       ),
                     )
-                  : _buildDropdown(
-                      hint: 'Seleccionar paciente',
-                      value: _pacienteSeleccionado,
-                      items: _pacientes,
-                      label: (p) =>
-                          '${p['usuario']['nombre']} ${p['usuario']['apellido']}',
-                      onChanged: (value) {
+                  : TypeAheadField(
+                      controller: _pacienteController,
+                      builder: (context, controller, focusNode) {
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            hintText: 'Buscar paciente...',
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: Color(0xFF00B5C8),
+                            ),
+                            suffixIcon: _pacienteSeleccionado != null
+                                ? const Icon(
+                                    Icons.check_circle,
+                                    color: Color(0xFF8DC63F),
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF00B5C8),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                        );
+                      },
+                      suggestionsCallback: (search) {
+                        if (search.isEmpty) return _pacientes;
+                        return _pacientes.where((p) {
+                          final nombre =
+                              '${p['usuario']['nombre']} ${p['usuario']['apellido']}'
+                                  .toLowerCase();
+                          final ci = p['ci'].toString().toLowerCase();
+                          final query = search.toLowerCase();
+                          return nombre.contains(query) || ci.contains(query);
+                        }).toList();
+                      },
+                      itemBuilder: (context, paciente) {
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: const Color(0xFF00B5C8),
+                            child: Text(
+                              paciente['usuario']['nombre'][0].toUpperCase(),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          title: Text(
+                            '${paciente['usuario']['nombre']} ${paciente['usuario']['apellido']}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            'CI: ${paciente['ci']} • ${paciente['usuario']['ciudad']?['nombreCiudad'] ?? ''}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      },
+                      onSelected: (paciente) {
                         setState(() {
-                          _pacienteSeleccionado = value;
-                          if (value?['usuario']['ciudad'] != null) {
+                          _pacienteSeleccionado = paciente;
+                          _pacienteController.text =
+                              '${paciente['usuario']['nombre']} ${paciente['usuario']['apellido']}';
+                          if (paciente['usuario']['ciudad'] != null) {
                             _ciudadSeleccionada = _ciudades.firstWhere(
                               (c) =>
-                                  c['id'] == value['usuario']['ciudad']['id'],
+                                  c['id'] ==
+                                  paciente['usuario']['ciudad']['id'],
                               orElse: () => null,
                             );
                             _cargarDiasDisponibles();
                           }
                         });
                       },
+                      emptyBuilder: (context) => const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'No se encontraron pacientes',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
                     ),
               const SizedBox(height: 16),
 

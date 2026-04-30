@@ -1,0 +1,36 @@
+// lib/features/suministros/data/models/inventario_model.dart
+import 'package:ciemsi_app/features/suministros/domain/entities/inventario_item.dart';
+
+class InventarioModel extends InventarioItem {
+  const InventarioModel({
+    required super.id,
+    required super.nombreSuministro,
+    required super.unidadMedida,
+    super.marca,
+    required super.tipo,
+    required super.umbral,
+    required super.ciudadId,
+    required super.nombreCiudad,
+    required super.totalCompras,
+    required super.totalSalidas,
+    required super.saldo,
+    required super.stockBajo,
+  });
+
+  factory InventarioModel.fromJson(Map<String, dynamic> json) {
+    return InventarioModel(
+      id: json['id'],
+      nombreSuministro: json['nombre_suministro'],
+      unidadMedida: json['unidad_medida'],
+      marca: json['marca'],
+      tipo: json['tipo'],
+      umbral: json['umbral'] ?? 5,
+      ciudadId: json['ciudad_id'],
+      nombreCiudad: json['nombre_ciudad'],
+      totalCompras: int.tryParse(json['total_compras'].toString()) ?? 0,
+      totalSalidas: int.tryParse(json['total_salidas'].toString()) ?? 0,
+      saldo: int.tryParse(json['saldo'].toString()) ?? 0,
+      stockBajo: json['stock_bajo'] ?? false,
+    );
+  }
+}

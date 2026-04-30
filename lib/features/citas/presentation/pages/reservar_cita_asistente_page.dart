@@ -7,6 +7,7 @@ import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_event.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 class ReservarCitaAsistentePage extends StatefulWidget {
   final int ciudadId;
@@ -37,6 +38,7 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
   bool _cargandoCalendario = false;
   bool _cargandoHoras = false;
   final _notasController = TextEditingController();
+  final _pacienteController = TextEditingController();
 
   @override
   void initState() {
@@ -49,14 +51,17 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
   @override
   void dispose() {
     _notasController.dispose();
+    _pacienteController.dispose();
     super.dispose();
   }
 
   Future<void> _cargarPacientes() async {
+    if (!mounted) return;
     setState(() => _cargandoPacientes = true);
     try {
       // Asistente solo ve pacientes de su ciudad
       final response = await ApiClientProvider.instance.dio.get('/pacientes');
+      if (!mounted) return;
       setState(() {
         _pacientes = (response.data as List)
             .where((p) => p['usuario']['ciudad']?['id'] == widget.ciudadId)
@@ -64,11 +69,13 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
         _cargandoPacientes = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _cargandoPacientes = false);
     }
   }
 
   Future<void> _cargarDiasDisponibles() async {
+    if (!mounted) return;
     setState(() => _cargandoCalendario = true);
     try {
       final diasDisponibles = <DateTime>{};
@@ -95,11 +102,13 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
         }
       }
 
+      if (!mounted) return;
       setState(() {
         _diasDisponibles = diasDisponibles;
         _cargandoCalendario = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _cargandoCalendario = false);
     }
   }
@@ -118,6 +127,7 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
       ),
       body: BlocListener<CitaBloc, CitaState>(
         listener: (context, state) {
+          if (!mounted) return;
           if (state is ServiciosCargados) {
             setState(() => _servicios = state.servicios);
           }
@@ -205,30 +215,84 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
                         color: Color(0xFF00B5C8),
                       ),
                     )
-                  : Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<dynamic>(
-                          isExpanded: true,
-                          hint: const Text('Seleccionar paciente'),
-                          value: _pacienteSeleccionado,
-                          items: _pacientes
-                              .map(
-                                (p) => DropdownMenuItem(
-                                  value: p,
-                                  child: Text(
-                                    '${p['usuario']['nombre']} ${p['usuario']['apellido']}',
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) =>
-                              setState(() => _pacienteSeleccionado = value),
+                  : TypeAheadField(
+                      controller: _pacienteController,
+                      builder: (context, controller, focusNode) {
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            hintText: 'Buscar paciente...',
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: Color(0xFF00B5C8),
+                            ),
+                            suffixIcon: _pacienteSeleccionado != null
+                                ? const Icon(
+                                    Icons.check_circle,
+                                    color: Color(0xFF8DC63F),
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF00B5C8),
+                                width: 2,
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                        );
+                      },
+                      suggestionsCallback: (search) {
+                        if (search.isEmpty) return _pacientes;
+                        return _pacientes.where((p) {
+                          final nombre =
+                              '${p['usuario']['nombre']} ${p['usuario']['apellido']}'
+                                  .toLowerCase();
+                          final ci = p['ci'].toString().toLowerCase();
+                          final query = search.toLowerCase();
+                          return nombre.contains(query) || ci.contains(query);
+                        }).toList();
+                      },
+                      itemBuilder: (context, paciente) {
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: const Color(0xFF00B5C8),
+                            child: Text(
+                              paciente['usuario']['nombre'][0].toUpperCase(),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          title: Text(
+                            '${paciente['usuario']['nombre']} ${paciente['usuario']['apellido']}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            'CI: ${paciente['ci']}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      },
+                      onSelected: (paciente) {
+                        setState(() {
+                          _pacienteSeleccionado = paciente;
+                          _pacienteController.text =
+                              '${paciente['usuario']['nombre']} ${paciente['usuario']['apellido']}';
+                        });
+                      },
+                      emptyBuilder: (context) => const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'No se encontraron pacientes',
+                          style: TextStyle(color: Colors.grey),
                         ),
                       ),
                     ),

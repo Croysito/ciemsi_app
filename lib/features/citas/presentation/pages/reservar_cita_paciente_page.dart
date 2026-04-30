@@ -44,22 +44,30 @@ class _ReservarCitaPacientePageState extends State<ReservarCitaPacientePage> {
 
   Future<void> _cargarCiudadPaciente() async {
     try {
-      // Obtener datos del paciente logueado
+      debugPrint('🔍 Cargando perfil del paciente...');
       final response = await ApiClientProvider.instance.dio.get(
-        '/historial/mi-historial',
+        '/pacientes/mi-perfil',
       );
-      final ciudadId = response.data['paciente']?['ciudad']?['id'];
+      debugPrint('✅ Respuesta: ${response.data}');
+      final ciudadId = response.data['usuario']?['ciudad']?['id'];
+      debugPrint('🏙️ Ciudad ID: $ciudadId');
       if (ciudadId != null) {
         setState(() => _ciudadId = ciudadId);
-        _cargarDiasDisponibles();
+        await _cargarDiasDisponibles();
+      } else {
+        debugPrint('❌ Ciudad ID es null');
       }
     } catch (e) {
-      debugPrint('Error obteniendo ciudad del paciente: $e');
+      debugPrint('❌ Error obteniendo ciudad del paciente: $e');
     }
   }
 
   Future<void> _cargarDiasDisponibles() async {
-    if (_ciudadId == null) return;
+    if (_ciudadId == null) {
+      debugPrint('❌ ciudadId es null, no se puede cargar disponibilidad');
+      return;
+    }
+    debugPrint('📅 Cargando días disponibles para ciudad: $_ciudadId');
     setState(() => _cargandoCalendario = true);
     try {
       final diasDisponibles = <DateTime>{};

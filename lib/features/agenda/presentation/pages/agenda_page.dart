@@ -278,91 +278,91 @@ class _AgendaPageState extends State<AgendaPage> {
           ),
 
           // Agendas del día seleccionado
-          if (_selectedDay != null) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Text(
-                    DateFormat('dd/MM/yyyy').format(_selectedDay!),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF00B5C8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _cargando
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF00B5C8),
-                      ),
-                    )
-                  : Builder(
-                      builder: (context) {
-                        final agendasDia = _agendasDelDia(_selectedDay!);
-                        if (agendasDia.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              'No hay agenda para este día',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          );
-                        }
-                        return ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: agendasDia.length,
-                          itemBuilder: (context, index) {
-                            final agenda = agendasDia[index];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                leading: const CircleAvatar(
-                                  backgroundColor: Color(0xFF8DC63F),
-                                  child: Icon(
-                                    Icons.schedule,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                title: Text(
-                                  '${agenda.horaInicio.substring(0, 5)} - ${agenda.horaFin.substring(0, 5)}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Cada ${agenda.intervalo} minutos',
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () =>
-                                      _mostrarDialogoEliminar(agenda.id),
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-            ),
-          ] else
-            const Expanded(
-              child: Center(
-                child: Text(
-                  'Selecciona un día para ver la agenda',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            ),
+          // if (_selectedDay != null) ...[
+          //   Padding(
+          //     padding: const EdgeInsets.symmetric(horizontal: 16),
+          //     child: Row(
+          //       children: [
+          //         Text(
+          //           DateFormat('dd/MM/yyyy').format(_selectedDay),
+          //           style: const TextStyle(
+          //             fontWeight: FontWeight.bold,
+          //             color: Color(0xFF00B5C8),
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
+          //   const SizedBox(height: 8),
+          //   Expanded(
+          //     child: _cargando
+          //         ? const Center(
+          //             child: CircularProgressIndicator(
+          //               color: Color(0xFF00B5C8),
+          //             ),
+          //           )
+          //         : Builder(
+          //             builder: (context) {
+          //               final agendasDia = _agendasDelDia(_selectedDay!);
+          //               if (agendasDia.isEmpty) {
+          //                 return const Center(
+          //                   child: Text(
+          //                     'No hay agenda para este día',
+          //                     style: TextStyle(color: Colors.grey),
+          //                   ),
+          //                 );
+          //               }
+          //               return ListView.builder(
+          //                 padding: const EdgeInsets.symmetric(horizontal: 16),
+          //                 itemCount: agendasDia.length,
+          //                 itemBuilder: (context, index) {
+          //                   final agenda = agendasDia[index];
+          //                   return Card(
+          //                     margin: const EdgeInsets.only(bottom: 10),
+          //                     shape: RoundedRectangleBorder(
+          //                       borderRadius: BorderRadius.circular(12),
+          //                     ),
+          //                     child: ListTile(
+          //                       leading: const CircleAvatar(
+          //                         backgroundColor: Color(0xFF8DC63F),
+          //                         child: Icon(
+          //                           Icons.schedule,
+          //                           color: Colors.white,
+          //                         ),
+          //                       ),
+          //                       title: Text(
+          //                         '${agenda.horaInicio.substring(0, 5)} - ${agenda.horaFin.substring(0, 5)}',
+          //                         style: const TextStyle(
+          //                           fontWeight: FontWeight.bold,
+          //                         ),
+          //                       ),
+          //                       subtitle: Text(
+          //                         'Cada ${agenda.intervalo} minutos',
+          //                       ),
+          //                       trailing: IconButton(
+          //                         icon: const Icon(
+          //                           Icons.delete_outline,
+          //                           color: Colors.red,
+          //                         ),
+          //                         onPressed: () =>
+          //                             _mostrarDialogoEliminar(agenda.id),
+          //                       ),
+          //                     ),
+          //                   );
+          //                 },
+          //               );
+          //             },
+          //           ),
+          //   ),
+          // ] else
+          //   const Expanded(
+          //     child: Center(
+          //       child: Text(
+          //         'Selecciona un día para ver la agenda',
+          //         style: TextStyle(color: Colors.grey),
+          //       ),
+          //     ),
+          //   ),
         ],
       ),
     );
@@ -395,7 +395,3 @@ class _AgendaPageState extends State<AgendaPage> {
     );
   }
 }
-
-// ─────────────────────────────────────────
-// Crear Agenda
-// ─────────────────────────────────────────

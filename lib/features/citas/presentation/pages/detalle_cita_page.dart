@@ -1,3 +1,4 @@
+import 'package:ciemsi_app/features/recetas/presentation/pages/generar_receta_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,8 @@ import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_event.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
 import 'modificar_cita_page.dart';
+import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
+import 'package:ciemsi_app/features/tratamientos/presentation/pages/asignar_tratamiento_page.dart';
 
 class DetalleCitaPage extends StatelessWidget {
   final CitaMedica cita;
@@ -230,6 +233,42 @@ class DetalleCitaPage extends StatelessWidget {
           Icons.cancel_outlined,
           Colors.red,
           () => _mostrarDialogoCancelar(context),
+        ),
+      );
+      acciones.add(const SizedBox(height: 12));
+      acciones.add(
+        _buildBoton(
+          context,
+          'Asignar Tratamiento',
+          Icons.healing_outlined,
+          Colors.purple,
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BlocProvider(
+                create: (_) => TratamientoBloc(),
+                child: AsignarTratamientoPage(cita: cita),
+              ),
+            ),
+          ),
+        ),
+      );
+      acciones.add(const SizedBox(height: 12));
+      acciones.add(
+        _buildBoton(
+          context,
+          'Generar Receta',
+          Icons.receipt_outlined,
+          const Color(0xFF8DC63F),
+          () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BlocProvider(
+                create: (_) => TratamientoBloc(),
+                child: GenerarRecetaPage(cita: cita),
+              ),
+            ),
+          ),
         ),
       );
     }

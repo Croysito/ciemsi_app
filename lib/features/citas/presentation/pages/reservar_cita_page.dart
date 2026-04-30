@@ -19,11 +19,16 @@ class ReservarCitaPage extends StatelessWidget {
           child: const ReservarCitaDoctoraPage(),
         );
       case 'Asistente':
+        final ciudad = usuario.ciudad;
+        if (ciudad == null) {
+          return const _CiudadNoAsignadaPage();
+        }
+
         return BlocProvider.value(
           value: context.read<CitaBloc>(),
           child: ReservarCitaAsistentePage(
-            ciudadId: usuario.ciudad!.id,
-            ciudadNombre: usuario.ciudad!.nombreCiudad,
+            ciudadId: ciudad.id,
+            ciudadNombre: ciudad.nombreCiudad,
           ),
         );
       default:
@@ -32,5 +37,34 @@ class ReservarCitaPage extends StatelessWidget {
           child: const ReservarCitaPacientePage(),
         );
     }
+  }
+}
+
+class _CiudadNoAsignadaPage extends StatelessWidget {
+  const _CiudadNoAsignadaPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4),
+      appBar: AppBar(
+        title: const Text(
+          'Nueva Cita',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF00B5C8),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Tu usuario no tiene una ciudad asignada. No se puede reservar una cita.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      ),
+    );
   }
 }
