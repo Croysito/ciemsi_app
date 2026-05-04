@@ -37,8 +37,12 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
   bool _cargandoPacientes = false;
   bool _cargandoCalendario = false;
   bool _cargandoHoras = false;
+  bool _usarPacienteNuevo = false;
+  bool _creandoPaciente = false;
   final _notasController = TextEditingController();
   final _pacienteController = TextEditingController();
+  final _nuevoPacienteNombreController = TextEditingController();
+  final _nuevoPacienteTelefonoController = TextEditingController();
 
   @override
   void initState() {
@@ -52,6 +56,8 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
   void dispose() {
     _notasController.dispose();
     _pacienteController.dispose();
+    _nuevoPacienteNombreController.dispose();
+    _nuevoPacienteTelefonoController.dispose();
     super.dispose();
   }
 
@@ -209,12 +215,50 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
                 ),
               ),
               const SizedBox(height: 8),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.person_search_outlined),
+                    label: Text('Existente'),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.person_add_alt_1_outlined),
+                    label: Text('Nuevo'),
+                  ),
+                ],
+                selected: {_usarPacienteNuevo},
+                onSelectionChanged: (selection) {
+                  setState(() {
+                    _usarPacienteNuevo = selection.first;
+                    _pacienteSeleccionado = null;
+                    _pacienteController.clear();
+                  });
+                },
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: WidgetStateProperty.resolveWith(
+                    (states) => states.contains(WidgetState.selected)
+                        ? Colors.white
+                        : const Color(0xFF00B5C8),
+                  ),
+                  backgroundColor: WidgetStateProperty.resolveWith(
+                    (states) => states.contains(WidgetState.selected)
+                        ? const Color(0xFF00B5C8)
+                        : Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               _cargandoPacientes
                   ? const Center(
                       child: CircularProgressIndicator(
                         color: Color(0xFF00B5C8),
                       ),
                     )
+                  : _usarPacienteNuevo
+                  ? _buildPacienteNuevoForm()
                   : TypeAheadField(
                       controller: _pacienteController,
                       builder: (context, controller, focusNode) {
@@ -251,29 +295,42 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
                       suggestionsCallback: (search) {
                         if (search.isEmpty) return _pacientes;
                         return _pacientes.where((p) {
-                          final nombre =
-                              '${p['usuario']['nombre']} ${p['usuario']['apellido']}'
-                                  .toLowerCase();
-                          final ci = p['ci'].toString().toLowerCase();
+                          final nombre = _nombrePaciente(p).toLowerCase();
+                          final ci = (p['ci'] ?? '').toString().toLowerCase();
+                          final telefono = (p['telefono'] ?? '')
+                              .toString()
+                              .toLowerCase();
                           final query = search.toLowerCase();
-                          return nombre.contains(query) || ci.contains(query);
+                          return nombre.contains(query) ||
+                              ci.contains(query) ||
+                              telefono.contains(query);
                         }).toList();
                       },
                       itemBuilder: (context, paciente) {
+                        final nombre = _nombrePaciente(paciente);
+                        final ci = (paciente['ci'] ?? '').toString();
+                        final telefono = (paciente['telefono'] ?? '')
+                            .toString();
                         return ListTile(
                           leading: CircleAvatar(
                             backgroundColor: const Color(0xFF00B5C8),
                             child: Text(
-                              paciente['usuario']['nombre'][0].toUpperCase(),
+                              nombre.isNotEmpty
+                                  ? nombre[0].toUpperCase()
+                                  : 'P',
                               style: const TextStyle(color: Colors.white),
                             ),
                           ),
                           title: Text(
-                            '${paciente['usuario']['nombre']} ${paciente['usuario']['apellido']}',
+                            nombre,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Text(
-                            'CI: ${paciente['ci']}',
+                            ci.isNotEmpty
+                                ? 'CI: $ci'
+                                : telefono.isNotEmpty
+                                ? 'Teléfono: $telefono'
+                                : 'Paciente provisional',
                             style: const TextStyle(
                               color: Colors.grey,
                               fontSize: 12,
@@ -284,8 +341,7 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
                       onSelected: (paciente) {
                         setState(() {
                           _pacienteSeleccionado = paciente;
-                          _pacienteController.text =
-                              '${paciente['usuario']['nombre']} ${paciente['usuario']['apellido']}';
+                          _pacienteController.text = _nombrePaciente(paciente);
                         });
                       },
                       emptyBuilder: (context) => const Padding(
@@ -552,11 +608,10 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: state is CitaLoading
+                      onPressed: state is CitaLoading || _creandoPaciente
                           ? null
-                          : () {
-                              if (_pacienteSeleccionado == null ||
-                                  _servicioSeleccionado == null ||
+                          : () async {
+                              if (_servicioSeleccionado == null ||
                                   _fechaSeleccionada == null ||
                                   _horaSeleccionada == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -569,6 +624,10 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
                                 );
                                 return;
                               }
+
+                              final pacienteId = await _obtenerPacienteId();
+                              if (pacienteId == null) return;
+
                               context.read<CitaBloc>().add(
                                 ReservarCitaEvent(
                                   fecha: DateFormat(
@@ -576,7 +635,7 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
                                   ).format(_fechaSeleccionada!),
                                   hora: _horaSeleccionada!,
                                   servicioId: _servicioSeleccionado!.id,
-                                  pacienteId: _pacienteSeleccionado['id'],
+                                  pacienteId: pacienteId,
                                   ciudadId: widget.ciudadId,
                                   notas: _notasController.text.trim().isEmpty
                                       ? null
@@ -591,6 +650,7 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
                         ),
                       ),
                       child: state is CitaLoading
+                          || _creandoPaciente
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               'Reservar Cita',
@@ -607,6 +667,147 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPacienteNuevoForm() {
+    return Column(
+      children: [
+        TextField(
+          controller: _nuevoPacienteNombreController,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            labelText: 'Nombre del paciente',
+            hintText: 'Ej. María Pérez',
+            prefixIcon: const Icon(
+              Icons.person_add_alt_1_outlined,
+              color: Color(0xFF00B5C8),
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF00B5C8), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _nuevoPacienteTelefonoController,
+          keyboardType: TextInputType.phone,
+          decoration: InputDecoration(
+            labelText: 'Teléfono',
+            hintText: 'Número de contacto',
+            prefixIcon: const Icon(
+              Icons.phone_outlined,
+              color: Color(0xFF00B5C8),
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFF00B5C8), width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<int?> _obtenerPacienteId() async {
+    if (!_usarPacienteNuevo) {
+      final pacienteId = _intValue(_pacienteSeleccionado?['id']);
+      if (pacienteId == null) {
+        _mostrarMensaje('Selecciona un paciente');
+      }
+      return pacienteId;
+    }
+
+    return _crearPacienteProvisional();
+  }
+
+  Future<int?> _crearPacienteProvisional() async {
+    final nombreCompleto = _nuevoPacienteNombreController.text.trim();
+    final telefono = _nuevoPacienteTelefonoController.text.trim();
+
+    if (nombreCompleto.isEmpty || telefono.isEmpty) {
+      _mostrarMensaje('Ingresa nombre y teléfono del paciente nuevo');
+      return null;
+    }
+
+    setState(() => _creandoPaciente = true);
+    try {
+      final response = await ApiClientProvider.instance.dio.post(
+        '/pacientes/provisional',
+        data: {
+          'nombre': nombreCompleto,
+          'nombreCompleto': nombreCompleto,
+          'telefono': telefono,
+          'ciudadId': widget.ciudadId,
+          'provisional': true,
+          'perfilCompleto': false,
+        },
+      );
+
+      final paciente = _extraerPaciente(response.data);
+      final pacienteId = _intValue(paciente?['id']);
+      if (paciente == null || pacienteId == null) {
+        _mostrarMensaje('No se pudo obtener el paciente creado');
+        return null;
+      }
+
+      if (!mounted) return null;
+      setState(() {
+        _pacienteSeleccionado = paciente;
+        _pacientes = [paciente, ..._pacientes];
+        _usarPacienteNuevo = false;
+        _pacienteController.text = _nombrePaciente(paciente);
+      });
+      _mostrarMensaje('Paciente provisional creado', esError: false);
+      return pacienteId;
+    } catch (e) {
+      _mostrarMensaje(
+        'No se pudo crear el paciente provisional. Verifica que el backend tenga /pacientes/provisional.',
+      );
+      return null;
+    } finally {
+      if (mounted) {
+        setState(() => _creandoPaciente = false);
+      }
+    }
+  }
+
+  Map<String, dynamic>? _extraerPaciente(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      final paciente = data['paciente'];
+      if (paciente is Map<String, dynamic>) return paciente;
+      return data;
+    }
+    return null;
+  }
+
+  String _nombrePaciente(dynamic paciente) {
+    final usuario = paciente?['usuario'];
+    if (usuario is Map) {
+      return '${usuario['nombre'] ?? ''} ${usuario['apellido'] ?? ''}'.trim();
+    }
+    return paciente?['nombreCompleto']?.toString() ?? 'Paciente provisional';
+  }
+
+  int? _intValue(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  void _mostrarMensaje(String mensaje, {bool esError = true}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: esError ? Colors.orange : Colors.green,
       ),
     );
   }

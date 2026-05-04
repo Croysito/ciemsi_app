@@ -280,6 +280,7 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: TableCalendar(
+                  locale: 'es_ES',
                   firstDay: DateTime.now(),
                   lastDay: DateTime.now().add(const Duration(days: 365)),
                   focusedDay: _focusedDay,

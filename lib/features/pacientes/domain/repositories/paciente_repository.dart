@@ -17,6 +17,20 @@ abstract class PacienteRepository {
   Future<void> modificarPaciente({
     required int id,
     required String ci,
+    String? nombre,
+    String? apellido,
+    String? email,
+    int? edad,
+    String? telefono,
+    DateTime? fechaNacimiento,
+    required int ciudadId,
+  });
+  Future<void> completarPaciente({
+    required int id,
+    required String ci,
+    required String nombre,
+    required String apellido,
+    required String email,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,

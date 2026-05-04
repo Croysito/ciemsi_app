@@ -11,7 +11,8 @@ import 'detalle_cita_page.dart';
 
 class CitasPage extends StatefulWidget {
   final Usuario usuario;
-  const CitasPage({super.key, required this.usuario});
+  final VoidCallback? onMenuTap;
+  const CitasPage({super.key, required this.usuario, this.onMenuTap});
 
   @override
   State<CitasPage> createState() => _CitasPageState();
@@ -88,6 +89,12 @@ class _CitasPageState extends State<CitasPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       appBar: AppBar(
+        leading: widget.onMenuTap != null
+            ? IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: widget.onMenuTap,
+              )
+            : null,
         title: const Text(
           'Citas Médicas',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),

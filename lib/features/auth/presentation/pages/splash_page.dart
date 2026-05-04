@@ -5,6 +5,7 @@ import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/features/auth/data/models/usuario_model.dart';
 import 'package:ciemsi_app/features/auth/presentation/pages/login_page.dart';
 import 'package:ciemsi_app/features/auth/presentation/pages/home_page.dart';
+import 'package:ciemsi_app/features/pacientes/presentation/pages/paciente_home_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -72,9 +73,13 @@ class _SplashPageState extends State<SplashPage>
           final usuario = UsuarioModel.fromJson(usuarioData);
           await NotificationService.inicializar();
 
+          if (!mounted) return;
+          final page = usuario.rol == 'Paciente'
+              ? PacienteHomePage(usuario: usuario)
+              : HomePage(usuario: usuario);
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => HomePage(usuario: usuario)),
+            MaterialPageRoute(builder: (_) => page),
           );
         } catch (e) {
           // Token expirado, ir al login

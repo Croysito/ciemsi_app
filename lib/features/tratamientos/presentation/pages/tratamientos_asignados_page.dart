@@ -11,8 +11,9 @@ import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
 class TratamientosAsignadosPage extends StatefulWidget {
   final bool puedeGestionar;
+  final VoidCallback? onMenuTap;
 
-  const TratamientosAsignadosPage({super.key, this.puedeGestionar = true});
+  const TratamientosAsignadosPage({super.key, this.puedeGestionar = true, this.onMenuTap});
 
   @override
   State<TratamientosAsignadosPage> createState() =>
@@ -31,6 +32,12 @@ class _TratamientosAsignadosPageState extends State<TratamientosAsignadosPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       appBar: AppBar(
+        leading: widget.onMenuTap != null
+            ? IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: widget.onMenuTap,
+              )
+            : null,
         title: const Text(
           'Tratamientos Asignados',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -117,7 +124,7 @@ class _TratamientosAsignadosPageState extends State<TratamientosAsignadosPage> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: colorEstado.withOpacity(0.1),
+                    color: colorEstado.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -301,8 +308,9 @@ class _BottomSheetSuministro extends StatefulWidget {
 
 class _BottomSheetSuministroState extends State<_BottomSheetSuministro> {
   List<Suministro> _suministros = [];
-  Suministro? _seleccionado;
-  final _cantidadController = TextEditingController();
+  // suministroId → cantidad seleccionada
+  final Map<int, int> _cantidades = {};
+  bool _cargando = true;
 
   @override
   void initState() {
@@ -310,15 +318,9 @@ class _BottomSheetSuministroState extends State<_BottomSheetSuministro> {
     _cargar();
   }
 
-  @override
-  void dispose() {
-    _cantidadController.dispose();
-    super.dispose();
-  }
-
   Future<void> _cargar() async {
     try {
-      final response = await ApiClientProvider.instance.dio.get(
+      final resInsumo = await ApiClientProvider.instance.dio.get(
         '/suministros',
         queryParameters: {'tipo': 'INSUMO'},
       );
@@ -326,108 +328,293 @@ class _BottomSheetSuministroState extends State<_BottomSheetSuministro> {
         '/suministros',
         queryParameters: {'tipo': 'MATERIAL'},
       );
-      setState(() {
-        _suministros = [...(response.data as List), ...(resMat.data as List)]
-            .map(
-              (s) => Suministro(
-                id: s['id'],
-                nombreSuministro: s['nombreSuministro'],
-                unidadMedida: UnidadMedida.values.firstWhere(
-                  (e) => e.name == s['unidadMedida'],
-                  orElse: () => UnidadMedida.UNIDAD,
-                ),
-                tipo: TipoSuministro.values.firstWhere(
-                  (e) => e.name == s['tipo'],
-                  orElse: () => TipoSuministro.INSUMO,
-                ),
-                umbral: s['umbral'] ?? 5,
-                estado: s['estado'] ?? true,
+      final lista = [...(resInsumo.data as List), ...(resMat.data as List)]
+          .map(
+            (s) => Suministro(
+              id: s['id'],
+              nombreSuministro: s['nombreSuministro'],
+              unidadMedida: UnidadMedida.values.firstWhere(
+                (e) => e.name == s['unidadMedida'],
+                orElse: () => UnidadMedida.UNIDAD,
               ),
-            )
-            .toList();
+              tipo: TipoSuministro.values.firstWhere(
+                (e) => e.name == s['tipo'],
+                orElse: () => TipoSuministro.INSUMO,
+              ),
+              umbral: s['umbral'] ?? 5,
+              estado: s['estado'] ?? true,
+            ),
+          )
+          .toList();
+      setState(() {
+        _suministros = lista;
+        _cargando = false;
       });
     } catch (e) {
-      debugPrint('Error: $e');
+      setState(() => _cargando = false);
+      debugPrint('Error cargando suministros: $e');
     }
+  }
+
+  int get _totalSeleccionados =>
+      _cantidades.values.where((c) => c > 0).length;
+
+  void _cambiarCantidad(int suministroId, int delta) {
+    setState(() {
+      final actual = _cantidades[suministroId] ?? 0;
+      final nuevo = (actual + delta).clamp(0, 99);
+      if (nuevo == 0) {
+        _cantidades.remove(suministroId);
+      } else {
+        _cantidades[suministroId] = nuevo;
+      }
+    });
+  }
+
+  void _confirmar(BuildContext context) {
+    final items = _cantidades.entries
+        .where((e) => e.value > 0)
+        .map((e) => {'suministroId': e.key, 'cantidad': e.value})
+        .toList();
+    if (items.isEmpty) return;
+    context.read<TratamientoBloc>().add(
+      AgregarMultiplesSuministrosEvent(
+        tratamientoAsignadoId: widget.tratamientoAsignadoId,
+        items: items,
+      ),
+    );
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Agregar Insumo/Material',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<Suministro>(
-            hint: const Text('Seleccionar insumo o material'),
-            value: _seleccionado,
-            items: _suministros
-                .map(
-                  (s) => DropdownMenuItem(
-                    value: s,
-                    child: Text('${s.nombreSuministro} (${s.tipo.name})'),
-                  ),
-                )
-                .toList(),
-            onChanged: (v) => setState(() => _seleccionado = v),
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.4,
+      maxChildSize: 0.92,
+      expand: false,
+      builder: (_, scrollController) {
+        return Column(
+          children: [
+            // Asa
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _cantidadController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Cantidad',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Agregar insumos / materiales',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  if (_totalSeleccionados > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00B5C8),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$_totalSeleccionados',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () {
-                if (_seleccionado == null || _cantidadController.text.isEmpty)
-                  return;
-                context.read<TratamientoBloc>().add(
-                  AgregarSuministroEvent(
-                    tratamientoAsignadoId: widget.tratamientoAsignadoId,
-                    suministroId: _seleccionado!.id,
-                    cantidad: int.parse(_cantidadController.text),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _cargando
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF00B5C8),
+                      ),
+                    )
+                  : _suministros.isEmpty
+                  ? const Center(child: Text('Sin insumos disponibles'))
+                  : ListView.builder(
+                      controller: scrollController,
+                      itemCount: _suministros.length,
+                      itemBuilder: (_, i) {
+                        final s = _suministros[i];
+                        final cantidad = _cantidades[s.id] ?? 0;
+                        final seleccionado = cantidad > 0;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: seleccionado
+                                ? const Color(0xFF00B5C8).withValues(alpha: 0.08)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: seleccionado
+                                  ? const Color(0xFF00B5C8)
+                                  : Colors.grey.shade200,
+                            ),
+                          ),
+                          child: ListTile(
+                            dense: true,
+                            leading: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: s.tipo == TipoSuministro.MATERIAL
+                                  ? const Color(0xFF8DC63F).withValues(alpha: 0.15)
+                                  : const Color(0xFF00B5C8).withValues(alpha: 0.15),
+                              child: Icon(
+                                s.tipo == TipoSuministro.MATERIAL
+                                    ? Icons.science_outlined
+                                    : Icons.medication_outlined,
+                                size: 18,
+                                color: s.tipo == TipoSuministro.MATERIAL
+                                    ? const Color(0xFF8DC63F)
+                                    : const Color(0xFF00B5C8),
+                              ),
+                            ),
+                            title: Text(
+                              s.nombreSuministro,
+                              style: TextStyle(
+                                fontWeight: seleccionado
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: Text(
+                              s.tipo.name,
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _BtnContador(
+                                  icon: Icons.remove,
+                                  onTap: seleccionado
+                                      ? () => _cambiarCantidad(s.id, -1)
+                                      : null,
+                                ),
+                                SizedBox(
+                                  width: 32,
+                                  child: Text(
+                                    '$cantidad',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: seleccionado
+                                          ? const Color(0xFF00B5C8)
+                                          : Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                                _BtnContador(
+                                  icon: Icons.add,
+                                  onTap: () => _cambiarCantidad(s.id, 1),
+                                  activo: true,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                MediaQuery.of(context).padding.bottom + 12,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _totalSeleccionados > 0
+                      ? () => _confirmar(context)
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00B5C8),
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                );
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00B5C8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  child: Text(
+                    _totalSeleccionados > 0
+                        ? 'Agregar $_totalSeleccionados insumo${_totalSeleccionados > 1 ? 's' : ''}'
+                        : 'Selecciona al menos uno',
+                    style: TextStyle(
+                      color: _totalSeleccionados > 0
+                          ? Colors.white
+                          : Colors.grey.shade500,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
-              child: const Text(
-                'Agregar',
-                style: TextStyle(color: Colors.white),
-              ),
             ),
-          ),
-        ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _BtnContador extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool activo;
+
+  const _BtnContador({
+    required this.icon,
+    this.onTap,
+    this.activo = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: onTap != null
+              ? (activo
+                    ? const Color(0xFF00B5C8).withValues(alpha: 0.12)
+                    : Colors.grey.shade100)
+              : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          size: 16,
+          color: onTap != null
+              ? (activo ? const Color(0xFF00B5C8) : Colors.grey.shade600)
+              : Colors.grey.shade300,
+        ),
       ),
     );
   }

@@ -17,6 +17,9 @@ class ModificarPacientePage extends StatefulWidget {
 
 class _ModificarPacientePageState extends State<ModificarPacientePage> {
   final _ciController = TextEditingController();
+  final _nombreController = TextEditingController();
+  final _apellidoController = TextEditingController();
+  final _emailController = TextEditingController();
   final _edadController = TextEditingController();
   final _telefonoController = TextEditingController();
   DateTime? _fechaNacimiento;
@@ -28,6 +31,9 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
     super.initState();
     // Cargar datos actuales del paciente
     _ciController.text = widget.paciente.ci;
+    _nombreController.text = widget.paciente.usuario.nombre;
+    _apellidoController.text = widget.paciente.usuario.apellido;
+    _emailController.text = widget.paciente.usuario.email;
     _edadController.text = widget.paciente.edad?.toString() ?? '';
     _telefonoController.text = widget.paciente.telefono ?? '';
     _fechaNacimiento = widget.paciente.fechaNacimiento;
@@ -37,6 +43,9 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
   @override
   void dispose() {
     _ciController.dispose();
+    _nombreController.dispose();
+    _apellidoController.dispose();
+    _emailController.dispose();
     _edadController.dispose();
     _telefonoController.dispose();
     super.dispose();
@@ -45,6 +54,7 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
   Future<void> _seleccionarFecha() async {
     final fecha = await showDatePicker(
       context: context,
+      locale: const Locale('es', 'ES'),
       initialDate: _fechaNacimiento ?? DateTime(2000),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
@@ -158,6 +168,21 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
               ),
               const SizedBox(height: 12),
 
+              _buildField('Nombre', _nombreController, Icons.person_outlined),
+              const SizedBox(height: 12),
+              _buildField(
+                'Apellido',
+                _apellidoController,
+                Icons.person_outlined,
+              ),
+              const SizedBox(height: 12),
+              _buildField(
+                'Email',
+                _emailController,
+                Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
               _buildField('CI', _ciController, Icons.badge_outlined),
               const SizedBox(height: 12),
               _buildField(
@@ -251,10 +276,13 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
                           ? null
                           : () {
                               if (_ciController.text.isEmpty ||
+                                  _nombreController.text.isEmpty ||
                                   _ciudadSeleccionada == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('CI y ciudad son requeridos'),
+                                    content: Text(
+                                      'Nombre, CI y ciudad son requeridos',
+                                    ),
                                     backgroundColor: Colors.orange,
                                   ),
                                 );
@@ -264,6 +292,9 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
                                 ModificarPacienteEvent(
                                   id: widget.paciente.id,
                                   ci: _ciController.text.trim(),
+                                  nombre: _nombreController.text.trim(),
+                                  apellido: _apellidoController.text.trim(),
+                                  email: _emailController.text.trim(),
                                   edad: int.tryParse(_edadController.text),
                                   telefono: _telefonoController.text.trim(),
                                   fechaNacimiento: _fechaNacimiento,

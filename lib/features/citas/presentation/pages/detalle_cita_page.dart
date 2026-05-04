@@ -9,6 +9,8 @@ import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
 import 'modificar_cita_page.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/asignar_tratamiento_page.dart';
+import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_bloc.dart';
+import 'package:ciemsi_app/features/pacientes/presentation/pages/completar_paciente_page.dart';
 
 class DetalleCitaPage extends StatelessWidget {
   final CitaMedica cita;
@@ -216,15 +218,46 @@ class DetalleCitaPage extends StatelessWidget {
     }
 
     if (cita.estado == EstadoCita.CONFIRMADA) {
-      acciones.add(
-        _buildBoton(
+      final esProvisional = cita.paciente.ci.startsWith('PROV-');
+
+  if (esProvisional) {
+    acciones.add(
+      _buildBotonAlerta(
+        context,
+        'Completar datos del paciente',
+        Icons.person_add_alt_1_outlined,
+        () => Navigator.push(
           context,
-          'Marcar como Completada',
-          Icons.task_alt,
-          const Color(0xFF8DC63F),
-          () => _cambiarEstado(context, 'COMPLETADA'),
+          MaterialPageRoute(
+            builder: (ctx) => BlocProvider.value(
+              value: context.read<PacienteBloc>(),
+              child: CompletarPacientePage(
+                paciente: cita.paciente,
+              ),
+            ),
+          ),
         ),
-      );
+      ),
+    );
+    acciones.add(const SizedBox(height: 12));
+  }
+
+  acciones.add(
+    _buildBoton(
+      context,
+      'Marcar como Completada',
+      Icons.task_alt,
+      const Color(0xFF8DC63F),
+      esProvisional
+          ? () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Primero debes completar los datos del paciente'),
+                  backgroundColor: Colors.orange,
+                ),
+              )
+          : () => _cambiarEstado(context, 'COMPLETADA'),
+    ),
+  );
       acciones.add(const SizedBox(height: 12));
       acciones.add(
         _buildBoton(
@@ -395,4 +428,26 @@ class DetalleCitaPage extends StatelessWidget {
       ),
     );
   }
+  Widget _buildBotonAlerta(
+  BuildContext context,
+  String label,
+  IconData icon,
+  VoidCallback onTap,
+) {
+  return SizedBox(
+    width: double.infinity,
+    height: 50,
+    child: ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, color: Colors.white),
+      label: Text(label, style: const TextStyle(color: Colors.white)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orange,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    ),
+  );
+}
 }

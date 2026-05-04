@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/listar_pacientes.dart';
 import '../../domain/usecases/registrar_paciente.dart';
 import '../../domain/usecases/modificar_paciente.dart';
+import '../../domain/usecases/completar_paciente.dart';
 import '../../domain/repositories/paciente_repository.dart';
 import 'paciente_event.dart';
 import 'paciente_state.dart';
@@ -10,18 +11,21 @@ class PacienteBloc extends Bloc<PacienteEvent, PacienteState> {
   final ListarPacientesUseCase listarPacientesUseCase;
   final RegistrarPacienteUseCase registrarPacienteUseCase;
   final ModificarPacienteUseCase modificarPacienteUseCase;
+  final CompletarPacienteUseCase completarPacienteUseCase;
   final PacienteRepository repository;
 
   PacienteBloc({
     required this.listarPacientesUseCase,
     required this.registrarPacienteUseCase,
     required this.modificarPacienteUseCase,
+    required this.completarPacienteUseCase,
     required this.repository,
   }) : super(PacienteInitial()) {
     on<ListarPacientesEvent>(_onListar);
     on<RegistrarPacienteEvent>(_onRegistrar);
     on<ModificarPacienteEvent>(_onModificar);
     on<CargarCiudadesEvent>(_onCargarCiudades);
+    on<CompletarPacienteEvent>(_onCompletar);
   }
 
   Future<void> _onListar(
@@ -73,6 +77,9 @@ class PacienteBloc extends Bloc<PacienteEvent, PacienteState> {
       await modificarPacienteUseCase.execute(
         id: event.id,
         ci: event.ci,
+        nombre: event.nombre,
+        apellido: event.apellido,
+        email: event.email,
         edad: event.edad,
         telefono: event.telefono,
         fechaNacimiento: event.fechaNacimiento,
@@ -96,4 +103,26 @@ class PacienteBloc extends Bloc<PacienteEvent, PacienteState> {
       emit(PacienteError(e.toString().replaceAll('Exception: ', '')));
     }
   }
+  Future<void> _onCompletar(
+  CompletarPacienteEvent event,
+  Emitter<PacienteState> emit,
+) async {
+  emit(PacienteLoading());
+  try {
+    await completarPacienteUseCase.execute(
+      id: event.id,
+      ci: event.ci,
+      nombre: event.nombre,
+      apellido: event.apellido,
+      email: event.email,
+      edad: event.edad,
+      telefono: event.telefono,
+      fechaNacimiento: event.fechaNacimiento,
+      ciudadId: event.ciudadId,
+    );
+    emit(PacienteCompletado());
+  } catch (e) {
+    emit(PacienteError(e.toString().replaceAll('Exception: ', '')));
+  }
+}
 }

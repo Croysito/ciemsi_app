@@ -11,6 +11,8 @@ class PacienteInitial extends PacienteState {}
 
 class PacienteLoading extends PacienteState {}
 
+class PacienteCompletado extends PacienteState {}
+
 class PacientesListados extends PacienteState {
   final List<Paciente> pacientes;
   PacientesListados(this.pacientes);

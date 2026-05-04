@@ -17,6 +17,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
     on<ListarAsignadosEvent>(_onListarAsignados);
     on<ListarAsignadosByCitaEvent>(_onListarAsignadosByCita);
     on<AgregarSuministroEvent>(_onAgregarSuministro);
+    on<AgregarMultiplesSuministrosEvent>(_onAgregarMultiples);
     on<CompletarTratamientoEvent>(_onCompletar);
     on<GenerarRecetaEvent>(_onGenerarReceta);
   }
@@ -108,6 +109,25 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
         suministroId: event.suministroId,
         cantidad: event.cantidad,
       );
+      emit(SuministroAgregado());
+    } catch (e) {
+      emit(TratamientoError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onAgregarMultiples(
+    AgregarMultiplesSuministrosEvent event,
+    Emitter<TratamientoState> emit,
+  ) async {
+    emit(TratamientoLoading());
+    try {
+      for (final item in event.items) {
+        await datasource.agregarSuministro(
+          tratamientoAsignadoId: event.tratamientoAsignadoId,
+          suministroId: item['suministroId'] as int,
+          cantidad: item['cantidad'] as int,
+        );
+      }
       emit(SuministroAgregado());
     } catch (e) {
       emit(TratamientoError(e.toString().replaceAll('Exception: ', '')));

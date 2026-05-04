@@ -5,6 +5,7 @@ import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import 'recuperar_contrasena_page.dart';
 import 'home_page.dart';
+import 'package:ciemsi_app/features/pacientes/presentation/pages/paciente_home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -72,11 +73,12 @@ class _LoginPageState extends State<LoginPage>
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthSuccess) {
+            final page = state.usuario.rol == 'Paciente'
+                ? PacienteHomePage(usuario: state.usuario)
+                : HomePage(usuario: state.usuario);
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (_) => HomePage(usuario: state.usuario),
-              ),
+              MaterialPageRoute(builder: (_) => page),
             );
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(

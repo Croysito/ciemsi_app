@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -14,6 +15,7 @@ import 'package:ciemsi_app/features/pacientes/data/repositories/paciente_reposit
 import 'package:ciemsi_app/features/pacientes/domain/usecases/listar_pacientes.dart';
 import 'package:ciemsi_app/features/pacientes/domain/usecases/registrar_paciente.dart';
 import 'package:ciemsi_app/features/pacientes/domain/usecases/modificar_paciente.dart';
+import 'package:ciemsi_app/features/pacientes/domain/usecases/completar_paciente.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_bloc.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -60,6 +62,9 @@ class MyApp extends StatelessWidget {
             modificarPacienteUseCase: ModificarPacienteUseCase(
               pacienteRepository,
             ),
+            completarPacienteUseCase: CompletarPacienteUseCase(
+              pacienteRepository,
+            ),
             repository: pacienteRepository,
           ),
         ),
@@ -67,6 +72,16 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'CIEMSI',
         debugShowCheckedModeBanner: false,
+        locale: const Locale('es', 'ES'),
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('es', 'ES'),
+          Locale('en', 'US'),
+        ],
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00B5C8)),
           useMaterial3: true,

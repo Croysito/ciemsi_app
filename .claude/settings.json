@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//e/OTROS TRABAJOS/CIEMSI/ciemsi-backend/src/**)",
+      "Read(//e/OTROS TRABAJOS/CIEMSI/ciemsi-backend/**)"
+    ]
+  }
+}

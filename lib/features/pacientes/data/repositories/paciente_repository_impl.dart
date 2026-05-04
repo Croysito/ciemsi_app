@@ -40,6 +40,9 @@ class PacienteRepositoryImpl implements PacienteRepository {
   Future<void> modificarPaciente({
     required int id,
     required String ci,
+    String? nombre,
+    String? apellido,
+    String? email,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
@@ -47,6 +50,32 @@ class PacienteRepositoryImpl implements PacienteRepository {
   }) => remoteDatasource.modificarPaciente(
     id: id,
     ci: ci,
+    nombre: nombre,
+    apellido: apellido,
+    email: email,
+    edad: edad,
+    telefono: telefono,
+    fechaNacimiento: fechaNacimiento,
+    ciudadId: ciudadId,
+  );
+
+  @override
+  Future<void> completarPaciente({
+    required int id,
+    required String ci,
+    required String nombre,
+    required String apellido,
+    required String email,
+    int? edad,
+    String? telefono,
+    DateTime? fechaNacimiento,
+    required int ciudadId,
+  }) => remoteDatasource.completarPaciente(
+    id: id,
+    ci: ci,
+    nombre: nombre,
+    apellido: apellido,
+    email: email,
     edad: edad,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,

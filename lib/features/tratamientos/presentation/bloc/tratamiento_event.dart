@@ -63,6 +63,19 @@ class AgregarSuministroEvent extends TratamientoEvent {
   List<Object?> get props => [tratamientoAsignadoId, suministroId, cantidad];
 }
 
+class AgregarMultiplesSuministrosEvent extends TratamientoEvent {
+  final int tratamientoAsignadoId;
+  final List<Map<String, dynamic>> items;
+
+  AgregarMultiplesSuministrosEvent({
+    required this.tratamientoAsignadoId,
+    required this.items,
+  });
+
+  @override
+  List<Object?> get props => [tratamientoAsignadoId, items];
+}
+
 class CompletarTratamientoEvent extends TratamientoEvent {
   final int id;
   CompletarTratamientoEvent(this.id);

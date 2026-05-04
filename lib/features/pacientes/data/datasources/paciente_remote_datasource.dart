@@ -66,6 +66,9 @@ class PacienteRemoteDatasource {
   Future<void> modificarPaciente({
     required int id,
     required String ci,
+    String? nombre,
+    String? apellido,
+    String? email,
     int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
@@ -76,6 +79,9 @@ class PacienteRemoteDatasource {
         '/pacientes/$id',
         data: {
           'ci': ci,
+          if (nombre != null) 'nombre': nombre,
+          if (apellido != null) 'apellido': apellido,
+          if (email != null) 'email': email,
           'edad': edad,
           'telefono': telefono,
           'fechaNacimiento': fechaNacimiento?.toIso8601String(),
@@ -85,6 +91,38 @@ class PacienteRemoteDatasource {
     } on DioException catch (e) {
       throw Exception(
         e.response?.data['mensaje'] ?? 'Error al modificar paciente',
+      );
+    }
+  }
+
+  Future<void> completarPaciente({
+    required int id,
+    required String ci,
+    required String nombre,
+    required String apellido,
+    required String email,
+    int? edad,
+    String? telefono,
+    DateTime? fechaNacimiento,
+    required int ciudadId,
+  }) async {
+    try {
+      await apiClient.dio.put(
+        '/pacientes/$id/completar',
+        data: {
+          'ci': ci,
+          'nombre': nombre,
+          'apellido': apellido,
+          'email': email,
+          'edad': edad,
+          'telefono': telefono,
+          'fechaNacimiento': fechaNacimiento?.toIso8601String(),
+          'ciudadId': ciudadId,
+        },
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['mensaje'] ?? 'Error al completar datos del paciente',
       );
     }
   }

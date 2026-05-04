@@ -42,6 +42,7 @@ class _ModificarCitaPageState extends State<ModificarCitaPage> {
   Future<void> _seleccionarFecha() async {
     final fecha = await showDatePicker(
       context: context,
+      locale: const Locale('es', 'ES'),
       initialDate:
           _fechaSeleccionada ?? DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),

@@ -9,11 +9,13 @@ import 'registrar_compra_page.dart';
 class InventarioPage extends StatefulWidget {
   final int ciudadId;
   final String ciudadNombre;
+  final VoidCallback? onMenuTap;
 
   const InventarioPage({
     super.key,
     required this.ciudadId,
     required this.ciudadNombre,
+    this.onMenuTap,
   });
 
   @override
@@ -32,6 +34,12 @@ class _InventarioPageState extends State<InventarioPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       appBar: AppBar(
+        leading: widget.onMenuTap != null
+            ? IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: widget.onMenuTap,
+              )
+            : null,
         title: Text(
           'Inventario - ${widget.ciudadNombre}',
           style: const TextStyle(

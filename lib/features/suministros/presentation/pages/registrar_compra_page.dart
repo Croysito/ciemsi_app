@@ -119,6 +119,7 @@ class _RegistrarCompraPageState extends State<RegistrarCompraPage> {
                       onTap: () async {
                         final fecha = await showDatePicker(
                           context: context,
+                          locale: const Locale('es', 'ES'),
                           initialDate: DateTime.now(),
                           firstDate: DateTime(2020),
                           lastDate: DateTime.now(),
@@ -379,6 +380,7 @@ class _DialogAgregarItemState extends State<_DialogAgregarItem> {
               onTap: () async {
                 final fecha = await showDatePicker(
                   context: context,
+                  locale: const Locale('es', 'ES'),
                   initialDate: DateTime.now().add(const Duration(days: 30)),
                   firstDate: DateTime.now(),
                   lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
