@@ -12,6 +12,7 @@ class Suministro extends Equatable {
   final TipoSuministro tipo;
   final int umbral;
   final bool estado;
+  final double? precioVentaBase;
 
   const Suministro({
     required this.id,
@@ -21,6 +22,7 @@ class Suministro extends Equatable {
     required this.tipo,
     required this.umbral,
     required this.estado,
+    this.precioVentaBase,
   });
 
   @override
@@ -31,5 +33,6 @@ class Suministro extends Equatable {
     tipo,
     umbral,
     estado,
+    precioVentaBase,
   ];
 }

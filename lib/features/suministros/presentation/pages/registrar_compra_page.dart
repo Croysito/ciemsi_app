@@ -5,6 +5,7 @@ import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_blo
 import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_event.dart';
 import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_state.dart';
 import 'package:ciemsi_app/features/suministros/domain/entities/suministro.dart';
+import 'package:ciemsi_app/features/suministros/data/models/suministro_model.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
 class RegistrarCompraPage extends StatefulWidget {
@@ -25,7 +26,6 @@ class _RegistrarCompraPageState extends State<RegistrarCompraPage> {
   List<Suministro> _suministros = [];
   final List<Map<String, dynamic>> _items = [];
   DateTime? _fecha;
-  //bool _cargando = false;
 
   @override
   void initState() {
@@ -37,22 +37,9 @@ class _RegistrarCompraPageState extends State<RegistrarCompraPage> {
     try {
       final response = await ApiClientProvider.instance.dio.get('/suministros');
       setState(() {
-        _suministros = (response.data as List).map((s) {
-          return Suministro(
-            id: s['id'],
-            nombreSuministro: s['nombreSuministro'],
-            unidadMedida: UnidadMedida.values.firstWhere(
-              (e) => e.name == s['unidadMedida'],
-              orElse: () => UnidadMedida.UNIDAD,
-            ),
-            tipo: TipoSuministro.values.firstWhere(
-              (e) => e.name == s['tipo'],
-              orElse: () => TipoSuministro.INSUMO,
-            ),
-            umbral: s['umbral'] ?? 5,
-            estado: s['estado'] ?? true,
-          );
-        }).toList();
+        _suministros = (response.data as List)
+            .map((s) => SuministroModel.fromJson(s))
+            .toList();
       });
     } catch (e) {
       debugPrint('Error cargando suministros: $e');
@@ -155,9 +142,8 @@ class _RegistrarCompraPageState extends State<RegistrarCompraPage> {
                                   ? DateFormat('dd/MM/yyyy').format(_fecha!)
                                   : 'Fecha de compra (hoy por defecto)',
                               style: TextStyle(
-                                color: _fecha != null
-                                    ? Colors.black
-                                    : Colors.grey,
+                                color:
+                                    _fecha != null ? Colors.black : Colors.grey,
                               ),
                             ),
                           ],
@@ -205,23 +191,48 @@ class _RegistrarCompraPageState extends State<RegistrarCompraPage> {
                       ..._items.asMap().entries.map((entry) {
                         final i = entry.key;
                         final item = entry.value;
+                        final esMedicamento =
+                            item['tipo'] == TipoSuministro.MEDICAMENTO.name;
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: ListTile(
+                            leading: Icon(
+                              esMedicamento
+                                  ? Icons.medication_outlined
+                                  : Icons.inventory_2_outlined,
+                              color: const Color(0xFF00B5C8),
+                            ),
                             title: Text(
                               item['nombreSuministro'],
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            subtitle: Text(
-                              'Cant: ${item['cantidad']} • Bs ${item['precioUnitario']} c/u'
-                              '${item['fechaVencimiento'] != null ? ' • Vence: ${item['fechaVencimiento']}' : ''}',
-                              style: const TextStyle(fontSize: 12),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Cant: ${item['cantidad']} • Compra: Bs ${item['precioUnitario']} c/u'
+                                  '${item['fechaVencimiento'] != null ? ' • Vence: ${item['fechaVencimiento']}' : ''}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                if (esMedicamento &&
+                                    item['precioVentaBase'] != null)
+                                  Text(
+                                    'Precio venta base: Bs ${item['precioVentaBase']}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF8DC63F),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                              ],
                             ),
+                            isThreeLine: esMedicamento &&
+                                item['precioVentaBase'] != null,
                             trailing: IconButton(
                               icon: const Icon(
                                 Icons.delete_outline,
@@ -250,17 +261,22 @@ class _RegistrarCompraPageState extends State<RegistrarCompraPage> {
                       onPressed: state is SuministroLoading || _items.isEmpty
                           ? null
                           : () {
-                              final items = _items
-                                  .map(
-                                    (item) => {
-                                      'suministroId': item['suministroId'],
-                                      'cantidad': item['cantidad'],
-                                      'precioUnitario': item['precioUnitario'],
-                                      'fechaVencimiento':
-                                          item['fechaVencimiento'],
-                                    },
-                                  )
-                                  .toList();
+                              final items = _items.map((item) {
+                                final map = <String, dynamic>{
+                                  'suministroId': item['suministroId'],
+                                  'cantidad': item['cantidad'],
+                                  'precioUnitario': item['precioUnitario'],
+                                };
+                                if (item['fechaVencimiento'] != null) {
+                                  map['fechaVencimiento'] =
+                                      item['fechaVencimiento'];
+                                }
+                                if (item['precioVentaBase'] != null) {
+                                  map['precioVentaBase'] =
+                                      item['precioVentaBase'];
+                                }
+                                return map;
+                              }).toList();
                               context.read<SuministroBloc>().add(
                                 RegistrarCompraEvent(
                                   ciudadId: widget.ciudadId,
@@ -315,13 +331,18 @@ class _DialogAgregarItem extends StatefulWidget {
 class _DialogAgregarItemState extends State<_DialogAgregarItem> {
   Suministro? _suministroSeleccionado;
   final _cantidadController = TextEditingController();
-  final _precioController = TextEditingController();
+  final _precioCompraController = TextEditingController();
+  final _precioVentaBaseController = TextEditingController();
   DateTime? _fechaVencimiento;
+
+  bool get _esMedicamento =>
+      _suministroSeleccionado?.tipo == TipoSuministro.MEDICAMENTO;
 
   @override
   void dispose() {
     _cantidadController.dispose();
-    _precioController.dispose();
+    _precioCompraController.dispose();
+    _precioVentaBaseController.dispose();
     super.dispose();
   }
 
@@ -335,7 +356,7 @@ class _DialogAgregarItemState extends State<_DialogAgregarItem> {
           children: [
             DropdownButtonFormField<Suministro>(
               hint: const Text('Seleccionar suministro'),
-              value: _suministroSeleccionado,
+              initialValue: _suministroSeleccionado,
               items: widget.suministros
                   .map(
                     (s) => DropdownMenuItem(
@@ -344,7 +365,10 @@ class _DialogAgregarItemState extends State<_DialogAgregarItem> {
                     ),
                   )
                   .toList(),
-              onChanged: (v) => setState(() => _suministroSeleccionado = v),
+              onChanged: (v) => setState(() {
+                _suministroSeleccionado = v;
+                _precioVentaBaseController.clear();
+              }),
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -364,17 +388,40 @@ class _DialogAgregarItemState extends State<_DialogAgregarItem> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _precioController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              controller: _precioCompraController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Precio unitario (Bs)',
+                labelText: 'Precio de compra (Bs)',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
+            if (_esMedicamento) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _precioVentaBaseController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Precio de venta base (Bs) *',
+                  labelStyle: const TextStyle(color: Color(0xFF8DC63F)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF8DC63F)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF8DC63F),
+                      width: 2,
+                    ),
+                  ),
+                  helperText: 'Requerido para medicamentos',
+                  helperStyle: const TextStyle(color: Color(0xFF8DC63F)),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             GestureDetector(
               onTap: () async {
@@ -424,18 +471,29 @@ class _DialogAgregarItemState extends State<_DialogAgregarItem> {
           onPressed: () {
             if (_suministroSeleccionado == null ||
                 _cantidadController.text.isEmpty ||
-                _precioController.text.isEmpty)
+                _precioCompraController.text.isEmpty) {
               return;
+            }
+            if (_esMedicamento && _precioVentaBaseController.text.isEmpty) {
+              return;
+            }
 
-            widget.onAgregar({
+            final item = <String, dynamic>{
               'suministroId': _suministroSeleccionado!.id,
               'nombreSuministro': _suministroSeleccionado!.nombreSuministro,
+              'tipo': _suministroSeleccionado!.tipo.name,
               'cantidad': int.parse(_cantidadController.text),
-              'precioUnitario': double.parse(_precioController.text),
+              'precioUnitario': double.parse(_precioCompraController.text),
               'fechaVencimiento': _fechaVencimiento != null
                   ? DateFormat('yyyy-MM-dd').format(_fechaVencimiento!)
                   : null,
-            });
+            };
+            if (_esMedicamento) {
+              item['precioVentaBase'] =
+                  double.parse(_precioVentaBaseController.text);
+            }
+
+            widget.onAgregar(item);
             Navigator.pop(context);
           },
           style: ElevatedButton.styleFrom(

@@ -24,6 +24,7 @@ class TratamientoRemoteDatasource {
     required String nombreTratamiento,
     String? detalle,
     double? precioBase,
+    List<Map<String, dynamic>> medicamentosBase = const [],
   }) async {
     try {
       final response = await apiClient.dio.post(
@@ -32,6 +33,7 @@ class TratamientoRemoteDatasource {
           'nombreTratamiento': nombreTratamiento,
           'detalle': detalle,
           'precioBase': precioBase ?? 0,
+          'medicamentosBase': medicamentosBase,
         },
       );
       return response.data;

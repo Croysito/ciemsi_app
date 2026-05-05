@@ -72,6 +72,23 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
     }
   }
 
+  Future<DateTime?> _verificarDia(dynamic ciudadId, DateTime dia) async {
+    try {
+      final response = await ApiClientProvider.instance.dio.get(
+        '/agenda/disponibilidad',
+        queryParameters: {
+          'ciudadId': ciudadId,
+          'fecha': DateFormat('yyyy-MM-dd').format(dia),
+        },
+      );
+      final horas = List<String>.from(
+        response.data['horasDisponibles'] ?? [],
+      );
+      if (horas.isNotEmpty) return DateTime(dia.year, dia.month, dia.day);
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _cargarDiasDisponibles() async {
     if (_ciudadSeleccionada == null) return;
     setState(() {
@@ -81,35 +98,16 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
       _horaSeleccionada = null;
       _horasDisponibles = [];
     });
-
     try {
       final ciudadId = _ciudadSeleccionada['id'];
-      final diasDisponibles = <DateTime>{};
       final ahora = DateTime.now();
-
-      for (int i = 1; i <= 60; i++) {
-        final dia = ahora.add(Duration(days: i));
-        try {
-          final response = await ApiClientProvider.instance.dio.get(
-            '/agenda/disponibilidad',
-            queryParameters: {
-              'ciudadId': ciudadId,
-              'fecha': DateFormat('yyyy-MM-dd').format(dia),
-            },
-          );
-          final horas = List<String>.from(
-            response.data['horasDisponibles'] ?? [],
-          );
-          if (horas.isNotEmpty) {
-            diasDisponibles.add(DateTime(dia.year, dia.month, dia.day));
-          }
-        } catch (e) {
-          debugPrint('Error verificando día: $e');
-        }
-      }
-
+      final futures = List.generate(
+        60,
+        (i) => _verificarDia(ciudadId, ahora.add(Duration(days: i + 1))),
+      );
+      final results = await Future.wait(futures);
       setState(() {
-        _diasDisponibles = diasDisponibles;
+        _diasDisponibles = results.whereType<DateTime>().toSet();
         _cargandoCalendario = false;
       });
     } catch (e) {
@@ -480,6 +478,7 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
 
                               final pacienteId = await _obtenerPacienteId();
                               if (pacienteId == null) return;
+                              if (!context.mounted) return;
 
                               context.read<CitaBloc>().add(
                                 ReservarCitaEvent(
@@ -591,7 +590,7 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
               return Container(
                 margin: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF8DC63F).withOpacity(0.2),
+                  color: const Color(0xFF8DC63F).withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: const Color(0xFF8DC63F),

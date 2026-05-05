@@ -6,6 +6,7 @@ import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_s
 import 'package:ciemsi_app/features/tratamientos/domain/entities/tratamiento.dart';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
 import 'package:ciemsi_app/features/suministros/domain/entities/suministro.dart';
+import 'package:ciemsi_app/features/suministros/data/models/suministro_model.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
 class AsignarTratamientoPage extends StatefulWidget {
@@ -47,19 +48,7 @@ class _AsignarTratamientoPageState extends State<AsignarTratamientoPage> {
       );
       setState(() {
         _medicamentos = (resMed.data as List)
-            .map(
-              (s) => Suministro(
-                id: s['id'],
-                nombreSuministro: s['nombreSuministro'],
-                unidadMedida: UnidadMedida.values.firstWhere(
-                  (e) => e.name == s['unidadMedida'],
-                  orElse: () => UnidadMedida.UNIDAD,
-                ),
-                tipo: TipoSuministro.MEDICAMENTO,
-                umbral: s['umbral'] ?? 5,
-                estado: s['estado'] ?? true,
-              ),
-            )
+            .map((s) => SuministroModel.fromJson(s))
             .toList();
         _cargando = false;
       });
@@ -68,11 +57,35 @@ class _AsignarTratamientoPageState extends State<AsignarTratamientoPage> {
     }
   }
 
+  void _onTratamientoSeleccionado(Tratamiento? value) {
+    setState(() {
+      _tratamientoSeleccionado = value;
+      _precioController.text =
+          value != null ? value.precioBase.toStringAsFixed(2) : '';
+
+      _medicamentosSeleccionados.clear();
+      if (value != null) {
+        for (final med in value.medicamentosBase) {
+          _medicamentosSeleccionados.add({
+            'suministroId': med.suministroId,
+            'nombre': med.nombreSuministro,
+            'cantidad': med.cantidad,
+          });
+        }
+      }
+    });
+  }
+
   void _agregarMedicamento() {
+    final yaSeleccionados =
+        _medicamentosSeleccionados.map((m) => m['suministroId'] as int).toSet();
+    final disponibles =
+        _medicamentos.where((m) => !yaSeleccionados.contains(m.id)).toList();
+
     showDialog(
       context: context,
       builder: (_) => _DialogMedicamento(
-        medicamentos: _medicamentos,
+        medicamentos: disponibles,
         onAgregar: (item) =>
             setState(() => _medicamentosSeleccionados.add(item)),
       ),
@@ -176,24 +189,18 @@ class _AsignarTratamientoPageState extends State<AsignarTratamientoPage> {
                           (t) => DropdownMenuItem(
                             value: t,
                             child: Text(
-                              '${t.nombreTratamiento} - Bs ${t.precioBase}',
+                              '${t.nombreTratamiento} — Bs ${t.precioBase.toStringAsFixed(2)}',
                             ),
                           ),
                         )
                         .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _tratamientoSeleccionado = value;
-                        _precioController.text =
-                            value?.precioBase.toString() ?? '';
-                      });
-                    },
+                    onChanged: _onTratamientoSeleccionado,
                   ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              // Precio
+              // Precio final (editable, pre-llenado desde precioBase)
               TextField(
                 controller: _precioController,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -206,8 +213,19 @@ class _AsignarTratamientoPageState extends State<AsignarTratamientoPage> {
                     Icons.attach_money_outlined,
                     color: Color(0xFF00B5C8),
                   ),
+                  helperText: _tratamientoSeleccionado != null
+                      ? 'Precio base: Bs ${_tratamientoSeleccionado!.precioBase.toStringAsFixed(2)} — modificable'
+                      : null,
+                  helperStyle: const TextStyle(color: Colors.grey, fontSize: 12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF00B5C8),
+                      width: 2,
+                    ),
                   ),
                   filled: true,
                   fillColor: Colors.white,
@@ -226,14 +244,26 @@ class _AsignarTratamientoPageState extends State<AsignarTratamientoPage> {
                       color: Color(0xFF00B5C8),
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: _agregarMedicamento,
-                    icon: const Icon(Icons.add, color: Color(0xFF8DC63F)),
-                    label: const Text(
-                      'Agregar',
-                      style: TextStyle(color: Color(0xFF8DC63F)),
-                    ),
-                  ),
+                  _cargando
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF00B5C8),
+                          ),
+                        )
+                      : TextButton.icon(
+                          onPressed: _agregarMedicamento,
+                          icon: const Icon(
+                            Icons.add,
+                            color: Color(0xFF8DC63F),
+                          ),
+                          label: const Text(
+                            'Agregar',
+                            style: TextStyle(color: Color(0xFF8DC63F)),
+                          ),
+                        ),
                 ],
               ),
               if (_medicamentosSeleccionados.isEmpty)
@@ -285,8 +315,7 @@ class _AsignarTratamientoPageState extends State<AsignarTratamientoPage> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed:
-                          state is TratamientoLoading ||
+                      onPressed: state is TratamientoLoading ||
                               _tratamientoSeleccionado == null
                           ? null
                           : () {
@@ -368,7 +397,7 @@ class _DialogMedicamentoState extends State<_DialogMedicamento> {
         children: [
           DropdownButtonFormField<Suministro>(
             hint: const Text('Seleccionar medicamento'),
-            value: _seleccionado,
+            initialValue: _seleccionado,
             items: widget.medicamentos
                 .map(
                   (m) => DropdownMenuItem(
@@ -404,8 +433,9 @@ class _DialogMedicamentoState extends State<_DialogMedicamento> {
         ),
         ElevatedButton(
           onPressed: () {
-            if (_seleccionado == null || _cantidadController.text.isEmpty)
+            if (_seleccionado == null || _cantidadController.text.isEmpty) {
               return;
+            }
             widget.onAgregar({
               'suministroId': _seleccionado!.id,
               'nombre': _seleccionado!.nombreSuministro,

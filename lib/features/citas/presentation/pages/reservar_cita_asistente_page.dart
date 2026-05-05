@@ -80,37 +80,36 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
     }
   }
 
+  Future<DateTime?> _verificarDia(DateTime dia) async {
+    try {
+      final response = await ApiClientProvider.instance.dio.get(
+        '/agenda/disponibilidad',
+        queryParameters: {
+          'ciudadId': widget.ciudadId,
+          'fecha': DateFormat('yyyy-MM-dd').format(dia),
+        },
+      );
+      final horas = List<String>.from(
+        response.data['horasDisponibles'] ?? [],
+      );
+      if (horas.isNotEmpty) return DateTime(dia.year, dia.month, dia.day);
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _cargarDiasDisponibles() async {
     if (!mounted) return;
     setState(() => _cargandoCalendario = true);
     try {
-      final diasDisponibles = <DateTime>{};
       final ahora = DateTime.now();
-
-      for (int i = 1; i <= 60; i++) {
-        final dia = ahora.add(Duration(days: i));
-        try {
-          final response = await ApiClientProvider.instance.dio.get(
-            '/agenda/disponibilidad',
-            queryParameters: {
-              'ciudadId': widget.ciudadId,
-              'fecha': DateFormat('yyyy-MM-dd').format(dia),
-            },
-          );
-          final horas = List<String>.from(
-            response.data['horasDisponibles'] ?? [],
-          );
-          if (horas.isNotEmpty) {
-            diasDisponibles.add(DateTime(dia.year, dia.month, dia.day));
-          }
-        } catch (e) {
-          debugPrint('Error verificando día: $e');
-        }
-      }
-
+      final futures = List.generate(
+        60,
+        (i) => _verificarDia(ahora.add(Duration(days: i + 1))),
+      );
+      final results = await Future.wait(futures);
       if (!mounted) return;
       setState(() {
-        _diasDisponibles = diasDisponibles;
+        _diasDisponibles = results.whereType<DateTime>().toSet();
         _cargandoCalendario = false;
       });
     } catch (e) {
@@ -171,10 +170,10 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00B5C8).withOpacity(0.1),
+                  color: const Color(0xFF00B5C8).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: const Color(0xFF00B5C8).withOpacity(0.3),
+                    color: const Color(0xFF00B5C8).withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -464,7 +463,7 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
                                 decoration: BoxDecoration(
                                   color: const Color(
                                     0xFF8DC63F,
-                                  ).withOpacity(0.2),
+                                  ).withValues(alpha: 0.2),
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: const Color(0xFF8DC63F),
@@ -627,6 +626,7 @@ class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
 
                               final pacienteId = await _obtenerPacienteId();
                               if (pacienteId == null) return;
+                              if (!context.mounted) return;
 
                               context.read<CitaBloc>().add(
                                 ReservarCitaEvent(

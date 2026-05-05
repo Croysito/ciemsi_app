@@ -9,6 +9,7 @@ class SuministroModel extends Suministro {
     required super.tipo,
     required super.umbral,
     required super.estado,
+    super.precioVentaBase,
   });
 
   factory SuministroModel.fromJson(Map<String, dynamic> json) {
@@ -26,6 +27,9 @@ class SuministroModel extends Suministro {
       ),
       umbral: json['umbral'] ?? 5,
       estado: json['estado'] ?? true,
+      precioVentaBase: json['precioVentaBase'] != null
+          ? double.tryParse(json['precioVentaBase'].toString())
+          : null,
     );
   }
 }

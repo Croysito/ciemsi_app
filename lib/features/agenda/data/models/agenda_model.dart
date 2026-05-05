@@ -13,17 +13,40 @@ class AgendaModel extends Agenda {
     required super.estado,
   });
 
+  static List<String>? _parseDiasSemana(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is List) return List<String>.from(raw);
+    if (raw is String) {
+      // PostgreSQL devuelve arrays como "{LUNES,MIERCOLES}"
+      final cleaned = raw.replaceAll('{', '').replaceAll('}', '').trim();
+      if (cleaned.isEmpty) return null;
+      return cleaned.split(',').map((s) => s.trim()).toList();
+    }
+    return null;
+  }
+
   factory AgendaModel.fromJson(Map<String, dynamic> json) {
+    final ciudadRaw = json['ciudad'];
+    final CiudadModel ciudad;
+    if (ciudadRaw is Map<String, dynamic>) {
+      ciudad = CiudadModel.fromJson(ciudadRaw);
+    } else {
+      ciudad = CiudadModel(
+        id: json['ciudadId'] ?? 0,
+        nombreCiudad: '',
+      );
+    }
+
     return AgendaModel(
       id: json['id'],
-      fecha: json['fecha'] != null ? DateTime.parse(json['fecha']) : null,
-      diasSemana: json['diasSemana'] != null
-          ? List<String>.from(json['diasSemana'])
+      fecha: json['fecha'] != null
+          ? DateTime.tryParse(json['fecha'].toString())
           : null,
-      horaInicio: json['horaInicio'],
-      horaFin: json['horaFin'],
+      diasSemana: _parseDiasSemana(json['diasSemana']),
+      horaInicio: json['horaInicio'] ?? '',
+      horaFin: json['horaFin'] ?? '',
       intervalo: json['intervalo'] ?? 30,
-      ciudad: CiudadModel.fromJson(json['ciudad']),
+      ciudad: ciudad,
       estado: json['estado'] ?? true,
     );
   }

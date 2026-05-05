@@ -11,11 +11,13 @@ class CrearTratamientoEvent extends TratamientoEvent {
   final String nombreTratamiento;
   final String? detalle;
   final double? precioBase;
+  final List<Map<String, dynamic>> medicamentosBase;
 
   CrearTratamientoEvent({
     required this.nombreTratamiento,
     this.detalle,
     this.precioBase,
+    this.medicamentosBase = const [],
   });
 
   @override

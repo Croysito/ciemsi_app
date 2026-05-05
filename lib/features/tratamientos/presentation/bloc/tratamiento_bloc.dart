@@ -45,6 +45,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
         nombreTratamiento: event.nombreTratamiento,
         detalle: event.detalle,
         precioBase: event.precioBase,
+        medicamentosBase: event.medicamentosBase,
       );
       emit(TratamientoCreado());
     } catch (e) {
