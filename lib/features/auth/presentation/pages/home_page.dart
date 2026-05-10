@@ -248,20 +248,22 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
-            _drawerTile(
-              icon: Icons.calendar_month_outlined,
-              color: const Color(0xFF8DC63F),
-              label: 'Agenda',
-              subtitle: 'Configurar horarios',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AgendaPage()),
-                );
-              },
-            ),
           ],
+          _drawerTile(
+            icon: Icons.calendar_month_outlined,
+            color: const Color(0xFF8DC63F),
+            label: 'Agenda',
+            subtitle: 'Configurar horarios',
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AgendaPage(usuario: widget.usuario),
+                ),
+              );
+            },
+          ),
           const Divider(height: 1),
           _drawerTile(
             icon: Icons.logout,

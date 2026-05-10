@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
+import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
 
 class Agenda extends Equatable {
   final int id;
@@ -10,6 +11,8 @@ class Agenda extends Equatable {
   final int intervalo;
   final Ciudad ciudad;
   final bool estado;
+  final String? rolCreador;
+  final List<Servicio>? servicios;
 
   const Agenda({
     required this.id,
@@ -20,6 +23,8 @@ class Agenda extends Equatable {
     required this.intervalo,
     required this.ciudad,
     required this.estado,
+    this.rolCreador,
+    this.servicios,
   });
 
   @override
@@ -32,5 +37,7 @@ class Agenda extends Equatable {
     intervalo,
     ciudad,
     estado,
+    rolCreador,
+    servicios,
   ];
 }

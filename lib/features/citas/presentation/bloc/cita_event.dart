@@ -13,6 +13,7 @@ class ReservarCitaEvent extends CitaEvent {
   final int servicioId;
   final int? pacienteId;
   final int? ciudadId;
+  final int? agendaId;
   final String? notas;
 
   ReservarCitaEvent({
@@ -21,11 +22,12 @@ class ReservarCitaEvent extends CitaEvent {
     required this.servicioId,
     this.pacienteId,
     this.ciudadId,
+    this.agendaId,
     this.notas,
   });
 
   @override
-  List<Object?> get props => [fecha, hora, servicioId, pacienteId, ciudadId];
+  List<Object?> get props => [fecha, hora, servicioId, pacienteId, ciudadId, agendaId];
 }
 
 class ModificarCitaEvent extends CitaEvent {

@@ -1,13 +1,15 @@
 import 'package:ciemsi_app/features/agenda/presentation/pages/crear_agenda.dart';
+import 'package:ciemsi_app/features/auth/domain/entities/usuario.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/features/agenda/data/models/agenda_model.dart';
-import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 
 class AgendaPage extends StatefulWidget {
-  const AgendaPage({super.key});
+  final Usuario usuario;
+
+  const AgendaPage({super.key, required this.usuario});
 
   @override
   State<AgendaPage> createState() => _AgendaPageState();
@@ -15,48 +17,26 @@ class AgendaPage extends StatefulWidget {
 
 class _AgendaPageState extends State<AgendaPage> {
   List<AgendaModel> _agendas = [];
-  List<Ciudad> _ciudades = [];
-  Ciudad? _ciudadSeleccionada;
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
   bool _cargando = false;
-  Set<DateTime> _diasConAgenda = {};
+  Set<DateTime> _diasDoctora = {};
+  Set<DateTime> _diasAsistente = {};
   String? _errorCarga;
 
   @override
   void initState() {
     super.initState();
-    _cargarCiudades();
-  }
-
-  Future<void> _cargarCiudades() async {
-    try {
-      final response = await ApiClientProvider.instance.dio.get('/ciudades');
-      setState(() {
-        _ciudades = (response.data as List)
-            .map((c) => Ciudad(id: c['id'], nombreCiudad: c['nombreCiudad']))
-            .toList();
-        if (_ciudades.isNotEmpty) {
-          _ciudadSeleccionada = _ciudades.first;
-          _cargarAgenda();
-        }
-      });
-    } catch (e) {
-      debugPrint('Error cargando ciudades: $e');
-    }
+    _cargarAgenda();
   }
 
   Future<void> _cargarAgenda() async {
-    if (_ciudadSeleccionada == null) return;
     setState(() {
       _cargando = true;
       _errorCarga = null;
     });
     try {
-      final response = await ApiClientProvider.instance.dio.get(
-        '/agenda',
-        queryParameters: {'ciudadId': _ciudadSeleccionada!.id},
-      );
+      final response = await ApiClientProvider.instance.dio.get('/agenda');
       debugPrint('[Agenda] Raw response: ${response.data}');
 
       final lista = response.data;
@@ -77,20 +57,28 @@ class _AgendaPageState extends State<AgendaPage> {
         }
       }
 
-      final diasConAgenda = <DateTime>{};
+      final diasDoctora = <DateTime>{};
+      final diasAsistente = <DateTime>{};
       final ahora = DateTime.now();
       for (int i = -30; i < 365; i++) {
         final dia = ahora.add(Duration(days: i));
         for (final agenda in agendas) {
-          if (_agendaAplicaParaDia(agenda, dia)) {
-            diasConAgenda.add(DateTime(dia.year, dia.month, dia.day));
+          if (agenda.estado && _agendaAplicaParaDia(agenda, dia)) {
+            final normalDay = DateTime(dia.year, dia.month, dia.day);
+            if (agenda.rolCreador == 'Doctora') {
+              diasDoctora.add(normalDay);
+            } else if (agenda.rolCreador == 'Asistente') {
+              diasAsistente.add(normalDay);
+            }
           }
         }
       }
 
+      debugPrint('[Agenda] Total: ${agendas.length}, activas: ${agendas.where((a) => a.estado).length}, inactivas: ${agendas.where((a) => !a.estado).length}');
       setState(() {
         _agendas = agendas;
-        _diasConAgenda = diasConAgenda;
+        _diasDoctora = diasDoctora;
+        _diasAsistente = diasAsistente;
         _cargando = false;
       });
     } catch (e) {
@@ -103,7 +91,6 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   bool _agendaAplicaParaDia(AgendaModel agenda, DateTime dia) {
-    // Verificar primero diasSemana: si tiene días configurados es agenda recurrente
     if (agenda.diasSemana != null && agenda.diasSemana!.isNotEmpty) {
       const dias = [
         'DOMINGO',
@@ -116,7 +103,6 @@ class _AgendaPageState extends State<AgendaPage> {
       ];
       return agenda.diasSemana!.contains(dias[dia.weekday % 7]);
     }
-    // Solo si no tiene diasSemana, verificar fecha específica
     if (agenda.fecha != null) {
       return agenda.fecha!.year == dia.year &&
           agenda.fecha!.month == dia.month &&
@@ -144,10 +130,12 @@ class _AgendaPageState extends State<AgendaPage> {
 
   Future<void> _cambiarEstadoAgenda(int id, bool nuevoEstado) async {
     try {
-      await ApiClientProvider.instance.dio.patch(
-        '/agenda/$id',
+      debugPrint('[Agenda] PATCH /agenda/$id/estado → estado=$nuevoEstado');
+      final res = await ApiClientProvider.instance.dio.patch(
+        '/agenda/$id/estado',
         data: {'estado': nuevoEstado},
       );
+      debugPrint('[Agenda] PATCH ok: ${res.statusCode} ${res.data}');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -157,11 +145,13 @@ class _AgendaPageState extends State<AgendaPage> {
       );
       _cargarAgenda();
     } catch (e) {
+      debugPrint('[Agenda] PATCH error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al cambiar estado: $e'),
+          content: Text('Error: $e'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 6),
         ),
       );
     }
@@ -190,6 +180,11 @@ class _AgendaPageState extends State<AgendaPage> {
   }
 
   void _mostrarOpcionesAgenda(AgendaModel agenda) {
+    final rolColor = agenda.rolCreador == 'Doctora'
+        ? const Color(0xFF00B5C8)
+        : const Color(0xFF8DC63F);
+    final rolLabel = agenda.rolCreador ?? 'Sin rol';
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -212,19 +207,37 @@ class _AgendaPageState extends State<AgendaPage> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              '${agenda.horaInicio.substring(0, 5)} — ${agenda.horaFin.substring(0, 5)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            Text(
-              'Cada ${agenda.intervalo} min'
-              '${agenda.diasSemana != null ? ' · ${_formatearDias(agenda.diasSemana!)}' : ''}',
-              style: const TextStyle(color: Colors.grey),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${agenda.horaInicio.substring(0, 5)} — ${agenda.horaFin.substring(0, 5)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+                _buildChip(
+                  agenda.ciudad.nombreCiudad,
+                  Icons.location_on_outlined,
+                  Colors.grey,
+                ),
+              ],
             ),
             const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  'Cada ${agenda.intervalo} min'
+                  '${agenda.diasSemana != null ? ' · ${_formatearDias(agenda.diasSemana!)}' : ''}',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                const Spacer(),
+                _buildChip(rolLabel, Icons.person_outline, rolColor),
+              ],
+            ),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
@@ -238,9 +251,7 @@ class _AgendaPageState extends State<AgendaPage> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: agenda.estado
-                      ? const Color(0xFF8DC63F)
-                      : Colors.grey,
+                  color: agenda.estado ? const Color(0xFF8DC63F) : Colors.grey,
                 ),
               ),
             ),
@@ -256,16 +267,13 @@ class _AgendaPageState extends State<AgendaPage> {
                   agenda.estado
                       ? Icons.pause_circle_outline
                       : Icons.play_circle_outline,
-                  color: agenda.estado
-                      ? Colors.orange
-                      : const Color(0xFF8DC63F),
+                  color: agenda.estado ? Colors.orange : const Color(0xFF8DC63F),
                 ),
               ),
               title: Text(
                 agenda.estado ? 'Desactivar agenda' : 'Activar agenda',
                 style: TextStyle(
-                  color:
-                      agenda.estado ? Colors.orange : const Color(0xFF8DC63F),
+                  color: agenda.estado ? Colors.orange : const Color(0xFF8DC63F),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -282,10 +290,7 @@ class _AgendaPageState extends State<AgendaPage> {
               ),
               title: const Text(
                 'Eliminar agenda',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -325,6 +330,75 @@ class _AgendaPageState extends State<AgendaPage> {
     );
   }
 
+  Widget _buildChip(String label, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDayMarker(DateTime day, {required bool esDoctora, required bool esAmbas}) {
+    if (esAmbas) {
+      return Container(
+        margin: const EdgeInsets.all(4),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF00B5C8), Color(0xFF8DC63F)],
+          ),
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Text(
+            '${day.day}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      );
+    }
+    final color = esDoctora ? const Color(0xFF00B5C8) : const Color(0xFF8DC63F);
+    return Container(
+      margin: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        shape: BoxShape.circle,
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Center(
+        child: Text(
+          '${day.day}',
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final agendasDia = _agendasDelDia(_selectedDay);
@@ -352,8 +426,7 @@ class _AgendaPageState extends State<AgendaPage> {
             context,
             MaterialPageRoute(
               builder: (_) => CrearAgendaPage(
-                ciudades: _ciudades,
-                ciudadInicial: _ciudadSeleccionada,
+                usuario: widget.usuario,
                 fechaInicial: _selectedDay,
               ),
             ),
@@ -368,44 +441,9 @@ class _AgendaPageState extends State<AgendaPage> {
       ),
       body: Column(
         children: [
-          // Selector ciudad
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<Ciudad>(
-                  isExpanded: true,
-                  value: _ciudadSeleccionada,
-                  items: _ciudades
-                      .map(
-                        (c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(c.nombreCiudad),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _ciudadSeleccionada = value;
-                      _selectedDay = DateTime.now();
-                      _focusedDay = DateTime.now();
-                    });
-                    _cargarAgenda();
-                  },
-                ),
-              ),
-            ),
-          ),
-
           // Calendario
           Card(
-            margin: const EdgeInsets.all(16),
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -427,29 +465,14 @@ class _AgendaPageState extends State<AgendaPage> {
               calendarBuilders: CalendarBuilders(
                 defaultBuilder: (context, day, focusedDay) {
                   final normalDay = DateTime(day.year, day.month, day.day);
-                  if (_diasConAgenda.contains(normalDay)) {
-                    return Container(
-                      margin: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8DC63F).withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF8DC63F),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${day.day}',
-                          style: const TextStyle(
-                            color: Color(0xFF8DC63F),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                  return null;
+                  final esDoctora = _diasDoctora.contains(normalDay);
+                  final esAsistente = _diasAsistente.contains(normalDay);
+                  if (!esDoctora && !esAsistente) return null;
+                  return _buildDayMarker(
+                    day,
+                    esDoctora: esDoctora,
+                    esAmbas: esDoctora && esAsistente,
+                  );
                 },
               ),
               calendarStyle: const CalendarStyle(
@@ -482,6 +505,23 @@ class _AgendaPageState extends State<AgendaPage> {
               ),
             ),
           ),
+
+          // Leyenda
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _legendItem(const Color(0xFF00B5C8), 'Doctora'),
+                const SizedBox(width: 16),
+                _legendItem(const Color(0xFF8DC63F), 'Asistente'),
+                const SizedBox(width: 16),
+                _legendItemGradient('Ambas'),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
 
           // Encabezado del día seleccionado
           Padding(
@@ -549,105 +589,189 @@ class _AgendaPageState extends State<AgendaPage> {
                           ),
                         ),
                       )
-                : agendasDia.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.event_busy_outlined,
-                              size: 48,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Sin agenda para este día',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                        itemCount: agendasDia.length,
-                        itemBuilder: (context, index) {
-                          final agenda = agendasDia[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ListTile(
-                              onTap: () => _mostrarOpcionesAgenda(agenda),
-                              leading: CircleAvatar(
-                                backgroundColor: agenda.estado
-                                    ? const Color(0xFF8DC63F)
-                                    : Colors.grey.shade400,
-                                child: const Icon(
-                                  Icons.schedule,
-                                  color: Colors.white,
-                                  size: 20,
+                    : agendasDia.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.event_busy_outlined,
+                                  size: 48,
+                                  color: Colors.grey.shade400,
                                 ),
-                              ),
-                              title: Text(
-                                '${agenda.horaInicio.substring(0, 5)} — ${agenda.horaFin.substring(0, 5)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Sin agenda para este día',
+                                  style: TextStyle(color: Colors.grey),
                                 ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Cada ${agenda.intervalo} min'),
-                                  if (agenda.diasSemana != null)
-                                    Text(
-                                      _formatearDias(agenda.diasSemana!),
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                ],
-                              ),
-                              isThreeLine: agenda.diasSemana != null,
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: agenda.estado
-                                          ? const Color(
-                                              0xFF8DC63F,
-                                            ).withValues(alpha: 0.15)
-                                          : Colors.grey.shade200,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      agenda.estado ? 'Activa' : 'Inactiva',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: agenda.estado
-                                            ? const Color(0xFF8DC63F)
-                                            : Colors.grey,
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                            itemCount: agendasDia.length,
+                            itemBuilder: (context, index) {
+                              final agenda = agendasDia[index];
+                              final rolColor = agenda.rolCreador == 'Doctora'
+                                  ? const Color(0xFF00B5C8)
+                                  : const Color(0xFF8DC63F);
+                              final rolLabel = agenda.rolCreador == 'Doctora'
+                                  ? 'Dra.'
+                                  : 'Asist.';
+
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Container(width: 5, color: rolColor),
+                                      Expanded(
+                                        child: ListTile(
+                                          onTap: () =>
+                                              _mostrarOpcionesAgenda(agenda),
+                                          leading: CircleAvatar(
+                                            backgroundColor: agenda.estado
+                                                ? rolColor
+                                                : Colors.grey.shade400,
+                                            child: const Icon(
+                                              Icons.schedule,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
+                                          ),
+                                          title: Text(
+                                            '${agenda.horaInicio.substring(0, 5)} — ${agenda.horaFin.substring(0, 5)}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          subtitle: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Cada ${agenda.intervalo} min',
+                                              ),
+                                              if (agenda.diasSemana != null)
+                                                Text(
+                                                  _formatearDias(
+                                                    agenda.diasSemana!,
+                                                  ),
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  _buildChip(
+                                                    agenda.ciudad.nombreCiudad,
+                                                    Icons.location_on_outlined,
+                                                    Colors.grey,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  _buildChip(
+                                                    rolLabel,
+                                                    Icons.person_outline,
+                                                    rolColor,
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          isThreeLine: true,
+                                          trailing: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: agenda.estado
+                                                      ? const Color(
+                                                          0xFF8DC63F,
+                                                        ).withValues(alpha: 0.15)
+                                                      : Colors.grey.shade200,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Text(
+                                                  agenda.estado
+                                                      ? 'Activa'
+                                                      : 'Inactiva',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: agenda.estado
+                                                        ? const Color(
+                                                            0xFF8DC63F,
+                                                          )
+                                                        : Colors.grey,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.chevron_right,
+                                                color: Colors.grey,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.grey,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                                ),
+                              );
+                            },
+                          ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _legendItem(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      ],
+    );
+  }
+
+  Widget _legendItemGradient(String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00B5C8), Color(0xFF8DC63F)],
+            ),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      ],
     );
   }
 }

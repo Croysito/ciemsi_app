@@ -43,6 +43,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
         servicioId: event.servicioId,
         pacienteId: event.pacienteId,
         ciudadId: event.ciudadId,
+        agendaId: event.agendaId,
         notas: event.notas,
       );
       emit(CitaReservada());

@@ -23,6 +23,7 @@ class CitaRemoteDatasource {
     required int servicioId,
     int? pacienteId,
     int? ciudadId,
+    int? agendaId,
     String? notas,
   }) async {
     try {
@@ -34,6 +35,7 @@ class CitaRemoteDatasource {
           'servicioId': servicioId,
           if (pacienteId != null) 'pacienteId': pacienteId,
           if (ciudadId != null) 'ciudadId': ciudadId,
+          if (agendaId != null) 'agendaId': agendaId,
           if (notas != null) 'notas': notas,
         },
       );

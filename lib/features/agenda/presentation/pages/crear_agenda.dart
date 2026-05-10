@@ -1,19 +1,17 @@
+import 'package:ciemsi_app/features/auth/domain/entities/usuario.dart';
+import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
-import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
-
 class CrearAgendaPage extends StatefulWidget {
-  final List<Ciudad> ciudades;
-  final Ciudad? ciudadInicial;
+  final Usuario usuario;
   final DateTime? fechaInicial;
 
   const CrearAgendaPage({
     super.key,
-    required this.ciudades,
-    this.ciudadInicial,
+    required this.usuario,
     this.fechaInicial,
   });
 
@@ -22,6 +20,7 @@ class CrearAgendaPage extends StatefulWidget {
 }
 
 class _CrearAgendaPageState extends State<CrearAgendaPage> {
+  List<Ciudad> _ciudades = [];
   Ciudad? _ciudadSeleccionada;
   DateTime? _fechaSeleccionada;
   DateTime _focusedDay = DateTime.now();
@@ -31,6 +30,8 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
   int _intervalo = 30;
   bool _esFechaEspecifica = true;
   bool _guardando = false;
+
+  bool get _esAsistente => widget.usuario.rol == 'Asistente';
 
   final List<String> _diasSemana = [
     'LUNES',
@@ -45,10 +46,35 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
   @override
   void initState() {
     super.initState();
-    _ciudadSeleccionada = widget.ciudadInicial;
     _fechaSeleccionada = widget.fechaInicial;
     if (widget.fechaInicial != null) {
       _focusedDay = widget.fechaInicial!;
+    }
+
+    if (_esAsistente) {
+      // Ciudad fija: la del asistente
+      _ciudadSeleccionada = widget.usuario.ciudad;
+    } else {
+      // Doctora: cargar todas las ciudades
+      _cargarCiudades();
+    }
+  }
+
+  Future<void> _cargarCiudades() async {
+    try {
+      final response = await ApiClientProvider.instance.dio.get('/ciudades');
+      if (!mounted) return;
+      final lista = (response.data as List)
+          .map((c) => Ciudad(id: c['id'], nombreCiudad: c['nombreCiudad']))
+          .toList();
+      setState(() {
+        _ciudades = lista;
+        if (_ciudades.isNotEmpty) {
+          _ciudadSeleccionada = _ciudades.first;
+        }
+      });
+    } catch (e) {
+      debugPrint('Error cargando ciudades: $e');
     }
   }
 
@@ -81,9 +107,7 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
   }
 
   Future<void> _guardar() async {
-    if (_ciudadSeleccionada == null ||
-        _horaInicio == null ||
-        _horaFin == null) {
+    if (_ciudadSeleccionada == null || _horaInicio == null || _horaFin == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Ciudad, hora inicio y hora fin son requeridos'),
@@ -129,6 +153,7 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
         },
       );
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Agenda creada correctamente'),
@@ -137,11 +162,12 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
       );
       Navigator.pop(context, true);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     } finally {
-      setState(() => _guardando = false);
+      if (mounted) setState(() => _guardando = false);
     }
   }
 
@@ -162,7 +188,7 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Ciudad
+            // Ciudad: fija para Asistente, dropdown para Doctora
             const Text(
               'Ciudad',
               style: TextStyle(
@@ -171,30 +197,10 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<Ciudad>(
-                  isExpanded: true,
-                  value: _ciudadSeleccionada,
-                  items: widget.ciudades
-                      .map(
-                        (c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(c.nombreCiudad),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setState(() => _ciudadSeleccionada = value),
-                ),
-              ),
-            ),
+            if (_esAsistente)
+              _buildCiudadFija()
+            else
+              _buildCiudadDropdown(),
             const SizedBox(height: 16),
 
             // Tipo
@@ -265,7 +271,7 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
             ),
             const SizedBox(height: 16),
 
-            // Calendario o días
+            // Calendario o días de semana
             if (_esFechaEspecifica) ...[
               const Text(
                 'Selecciona la fecha',
@@ -540,6 +546,96 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCiudadFija() {
+    final ciudad = widget.usuario.ciudad;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF8DC63F).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFF8DC63F).withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.location_city_outlined,
+            color: Color(0xFF8DC63F),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Tu ciudad',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              Text(
+                ciudad?.nombreCiudad ?? 'Sin ciudad asignada',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF8DC63F),
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCiudadDropdown() {
+    if (_ciudades.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFF00B5C8),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Cargando ciudades...', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<Ciudad>(
+          isExpanded: true,
+          value: _ciudadSeleccionada,
+          items: _ciudades
+              .map(
+                (c) => DropdownMenuItem(
+                  value: c,
+                  child: Text(c.nombreCiudad),
+                ),
+              )
+              .toList(),
+          onChanged: (value) => setState(() => _ciudadSeleccionada = value),
         ),
       ),
     );
