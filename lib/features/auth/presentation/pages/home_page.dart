@@ -8,6 +8,7 @@ import 'package:ciemsi_app/features/suministros/presentation/pages/suministros_p
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/tratamientos_asignados_page.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/tratamientos_page.dart';
+import 'package:ciemsi_app/core/di/app_dependencies.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -17,7 +18,6 @@ import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../../../pacientes/presentation/pages/pacientes_page.dart';
-import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_bloc.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/pages/asistentes_page.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
@@ -43,9 +43,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _citaBloc = CitaBloc();
-    _tratamientoBloc = TratamientoBloc();
-    _suministroBloc = SuministroBloc();
+    _citaBloc = AppDependencies.createCitaBloc();
+    _tratamientoBloc = AppDependencies.createTratamientoBloc();
+    _suministroBloc = AppDependencies.createSuministroBloc();
 
     if (widget.usuario.rol == 'Asistente' && widget.usuario.ciudad != null) {
       _ciudadIdInventario = widget.usuario.ciudad!.id;
@@ -205,7 +205,7 @@ class _HomePageState extends State<HomePage> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => BlocProvider(
-                      create: (_) => AsistenteBloc(),
+                      create: (_) => AppDependencies.createAsistenteBloc(),
                       child: const AsistentesPage(),
                     ),
                   ),
@@ -223,7 +223,7 @@ class _HomePageState extends State<HomePage> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => BlocProvider(
-                      create: (_) => SuministroBloc(),
+                      create: (_) => AppDependencies.createSuministroBloc(),
                       child: const SuministrosPage(),
                     ),
                   ),
@@ -241,7 +241,7 @@ class _HomePageState extends State<HomePage> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => BlocProvider(
-                      create: (_) => TratamientoBloc(),
+                      create: (_) => AppDependencies.createTratamientoBloc(),
                       child: const TratamientosPage(),
                     ),
                   ),
@@ -334,21 +334,18 @@ class _DashboardTabState extends State<_DashboardTab> {
     try {
       final res = await ApiClientProvider.instance.dio.get('/citas');
       final hoy = DateTime.now();
-      _citasHoy = (res.data as List)
-          .cast<Map<String, dynamic>>()
-          .where((c) {
+      _citasHoy =
+          (res.data as List).cast<Map<String, dynamic>>().where((c) {
             final f = DateTime.tryParse(c['fecha']?.toString() ?? '');
             return f != null &&
                 f.year == hoy.year &&
                 f.month == hoy.month &&
                 f.day == hoy.day;
-          })
-          .toList()
-        ..sort((a, b) {
-          final ha = a['hora']?.toString() ?? '';
-          final hb = b['hora']?.toString() ?? '';
-          return ha.compareTo(hb);
-        });
+          }).toList()..sort((a, b) {
+            final ha = a['hora']?.toString() ?? '';
+            final hb = b['hora']?.toString() ?? '';
+            return ha.compareTo(hb);
+          });
     } catch (_) {}
   }
 
@@ -356,13 +353,10 @@ class _DashboardTabState extends State<_DashboardTab> {
     try {
       final res = await ApiClientProvider.instance.dio.get('/pacientes');
       final hoy = DateTime.now();
-      _cumpleanos = (res.data as List)
-          .cast<Map<String, dynamic>>()
-          .where((p) {
-            final fn = DateTime.tryParse(p['fechaNacimiento']?.toString() ?? '');
-            return fn != null && fn.month == hoy.month && fn.day == hoy.day;
-          })
-          .toList();
+      _cumpleanos = (res.data as List).cast<Map<String, dynamic>>().where((p) {
+        final fn = DateTime.tryParse(p['fechaNacimiento']?.toString() ?? '');
+        return fn != null && fn.month == hoy.month && fn.day == hoy.day;
+      }).toList();
     } catch (_) {}
   }
 
@@ -507,8 +501,11 @@ class _CardCumpleanos extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Row(
                   children: [
-                    const Icon(Icons.person_outline,
-                        size: 15, color: Colors.pink),
+                    const Icon(
+                      Icons.person_outline,
+                      size: 15,
+                      color: Colors.pink,
+                    ),
                     const SizedBox(width: 6),
                     Text(nombre, style: const TextStyle(fontSize: 13)),
                   ],
@@ -539,8 +536,11 @@ class _CardAlertas extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.warning_amber_rounded,
-                    color: Colors.orange, size: 20),
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Stock bajo (${alertas.length})',
@@ -553,21 +553,23 @@ class _CardAlertas extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            ...mostradas.map((a) => Padding(
-              padding: const EdgeInsets.only(bottom: 3),
-              child: Row(
-                children: [
-                  const Icon(Icons.circle, size: 6, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${a['nombre_suministro']} — ${a['saldo']} ${a['unidad_medida']}',
-                      style: const TextStyle(fontSize: 13),
+            ...mostradas.map(
+              (a) => Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Row(
+                  children: [
+                    const Icon(Icons.circle, size: 6, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${a['nombre_suministro']} — ${a['saldo']} ${a['unidad_medida']}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            )),
+            ),
             if (alertas.length > 3)
               Text(
                 '+${alertas.length - 3} más',
@@ -595,8 +597,11 @@ class _CardCitasHoy extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.calendar_today,
-                    color: Color(0xFF00B5C8), size: 18),
+                const Icon(
+                  Icons.calendar_today,
+                  color: Color(0xFF00B5C8),
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   citas.isEmpty
@@ -621,16 +626,17 @@ class _CardCitasHoy extends StatelessWidget {
               const SizedBox(height: 10),
               ...citas.map((c) {
                 final hora = c['hora']?.toString().substring(0, 5) ?? '';
-                final paciente = c['paciente']?['nombreCompleto']?.toString() ??
-                    'Paciente';
+                final paciente =
+                    c['paciente']?['nombreCompleto']?.toString() ?? 'Paciente';
                 final servicio =
                     c['servicio']?['nombreServicio']?.toString() ?? '';
-                final ciudad =
-                    c['ciudad']?['nombreCiudad']?.toString() ?? '';
+                final ciudad = c['ciudad']?['nombreCiudad']?.toString() ?? '';
                 return Container(
                   margin: const EdgeInsets.only(bottom: 6),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 8),
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF00B5C8).withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(10),
@@ -656,15 +662,20 @@ class _CardCitasHoy extends StatelessWidget {
                             Text(
                               paciente,
                               style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 13),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
                             ),
                             if (servicio.isNotEmpty || ciudad.isNotEmpty)
                               Text(
-                                [servicio, ciudad]
-                                    .where((s) => s.isNotEmpty)
-                                    .join(' • '),
+                                [
+                                  servicio,
+                                  ciudad,
+                                ].where((s) => s.isNotEmpty).join(' • '),
                                 style: const TextStyle(
-                                    color: Colors.grey, fontSize: 11),
+                                  color: Colors.grey,
+                                  fontSize: 11,
+                                ),
                               ),
                           ],
                         ),
@@ -735,8 +746,7 @@ class _SelectorCiudadInventario extends StatefulWidget {
       _SelectorCiudadInventarioState();
 }
 
-class _SelectorCiudadInventarioState
-    extends State<_SelectorCiudadInventario> {
+class _SelectorCiudadInventarioState extends State<_SelectorCiudadInventario> {
   List<Map<String, dynamic>> _ciudades = [];
   bool _cargando = true;
 
@@ -771,14 +781,14 @@ class _SelectorCiudadInventarioState
         ),
         title: const Text(
           'Inventario',
-          style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color(0xFF00B5C8),
       ),
       body: _cargando
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF00B5C8)))
+              child: CircularProgressIndicator(color: Color(0xFF00B5C8)),
+            )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -786,8 +796,7 @@ class _SelectorCiudadInventarioState
                   padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
                   child: Text(
                     'Selecciona una ciudad',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
                 Expanded(
@@ -803,13 +812,15 @@ class _SelectorCiudadInventarioState
                           c['nombreCiudad']?.toString() ?? 'Sin nombre';
                       return Card(
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: ListTile(
-                          leading: const Icon(Icons.location_city_outlined,
-                              color: Color(0xFF00B5C8)),
+                          leading: const Icon(
+                            Icons.location_city_outlined,
+                            color: Color(0xFF00B5C8),
+                          ),
                           title: Text(nombre),
-                          trailing:
-                              const Icon(Icons.chevron_right),
+                          trailing: const Icon(Icons.chevron_right),
                           onTap: id != null
                               ? () => widget.onSeleccionada(id, nombre)
                               : null,

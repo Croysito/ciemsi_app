@@ -1,15 +1,17 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:intl/intl.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_event.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_state.dart';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
+import 'package:ciemsi_app/core/utils/receta_pdf_generator.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
 class GenerarRecetaPage extends StatefulWidget {
   final CitaMedica cita;
-
   const GenerarRecetaPage({super.key, required this.cita});
 
   @override
@@ -18,9 +20,9 @@ class GenerarRecetaPage extends StatefulWidget {
 
 class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
   final _detalleController = TextEditingController();
-  String? _whatsappLink;
-  String? _pdfUrl;
+  File? _pdfFile;
   bool _recetaGenerada = false;
+  bool _generandoPdf = false;
 
   @override
   void dispose() {
@@ -28,18 +30,62 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
     super.dispose();
   }
 
-  Future<void> _obtenerWhatsappLink() async {
+  Future<void> _generarPdfLocal() async {
+    setState(() => _generandoPdf = true);
     try {
-      final response = await ApiClientProvider.instance.dio.get(
-        '/recetas/cita/${widget.cita.id}/whatsapp',
+      final file = await RecetaPdfGenerator.generar(
+        cita: widget.cita,
+        detalle: _detalleController.text.trim(),
       );
+      if (!mounted) return;
       setState(() {
-        _whatsappLink = response.data['whatsappLink'];
-        _pdfUrl = response.data['pdfUrl'];
+        _pdfFile = file;
+        _recetaGenerada = true;
+        _generandoPdf = false;
       });
+      _agregarAlHistorial();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Receta generada correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
-      debugPrint('Error obteniendo link: $e');
+      if (!mounted) return;
+      setState(() => _generandoPdf = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al generar PDF: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  }
+
+  Future<void> _agregarAlHistorial() async {
+    final fecha = DateFormat('dd/MM/yyyy').format(widget.cita.fecha);
+    final detalle =
+        'Receta médica\n'
+        'Fecha: $fecha | Servicio: ${widget.cita.servicio.nombreServicio}\n\n'
+        'Medicamentos prescritos:\n'
+        '${_detalleController.text.trim()}';
+    try {
+      await ApiClientProvider.instance.dio.post(
+        '/historial/${widget.cita.paciente.id}/notas',
+        data: {'detalle': detalle},
+      );
+    } catch (e) {
+      debugPrint('Historial: no se pudo registrar la receta - $e');
+    }
+  }
+
+  Future<void> _compartir() async {
+    if (_pdfFile == null) return;
+    await Share.shareXFiles(
+      [XFile(_pdfFile!.path)],
+      subject: 'Receta Médica - ${widget.cita.paciente.nombreCompleto}',
+      text: 'Receta médica emitida por CIEMSI',
+    );
   }
 
   @override
@@ -57,14 +103,7 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
       body: BlocListener<TratamientoBloc, TratamientoState>(
         listener: (context, state) {
           if (state is RecetaGenerada) {
-            setState(() => _recetaGenerada = true);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Receta generada correctamente'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            _obtenerWhatsappLink();
+            _generarPdfLocal();
           }
           if (state is TratamientoError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -105,7 +144,7 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
                             ),
                           ),
                           Text(
-                            widget.cita.paciente.ci,
+                            'CI: ${widget.cita.paciente.ci}',
                             style: const TextStyle(color: Colors.grey),
                           ),
                         ],
@@ -116,7 +155,7 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
               ),
               const SizedBox(height: 16),
 
-              // Medicamentos
+              // Campo medicamentos
               const Text(
                 'Medicamentos a recetar',
                 style: TextStyle(
@@ -141,20 +180,25 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
               ),
               const SizedBox(height: 24),
 
+              // Botón generar
               if (!_recetaGenerada)
                 BlocBuilder<TratamientoBloc, TratamientoState>(
                   builder: (context, state) {
+                    final loading =
+                        state is TratamientoLoading || _generandoPdf;
                     return SizedBox(
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton.icon(
-                        onPressed: state is TratamientoLoading
+                        onPressed: loading
                             ? null
                             : () {
                                 if (_detalleController.text.trim().isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Escribe los medicamentos'),
+                                      content: Text(
+                                        'Escribe los medicamentos',
+                                      ),
                                       backgroundColor: Colors.orange,
                                     ),
                                   );
@@ -167,7 +211,7 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
                                   ),
                                 );
                               },
-                        icon: state is TratamientoLoading
+                        icon: loading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
@@ -199,7 +243,8 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
                   },
                 ),
 
-              if (_recetaGenerada && _whatsappLink != null) ...[
+              // Estado exitoso + botón compartir
+              if (_recetaGenerada) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -228,19 +273,14 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final uri = Uri.parse(_whatsappLink!);
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(
-                                uri,
-                                mode: LaunchMode.externalApplication,
-                              );
-                            }
-                          },
+                          onPressed: _compartir,
                           icon: const Icon(Icons.send, color: Colors.white),
                           label: const Text(
                             'Enviar por WhatsApp',
-                            style: TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF25D366),

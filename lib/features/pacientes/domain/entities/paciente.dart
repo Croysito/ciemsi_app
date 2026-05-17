@@ -5,7 +5,6 @@ import 'package:ciemsi_app/features/auth/domain/entities/usuario.dart';
 class Paciente extends Equatable {
   final int id;
   final String ci;
-  final int? edad;
   final String? telefono;
   final DateTime? fechaNacimiento;
   final Usuario usuario;
@@ -13,7 +12,6 @@ class Paciente extends Equatable {
   const Paciente({
     required this.id,
     required this.ci,
-    this.edad,
     this.telefono,
     this.fechaNacimiento,
     required this.usuario,
@@ -22,6 +20,18 @@ class Paciente extends Equatable {
   String get nombreCompleto => usuario.nombreCompleto;
   Ciudad? get ciudad => usuario.ciudad;
 
+  int? get edad {
+    if (fechaNacimiento == null) return null;
+    final hoy = DateTime.now();
+    int anios = hoy.year - fechaNacimiento!.year;
+    if (hoy.month < fechaNacimiento!.month ||
+        (hoy.month == fechaNacimiento!.month &&
+            hoy.day < fechaNacimiento!.day)) {
+      anios--;
+    }
+    return anios;
+  }
+
   @override
-  List<Object?> get props => [id, ci, edad, telefono, fechaNacimiento, usuario];
+  List<Object?> get props => [id, ci, telefono, fechaNacimiento, usuario];
 }

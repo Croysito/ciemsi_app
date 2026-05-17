@@ -8,6 +8,7 @@ import '../../data/repositories/historial_repository_impl.dart';
 import '../../domain/entities/link_archivo.dart';
 import '../../domain/entities/nota_evolucion.dart';
 import '../../domain/usecases/obtener_historial.dart';
+import '../../domain/usecases/obtener_mi_historial.dart';
 import '../../domain/usecases/agregar_nota.dart';
 import '../../domain/usecases/agregar_link.dart';
 import '../../domain/usecases/subir_archivo_drive.dart';
@@ -46,8 +47,8 @@ class _MiHistorialPageState extends State<MiHistorialPage>
 
     return BlocProvider(
       create: (_) => HistorialBloc(
-        repository: repository,
         obtenerHistorialUseCase: ObtenerHistorialUseCase(repository),
+        obtenerMiHistorialUseCase: ObtenerMiHistorialUseCase(repository),
         agregarNotaUseCase: AgregarNotaUseCase(repository),
         agregarLinkUseCase: AgregarLinkUseCase(repository),
         subirArchivoDriveUseCase: SubirArchivoDriveUseCase(repository),

@@ -1,16 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:ciemsi_app/core/network/api_client.dart';
 import 'package:ciemsi_app/core/services/auth_storage_service.dart';
+import '../../domain/entities/auth_session.dart';
 import '../models/usuario_model.dart';
 
 class AuthRemoteDatasource {
   final ApiClient apiClient;
   AuthRemoteDatasource(this.apiClient);
 
-  Future<Map<String, dynamic>> iniciarSesion(
-    String email,
-    String password,
-  ) async {
+  Future<AuthSession> iniciarSesion(String email, String password) async {
     try {
       final response = await apiClient.dio.post(
         '/auth/login',
@@ -30,9 +28,9 @@ class AuthRemoteDatasource {
         usuario: usuarioJson,
       );
 
-      return {'token': token, 'usuario': usuario};
+      return AuthSession(token: token, usuario: usuario);
     } on DioException catch (e) {
-      throw Exception(e.response?.data['mensaje'] ?? 'Error al iniciar sesión');
+      throw Exception(ApiClient.errorMessage(e, 'Error al iniciar sesión'));
     }
   }
 
@@ -44,7 +42,7 @@ class AuthRemoteDatasource {
       );
     } on DioException catch (e) {
       throw Exception(
-        e.response?.data['mensaje'] ?? 'Error al recuperar contraseña',
+        ApiClient.errorMessage(e, 'Error al recuperar contraseña'),
       );
     }
   }
@@ -56,7 +54,7 @@ class AuthRemoteDatasource {
       // Eliminar sesión guardada
       await AuthStorageService.eliminarSesion();
     } on DioException catch (e) {
-      throw Exception(e.response?.data['mensaje'] ?? 'Error al cerrar sesión');
+      throw Exception(ApiClient.errorMessage(e, 'Error al cerrar sesión'));
     }
   }
 }

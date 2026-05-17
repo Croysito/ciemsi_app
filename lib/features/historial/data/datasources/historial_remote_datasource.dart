@@ -13,9 +13,7 @@ class HistorialRemoteDatasource {
       final response = await apiClient.dio.get('/historial/$pacienteId');
       return HistorialModel.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data['mensaje'] ?? 'Error al obtener historial',
-      );
+      throw Exception(ApiClient.errorMessage(e, 'Error al obtener historial'));
     }
   }
 
@@ -27,7 +25,7 @@ class HistorialRemoteDatasource {
       );
       return NotaModel.fromJson(response.data['nota']);
     } on DioException catch (e) {
-      throw Exception(e.response?.data['mensaje'] ?? 'Error al agregar nota');
+      throw Exception(ApiClient.errorMessage(e, 'Error al agregar nota'));
     }
   }
 
@@ -44,7 +42,7 @@ class HistorialRemoteDatasource {
       );
       return LinkModel.fromJson(response.data['link']);
     } on DioException catch (e) {
-      throw Exception(e.response?.data['mensaje'] ?? 'Error al agregar link');
+      throw Exception(ApiClient.errorMessage(e, 'Error al agregar link'));
     }
   }
 
@@ -73,7 +71,7 @@ class HistorialRemoteDatasource {
       );
       return LinkModel.fromJson(response.data['link']);
     } on DioException catch (e) {
-      throw Exception(e.response?.data['mensaje'] ?? 'Error al subir archivo');
+      throw Exception(ApiClient.errorMessage(e, 'Error al subir archivo'));
     }
   }
 
@@ -85,7 +83,7 @@ class HistorialRemoteDatasource {
       );
       return (response.data as List).map((l) => LinkModel.fromJson(l)).toList();
     } on DioException catch (e) {
-      throw Exception(e.response?.data['mensaje'] ?? 'Error al obtener links');
+      throw Exception(ApiClient.errorMessage(e, 'Error al obtener links'));
     }
   }
 
@@ -94,9 +92,7 @@ class HistorialRemoteDatasource {
       final response = await apiClient.dio.get('/historial/mi-historial');
       return HistorialModel.fromJson(response.data['historial']);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data['mensaje'] ?? 'Error al obtener historial',
-      );
+      throw Exception(ApiClient.errorMessage(e, 'Error al obtener historial'));
     }
   }
 }

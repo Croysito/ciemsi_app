@@ -1,15 +1,15 @@
 import 'package:ciemsi_app/features/pacientes/domain/entities/paciente.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
+import 'package:ciemsi_app/features/pacientes/domain/entities/registro_paciente_result.dart';
 
 abstract class PacienteRepository {
   Future<List<Paciente>> listarPacientes();
   Future<Paciente> obtenerPaciente(int id);
-  Future<Map<String, dynamic>> registrarPaciente({
+  Future<RegistroPacienteResult> registrarPaciente({
     required String ci,
     required String nombre,
     required String apellido,
     required String email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
@@ -20,7 +20,6 @@ abstract class PacienteRepository {
     String? nombre,
     String? apellido,
     String? email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
@@ -31,7 +30,6 @@ abstract class PacienteRepository {
     required String nombre,
     required String apellido,
     required String email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,

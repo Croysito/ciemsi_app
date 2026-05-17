@@ -1,15 +1,29 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
-import 'package:ciemsi_app/features/citas/data/datasources/cita_remote_datasource.dart';
+import '../../domain/usecases/cambiar_estado_cita.dart';
+import '../../domain/usecases/listar_citas.dart';
+import '../../domain/usecases/listar_servicios_cita.dart';
+import '../../domain/usecases/modificar_cita.dart';
+import '../../domain/usecases/obtener_horas_disponibles.dart';
+import '../../domain/usecases/reservar_cita.dart';
 import 'cita_event.dart';
 import 'cita_state.dart';
 
 class CitaBloc extends Bloc<CitaEvent, CitaState> {
-  final CitaRemoteDatasource datasource;
+  final ListarCitasUseCase listarCitasUseCase;
+  final ReservarCitaUseCase reservarCitaUseCase;
+  final ModificarCitaUseCase modificarCitaUseCase;
+  final CambiarEstadoCitaUseCase cambiarEstadoCitaUseCase;
+  final ListarServiciosCitaUseCase listarServiciosCitaUseCase;
+  final ObtenerHorasDisponiblesUseCase obtenerHorasDisponiblesUseCase;
 
-  CitaBloc()
-    : datasource = CitaRemoteDatasource(ApiClientProvider.instance),
-      super(CitaInitial()) {
+  CitaBloc({
+    required this.listarCitasUseCase,
+    required this.reservarCitaUseCase,
+    required this.modificarCitaUseCase,
+    required this.cambiarEstadoCitaUseCase,
+    required this.listarServiciosCitaUseCase,
+    required this.obtenerHorasDisponiblesUseCase,
+  }) : super(CitaInitial()) {
     on<ListarCitasEvent>(_onListar);
     on<ReservarCitaEvent>(_onReservar);
     on<ModificarCitaEvent>(_onModificar);
@@ -24,7 +38,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
   ) async {
     emit(CitaLoading());
     try {
-      final citas = await datasource.listarCitas();
+      final citas = await listarCitasUseCase.execute();
       emit(CitasListadas(citas));
     } catch (e) {
       emit(CitaError(e.toString().replaceAll('Exception: ', '')));
@@ -37,7 +51,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
   ) async {
     emit(CitaLoading());
     try {
-      await datasource.reservarCita(
+      await reservarCitaUseCase.execute(
         fecha: event.fecha,
         hora: event.hora,
         servicioId: event.servicioId,
@@ -58,7 +72,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
   ) async {
     emit(CitaLoading());
     try {
-      await datasource.modificarCita(
+      await modificarCitaUseCase.execute(
         id: event.id,
         fecha: event.fecha,
         hora: event.hora,
@@ -77,7 +91,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
   ) async {
     emit(CitaLoading());
     try {
-      await datasource.cambiarEstado(
+      await cambiarEstadoCitaUseCase.execute(
         event.id,
         event.estado,
         notas: event.notas,
@@ -94,7 +108,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
   ) async {
     emit(CitaLoading());
     try {
-      final servicios = await datasource.listarServicios();
+      final servicios = await listarServiciosCitaUseCase.execute();
       emit(ServiciosCargados(servicios));
     } catch (e) {
       emit(CitaError(e.toString().replaceAll('Exception: ', '')));
@@ -107,11 +121,10 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
   ) async {
     emit(CitaLoading());
     try {
-      final resultado = await datasource.obtenerDisponibilidad(
+      final horas = await obtenerHorasDisponiblesUseCase.execute(
         ciudadId: event.ciudadId,
         fecha: event.fecha,
       );
-      final horas = List<String>.from(resultado['horasDisponibles'] ?? []);
       emit(DisponibilidadCargada(horasDisponibles: horas, fecha: event.fecha));
     } catch (e) {
       emit(CitaError(e.toString().replaceAll('Exception: ', '')));

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/paciente.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_bloc.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_event.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_state.dart';
+import 'package:ciemsi_app/core/utils/date_input_formatter.dart';
 
 class ModificarPacientePage extends StatefulWidget {
   final Paciente paciente;
@@ -20,23 +20,24 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
   final _nombreController = TextEditingController();
   final _apellidoController = TextEditingController();
   final _emailController = TextEditingController();
-  final _edadController = TextEditingController();
   final _telefonoController = TextEditingController();
-  DateTime? _fechaNacimiento;
+  final _fechaNacimientoController = TextEditingController();
   Ciudad? _ciudadSeleccionada;
   List<Ciudad> _ciudades = [];
 
   @override
   void initState() {
     super.initState();
-    // Cargar datos actuales del paciente
     _ciController.text = widget.paciente.ci;
     _nombreController.text = widget.paciente.usuario.nombre;
     _apellidoController.text = widget.paciente.usuario.apellido;
     _emailController.text = widget.paciente.usuario.email;
-    _edadController.text = widget.paciente.edad?.toString() ?? '';
     _telefonoController.text = widget.paciente.telefono ?? '';
-    _fechaNacimiento = widget.paciente.fechaNacimiento;
+    if (widget.paciente.fechaNacimiento != null) {
+      _fechaNacimientoController.text = formatFecha(
+        widget.paciente.fechaNacimiento!,
+      );
+    }
     context.read<PacienteBloc>().add(CargarCiudadesEvent());
   }
 
@@ -46,26 +47,9 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
     _nombreController.dispose();
     _apellidoController.dispose();
     _emailController.dispose();
-    _edadController.dispose();
     _telefonoController.dispose();
+    _fechaNacimientoController.dispose();
     super.dispose();
-  }
-
-  Future<void> _seleccionarFecha() async {
-    final fecha = await showDatePicker(
-      context: context,
-      locale: const Locale('es', 'ES'),
-      initialDate: _fechaNacimiento ?? DateTime(2000),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF00B5C8)),
-        ),
-        child: child!,
-      ),
-    );
-    if (fecha != null) setState(() => _fechaNacimiento = fecha);
   }
 
   @override
@@ -86,7 +70,6 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
             setState(() {
               _ciudades = state.ciudades;
               if (widget.paciente.ciudad != null) {
-                // Buscar por id para garantizar misma referencia
                 try {
                   _ciudadSeleccionada = _ciudades.firstWhere(
                     (c) => c.id == widget.paciente.ciudad!.id,
@@ -192,47 +175,30 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 12),
-              _buildField(
-                'Edad',
-                _edadController,
-                Icons.cake_outlined,
+              TextField(
+                controller: _fechaNacimientoController,
                 keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-
-              // Fecha nacimiento
-              GestureDetector(
-                onTap: _seleccionarFecha,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 18,
+                inputFormatters: [DateInputFormatter()],
+                decoration: InputDecoration(
+                  labelText: 'Fecha de nacimiento',
+                  hintText: 'dd/mm/aaaa',
+                  labelStyle: const TextStyle(color: Color(0xFF00B5C8)),
+                  prefixIcon: const Icon(
+                    Icons.calendar_today_outlined,
+                    color: Color(0xFF00B5C8),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        color: Color(0xFF00B5C8),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _fechaNacimiento != null
-                            ? DateFormat('dd/MM/yyyy').format(_fechaNacimiento!)
-                            : 'Fecha de nacimiento',
-                        style: TextStyle(
-                          color: _fechaNacimiento != null
-                              ? Colors.black
-                              : Colors.grey,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF00B5C8),
+                      width: 2,
+                    ),
                   ),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
               ),
               const SizedBox(height: 12),
@@ -288,6 +254,21 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
                                 );
                                 return;
                               }
+                              final fechaNac = parseFechaNacimiento(
+                                _fechaNacimientoController.text,
+                              );
+                              if (_fechaNacimientoController.text.isNotEmpty &&
+                                  fechaNac == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Fecha inválida. Use el formato dd/mm/aaaa',
+                                    ),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return;
+                              }
                               context.read<PacienteBloc>().add(
                                 ModificarPacienteEvent(
                                   id: widget.paciente.id,
@@ -295,9 +276,8 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
                                   nombre: _nombreController.text.trim(),
                                   apellido: _apellidoController.text.trim(),
                                   email: _emailController.text.trim(),
-                                  edad: int.tryParse(_edadController.text),
                                   telefono: _telefonoController.text.trim(),
-                                  fechaNacimiento: _fechaNacimiento,
+                                  fechaNacimiento: fechaNac,
                                   ciudadId: _ciudadSeleccionada!.id,
                                 ),
                               );

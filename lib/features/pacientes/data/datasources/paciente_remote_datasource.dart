@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../../core/network/api_client.dart';
+import '../../domain/entities/registro_paciente_result.dart';
 import '../models/paciente_model.dart';
 import '../models/ciudad_model.dart';
 
@@ -14,9 +15,7 @@ class PacienteRemoteDatasource {
           .map((p) => PacienteModel.fromJson(p))
           .toList();
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data['mensaje'] ?? 'Error al listar pacientes',
-      );
+      throw Exception(ApiClient.errorMessage(e, 'Error al listar pacientes'));
     }
   }
 
@@ -25,18 +24,15 @@ class PacienteRemoteDatasource {
       final response = await apiClient.dio.get('/pacientes/$id');
       return PacienteModel.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data['mensaje'] ?? 'Error al obtener paciente',
-      );
+      throw Exception(ApiClient.errorMessage(e, 'Error al obtener paciente'));
     }
   }
 
-  Future<Map<String, dynamic>> registrarPaciente({
+  Future<RegistroPacienteResult> registrarPaciente({
     required String ci,
     required String nombre,
     required String apellido,
     required String email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
@@ -49,17 +45,18 @@ class PacienteRemoteDatasource {
           'nombre': nombre,
           'apellido': apellido,
           'email': email,
-          'edad': edad,
           'telefono': telefono,
           'fechaNacimiento': fechaNacimiento?.toIso8601String(),
           'ciudadId': ciudadId,
         },
       );
-      return response.data;
-    } on DioException catch (e) {
-      throw Exception(
-        e.response?.data['mensaje'] ?? 'Error al registrar paciente',
+      final credenciales = response.data['credenciales'];
+      return RegistroPacienteResult(
+        email: credenciales['email'],
+        password: credenciales['password'],
       );
+    } on DioException catch (e) {
+      throw Exception(ApiClient.errorMessage(e, 'Error al registrar paciente'));
     }
   }
 
@@ -69,7 +66,6 @@ class PacienteRemoteDatasource {
     String? nombre,
     String? apellido,
     String? email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
@@ -82,16 +78,13 @@ class PacienteRemoteDatasource {
           if (nombre != null) 'nombre': nombre,
           if (apellido != null) 'apellido': apellido,
           if (email != null) 'email': email,
-          'edad': edad,
           'telefono': telefono,
           'fechaNacimiento': fechaNacimiento?.toIso8601String(),
           'ciudadId': ciudadId,
         },
       );
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data['mensaje'] ?? 'Error al modificar paciente',
-      );
+      throw Exception(ApiClient.errorMessage(e, 'Error al modificar paciente'));
     }
   }
 
@@ -101,7 +94,6 @@ class PacienteRemoteDatasource {
     required String nombre,
     required String apellido,
     required String email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
@@ -114,7 +106,6 @@ class PacienteRemoteDatasource {
           'nombre': nombre,
           'apellido': apellido,
           'email': email,
-          'edad': edad,
           'telefono': telefono,
           'fechaNacimiento': fechaNacimiento?.toIso8601String(),
           'ciudadId': ciudadId,
@@ -122,7 +113,7 @@ class PacienteRemoteDatasource {
       );
     } on DioException catch (e) {
       throw Exception(
-        e.response?.data['mensaje'] ?? 'Error al completar datos del paciente',
+        ApiClient.errorMessage(e, 'Error al completar datos del paciente'),
       );
     }
   }
@@ -134,9 +125,7 @@ class PacienteRemoteDatasource {
           .map((c) => CiudadModel.fromJson(c))
           .toList();
     } on DioException catch (e) {
-      throw Exception(
-        e.response?.data['mensaje'] ?? 'Error al listar ciudades',
-      );
+      throw Exception(ApiClient.errorMessage(e, 'Error al listar ciudades'));
     }
   }
 }

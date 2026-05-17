@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ciemsi_app/core/di/app_dependencies.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/features/auth/domain/entities/usuario.dart';
 import 'package:ciemsi_app/features/auth/presentation/bloc/auth_bloc.dart';
@@ -28,8 +29,8 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
   @override
   void initState() {
     super.initState();
-    _citaBloc = CitaBloc();
-    _tratamientoBloc = TratamientoBloc();
+    _citaBloc = AppDependencies.createCitaBloc();
+    _tratamientoBloc = AppDependencies.createTratamientoBloc();
   }
 
   @override
@@ -128,7 +129,9 @@ class _PerfilTabState extends State<_PerfilTab> {
 
   Future<void> _cargarPerfil() async {
     try {
-      final res = await ApiClientProvider.instance.dio.get('/pacientes/mi-perfil');
+      final res = await ApiClientProvider.instance.dio.get(
+        '/pacientes/mi-perfil',
+      );
       if (mounted) {
         setState(() {
           _perfil = res.data is Map<String, dynamic>

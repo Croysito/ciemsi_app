@@ -1,5 +1,6 @@
 import '../../domain/entities/paciente.dart';
 import '../../domain/entities/ciudad.dart';
+import '../../domain/entities/registro_paciente_result.dart';
 import '../../domain/repositories/paciente_repository.dart';
 import '../datasources/paciente_remote_datasource.dart';
 
@@ -16,12 +17,11 @@ class PacienteRepositoryImpl implements PacienteRepository {
       remoteDatasource.obtenerPaciente(id);
 
   @override
-  Future<Map<String, dynamic>> registrarPaciente({
+  Future<RegistroPacienteResult> registrarPaciente({
     required String ci,
     required String nombre,
     required String apellido,
     required String email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
@@ -30,7 +30,6 @@ class PacienteRepositoryImpl implements PacienteRepository {
     nombre: nombre,
     apellido: apellido,
     email: email,
-    edad: edad,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
     ciudadId: ciudadId,
@@ -43,7 +42,6 @@ class PacienteRepositoryImpl implements PacienteRepository {
     String? nombre,
     String? apellido,
     String? email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
@@ -53,7 +51,6 @@ class PacienteRepositoryImpl implements PacienteRepository {
     nombre: nombre,
     apellido: apellido,
     email: email,
-    edad: edad,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
     ciudadId: ciudadId,
@@ -66,7 +63,6 @@ class PacienteRepositoryImpl implements PacienteRepository {
     required String nombre,
     required String apellido,
     required String email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
@@ -76,7 +72,6 @@ class PacienteRepositoryImpl implements PacienteRepository {
     nombre: nombre,
     apellido: apellido,
     email: email,
-    edad: edad,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
     ciudadId: ciudadId,

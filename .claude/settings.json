@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Read(//e/OTROS TRABAJOS/CIEMSI/ciemsi-backend/src/**)",
-      "Read(//e/OTROS TRABAJOS/CIEMSI/ciemsi-backend/**)"
+      "Read(//e/OTROS TRABAJOS/CIEMSI/ciemsi-backend/**)",
+      "Bash(Get-ChildItem -Path \"lib\\\\features\\\\recetas\" -Recurse -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }

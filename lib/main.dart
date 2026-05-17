@@ -12,6 +12,7 @@ import 'package:ciemsi_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ciemsi_app/features/auth/presentation/pages/splash_page.dart';
 import 'package:ciemsi_app/features/pacientes/data/datasources/paciente_remote_datasource.dart';
 import 'package:ciemsi_app/features/pacientes/data/repositories/paciente_repository_impl.dart';
+import 'package:ciemsi_app/features/pacientes/domain/usecases/listar_ciudades.dart';
 import 'package:ciemsi_app/features/pacientes/domain/usecases/listar_pacientes.dart';
 import 'package:ciemsi_app/features/pacientes/domain/usecases/registrar_paciente.dart';
 import 'package:ciemsi_app/features/pacientes/domain/usecases/modificar_paciente.dart';
@@ -56,6 +57,7 @@ class MyApp extends StatelessWidget {
         BlocProvider(
           create: (_) => PacienteBloc(
             listarPacientesUseCase: ListarPacientesUseCase(pacienteRepository),
+            listarCiudadesUseCase: ListarCiudadesUseCase(pacienteRepository),
             registrarPacienteUseCase: RegistrarPacienteUseCase(
               pacienteRepository,
             ),
@@ -65,7 +67,6 @@ class MyApp extends StatelessWidget {
             completarPacienteUseCase: CompletarPacienteUseCase(
               pacienteRepository,
             ),
-            repository: pacienteRepository,
           ),
         ),
       ],
@@ -78,10 +79,7 @@ class MyApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        supportedLocales: const [
-          Locale('es', 'ES'),
-          Locale('en', 'US'),
-        ],
+        supportedLocales: const [Locale('es', 'ES'), Locale('en', 'US')],
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00B5C8)),
           useMaterial3: true,

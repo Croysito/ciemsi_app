@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import '../../domain/entities/ciudad.dart';
+import '../../../../../core/utils/date_input_formatter.dart';
 import '../bloc/paciente_bloc.dart';
 import '../bloc/paciente_event.dart';
 import '../bloc/paciente_state.dart';
@@ -18,9 +18,8 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
   final _nombreController = TextEditingController();
   final _apellidoController = TextEditingController();
   final _emailController = TextEditingController();
-  final _edadController = TextEditingController();
   final _telefonoController = TextEditingController();
-  DateTime? _fechaNacimiento;
+  final _fechaNacimientoController = TextEditingController();
   Ciudad? _ciudadSeleccionada;
   List<Ciudad> _ciudades = [];
 
@@ -36,26 +35,9 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
     _nombreController.dispose();
     _apellidoController.dispose();
     _emailController.dispose();
-    _edadController.dispose();
     _telefonoController.dispose();
+    _fechaNacimientoController.dispose();
     super.dispose();
-  }
-
-  Future<void> _seleccionarFecha() async {
-    final fecha = await showDatePicker(
-      context: context,
-      locale: const Locale('es', 'ES'),
-      initialDate: DateTime(2000),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF00B5C8)),
-        ),
-        child: child!,
-      ),
-    );
-    if (fecha != null) setState(() => _fechaNacimiento = fecha);
   }
 
   void _mostrarCredenciales(String email, String password) {
@@ -211,47 +193,30 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 12),
-              _buildField(
-                'Edad',
-                _edadController,
-                Icons.cake_outlined,
+              TextField(
+                controller: _fechaNacimientoController,
                 keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-
-              // Fecha nacimiento
-              GestureDetector(
-                onTap: _seleccionarFecha,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 18,
+                inputFormatters: [DateInputFormatter()],
+                decoration: InputDecoration(
+                  labelText: 'Fecha de nacimiento',
+                  hintText: 'dd/mm/aaaa',
+                  labelStyle: const TextStyle(color: Color(0xFF00B5C8)),
+                  prefixIcon: const Icon(
+                    Icons.calendar_today_outlined,
+                    color: Color(0xFF00B5C8),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        color: Color(0xFF00B5C8),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _fechaNacimiento != null
-                            ? DateFormat('dd/MM/yyyy').format(_fechaNacimiento!)
-                            : 'Fecha de nacimiento',
-                        style: TextStyle(
-                          color: _fechaNacimiento != null
-                              ? Colors.black
-                              : Colors.grey,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF00B5C8),
+                      width: 2,
+                    ),
                   ),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
               ),
               const SizedBox(height: 12),
@@ -309,15 +274,29 @@ class _RegistrarPacientePageState extends State<RegistrarPacientePage> {
                                 );
                                 return;
                               }
+                              final fechaNac = parseFechaNacimiento(
+                                _fechaNacimientoController.text,
+                              );
+                              if (_fechaNacimientoController.text.isNotEmpty &&
+                                  fechaNac == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Fecha inválida. Use el formato dd/mm/aaaa',
+                                    ),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return;
+                              }
                               context.read<PacienteBloc>().add(
                                 RegistrarPacienteEvent(
                                   ci: _ciController.text.trim(),
                                   nombre: _nombreController.text.trim(),
                                   apellido: _apellidoController.text.trim(),
                                   email: _emailController.text.trim(),
-                                  edad: int.tryParse(_edadController.text),
                                   telefono: _telefonoController.text.trim(),
-                                  fechaNacimiento: _fechaNacimiento,
+                                  fechaNacimiento: fechaNac,
                                   ciudadId: _ciudadSeleccionada!.id,
                                 ),
                               );

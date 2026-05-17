@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/paciente.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_bloc.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_event.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_state.dart';
+import 'package:ciemsi_app/core/utils/date_input_formatter.dart';
 
 class CompletarPacientePage extends StatefulWidget {
   final Paciente paciente;
-  /// Callback que se ejecuta tras guardar exitosamente
   final VoidCallback? onCompletado;
 
   const CompletarPacientePage({
@@ -27,16 +26,14 @@ class _CompletarPacientePageState extends State<CompletarPacientePage> {
   final _nombreController = TextEditingController();
   final _apellidoController = TextEditingController();
   final _emailController = TextEditingController();
-  final _edadController = TextEditingController();
   final _telefonoController = TextEditingController();
-  DateTime? _fechaNacimiento;
+  final _fechaNacimientoController = TextEditingController();
   Ciudad? _ciudadSeleccionada;
   List<Ciudad> _ciudades = [];
 
   @override
   void initState() {
     super.initState();
-    // Pre-llenar nombre y teléfono que ya se tenían
     _nombreController.text = widget.paciente.usuario.nombre;
     _telefonoController.text = widget.paciente.telefono ?? '';
     context.read<PacienteBloc>().add(CargarCiudadesEvent());
@@ -48,26 +45,9 @@ class _CompletarPacientePageState extends State<CompletarPacientePage> {
     _nombreController.dispose();
     _apellidoController.dispose();
     _emailController.dispose();
-    _edadController.dispose();
     _telefonoController.dispose();
+    _fechaNacimientoController.dispose();
     super.dispose();
-  }
-
-  Future<void> _seleccionarFecha() async {
-    final fecha = await showDatePicker(
-      context: context,
-      locale: const Locale('es', 'ES'),
-      initialDate: DateTime(1990),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF00B5C8)),
-        ),
-        child: child!,
-      ),
-    );
-    if (fecha != null) setState(() => _fechaNacimiento = fecha);
   }
 
   void _guardar() {
@@ -84,7 +64,16 @@ class _CompletarPacientePageState extends State<CompletarPacientePage> {
       );
       return;
     }
-
+    final fechaNac = parseFechaNacimiento(_fechaNacimientoController.text);
+    if (_fechaNacimientoController.text.isNotEmpty && fechaNac == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Fecha inválida. Use el formato dd/mm/aaaa'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     context.read<PacienteBloc>().add(
       CompletarPacienteEvent(
         id: widget.paciente.id,
@@ -92,9 +81,8 @@ class _CompletarPacientePageState extends State<CompletarPacientePage> {
         nombre: _nombreController.text.trim(),
         apellido: _apellidoController.text.trim(),
         email: _emailController.text.trim(),
-        edad: int.tryParse(_edadController.text),
         telefono: _telefonoController.text.trim(),
-        fechaNacimiento: _fechaNacimiento,
+        fechaNacimiento: fechaNac,
         ciudadId: _ciudadSeleccionada!.id,
       ),
     );
@@ -111,7 +99,6 @@ class _CompletarPacientePageState extends State<CompletarPacientePage> {
         ),
         backgroundColor: const Color(0xFF00B5C8),
         iconTheme: const IconThemeData(color: Colors.white),
-        // No permite volver sin completar
         automaticallyImplyLeading: false,
       ),
       body: BlocListener<PacienteBloc, PacienteState>(
@@ -182,7 +169,11 @@ class _CompletarPacientePageState extends State<CompletarPacientePage> {
 
               _buildField('Nombre *', _nombreController, Icons.person_outlined),
               const SizedBox(height: 12),
-              _buildField('Apellido *', _apellidoController, Icons.person_outlined),
+              _buildField(
+                'Apellido *',
+                _apellidoController,
+                Icons.person_outlined,
+              ),
               const SizedBox(height: 12),
               _buildField(
                 'CI *',
@@ -206,39 +197,30 @@ class _CompletarPacientePageState extends State<CompletarPacientePage> {
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 12),
-              _buildField(
-                'Edad',
-                _edadController,
-                Icons.cake_outlined,
+              TextField(
+                controller: _fechaNacimientoController,
                 keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-
-              // Fecha de nacimiento
-              GestureDetector(
-                onTap: _seleccionarFecha,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+                inputFormatters: [DateInputFormatter()],
+                decoration: InputDecoration(
+                  labelText: 'Fecha de nacimiento',
+                  hintText: 'dd/mm/aaaa',
+                  labelStyle: const TextStyle(color: Color(0xFF00B5C8)),
+                  prefixIcon: const Icon(
+                    Icons.calendar_today_outlined,
+                    color: Color(0xFF00B5C8),
+                  ),
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_today_outlined, color: Color(0xFF00B5C8)),
-                      const SizedBox(width: 12),
-                      Text(
-                        _fechaNacimiento != null
-                            ? DateFormat('dd/MM/yyyy').format(_fechaNacimiento!)
-                            : 'Fecha de nacimiento',
-                        style: TextStyle(
-                          color: _fechaNacimiento != null ? Colors.black : Colors.grey,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF00B5C8),
+                      width: 2,
+                    ),
                   ),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
               ),
               const SizedBox(height: 12),
@@ -257,10 +239,12 @@ class _CompletarPacientePageState extends State<CompletarPacientePage> {
                     hint: const Text('Seleccionar ciudad *'),
                     value: _ciudadSeleccionada,
                     items: _ciudades
-                        .map((c) => DropdownMenuItem(
-                              value: c,
-                              child: Text(c.nombreCiudad),
-                            ))
+                        .map(
+                          (c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c.nombreCiudad),
+                          ),
+                        )
                         .toList(),
                     onChanged: (value) =>
                         setState(() => _ciudadSeleccionada = value),
@@ -279,7 +263,11 @@ class _CompletarPacientePageState extends State<CompletarPacientePage> {
                 ),
                 child: Row(
                   children: const [
-                    Icon(Icons.lock_outline, color: Color(0xFF8DC63F), size: 18),
+                    Icon(
+                      Icons.lock_outline,
+                      color: Color(0xFF8DC63F),
+                      size: 18,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(

@@ -1,15 +1,15 @@
+import '../entities/registro_paciente_result.dart';
 import '../repositories/paciente_repository.dart';
 
 class RegistrarPacienteUseCase {
   final PacienteRepository repository;
   RegistrarPacienteUseCase(this.repository);
 
-  Future<Map<String, dynamic>> execute({
+  Future<RegistroPacienteResult> execute({
     required String ci,
     required String nombre,
     required String apellido,
     required String email,
-    int? edad,
     String? telefono,
     DateTime? fechaNacimiento,
     required int ciudadId,
@@ -18,7 +18,6 @@ class RegistrarPacienteUseCase {
     nombre: nombre,
     apellido: apellido,
     email: email,
-    edad: edad,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
     ciudadId: ciudadId,

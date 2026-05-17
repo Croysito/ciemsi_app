@@ -7,7 +7,6 @@ import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_event.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
 import 'modificar_cita_page.dart';
-import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/asignar_tratamiento_page.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_bloc.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/pages/completar_paciente_page.dart';
@@ -16,10 +15,12 @@ import 'package:ciemsi_app/features/historial/presentation/bloc/historial_bloc.d
 import 'package:ciemsi_app/features/historial/data/datasources/historial_remote_datasource.dart';
 import 'package:ciemsi_app/features/historial/data/repositories/historial_repository_impl.dart';
 import 'package:ciemsi_app/features/historial/domain/usecases/obtener_historial.dart';
+import 'package:ciemsi_app/features/historial/domain/usecases/obtener_mi_historial.dart';
 import 'package:ciemsi_app/features/historial/domain/usecases/agregar_nota.dart';
 import 'package:ciemsi_app/features/historial/domain/usecases/agregar_link.dart';
 import 'package:ciemsi_app/features/historial/domain/usecases/subir_archivo_drive.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
+import 'package:ciemsi_app/core/di/app_dependencies.dart';
 
 class DetalleCitaPage extends StatelessWidget {
   final CitaMedica cita;
@@ -30,31 +31,46 @@ class DetalleCitaPage extends StatelessWidget {
 
   Color _colorEstado(EstadoCita e) {
     switch (e) {
-      case EstadoCita.PENDIENTE:  return Colors.orange;
-      case EstadoCita.MODIFICADA: return Colors.purple;
-      case EstadoCita.CONFIRMADA: return _primario;
-      case EstadoCita.CANCELADA:  return Colors.red;
-      case EstadoCita.COMPLETADA: return _verde;
+      case EstadoCita.PENDIENTE:
+        return Colors.orange;
+      case EstadoCita.MODIFICADA:
+        return Colors.purple;
+      case EstadoCita.CONFIRMADA:
+        return _primario;
+      case EstadoCita.CANCELADA:
+        return Colors.red;
+      case EstadoCita.COMPLETADA:
+        return _verde;
     }
   }
 
   IconData _iconoEstado(EstadoCita e) {
     switch (e) {
-      case EstadoCita.PENDIENTE:  return Icons.schedule_rounded;
-      case EstadoCita.MODIFICADA: return Icons.edit_calendar_rounded;
-      case EstadoCita.CONFIRMADA: return Icons.check_circle_rounded;
-      case EstadoCita.CANCELADA:  return Icons.cancel_rounded;
-      case EstadoCita.COMPLETADA: return Icons.task_alt_rounded;
+      case EstadoCita.PENDIENTE:
+        return Icons.schedule_rounded;
+      case EstadoCita.MODIFICADA:
+        return Icons.edit_calendar_rounded;
+      case EstadoCita.CONFIRMADA:
+        return Icons.check_circle_rounded;
+      case EstadoCita.CANCELADA:
+        return Icons.cancel_rounded;
+      case EstadoCita.COMPLETADA:
+        return Icons.task_alt_rounded;
     }
   }
 
   String _textoEstado(EstadoCita e) {
     switch (e) {
-      case EstadoCita.PENDIENTE:  return 'En espera de confirmación';
-      case EstadoCita.MODIFICADA: return 'Solicitud de modificación pendiente';
-      case EstadoCita.CONFIRMADA: return 'Cita médica confirmada';
-      case EstadoCita.CANCELADA:  return 'Esta cita fue cancelada';
-      case EstadoCita.COMPLETADA: return 'Cita realizada con éxito';
+      case EstadoCita.PENDIENTE:
+        return 'En espera de confirmación';
+      case EstadoCita.MODIFICADA:
+        return 'Solicitud de modificación pendiente';
+      case EstadoCita.CONFIRMADA:
+        return 'Cita médica confirmada';
+      case EstadoCita.CANCELADA:
+        return 'Esta cita fue cancelada';
+      case EstadoCita.COMPLETADA:
+        return 'Cita realizada con éxito';
     }
   }
 
@@ -86,7 +102,10 @@ class DetalleCitaPage extends StatelessWidget {
           }
           if (state is CitaError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.mensaje), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(state.mensaje),
+                backgroundColor: Colors.red,
+              ),
             );
           }
         },
@@ -200,10 +219,16 @@ class DetalleCitaPage extends StatelessWidget {
                 const SizedBox(height: 3),
                 Row(
                   children: [
-                    const Icon(Icons.badge_outlined, size: 13, color: Colors.grey),
+                    const Icon(
+                      Icons.badge_outlined,
+                      size: 13,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      esProvisional ? 'Paciente provisional' : 'CI: ${cita.paciente.ci}',
+                      esProvisional
+                          ? 'Paciente provisional'
+                          : 'CI: ${cita.paciente.ci}',
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                   ],
@@ -211,16 +236,25 @@ class DetalleCitaPage extends StatelessWidget {
                 if (esProvisional) ...[
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.orange.withValues(alpha: 0.35)),
+                      border: Border.all(
+                        color: Colors.orange.withValues(alpha: 0.35),
+                      ),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.warning_amber_rounded, size: 12, color: Colors.orange),
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          size: 12,
+                          color: Colors.orange,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'Datos incompletos',
@@ -330,21 +364,26 @@ class DetalleCitaPage extends StatelessWidget {
         // PENDIENTE
         if (cita.estado == EstadoCita.PENDIENTE) {
           tiles.add(_sectionLabel('Estado de la cita'));
-          tiles.add(_actionTile(
-            icon: Icons.check_circle_outline,
-            color: _primario,
-            title: 'Confirmar Cita',
-            subtitle: 'Marcar como confirmada',
-            onTap: loading ? null : () => _cambiarEstado(context, 'CONFIRMADA'),
-          ));
-          tiles.add(_actionTile(
-            icon: Icons.edit_calendar_outlined,
-            color: Colors.purple,
-            title: 'Modificar Cita',
-            subtitle: 'Cambiar fecha u hora',
-            onTap: loading
-                ? null
-                : () => Navigator.push(
+          tiles.add(
+            _actionTile(
+              icon: Icons.check_circle_outline,
+              color: _primario,
+              title: 'Confirmar Cita',
+              subtitle: 'Marcar como confirmada',
+              onTap: loading
+                  ? null
+                  : () => _cambiarEstado(context, 'CONFIRMADA'),
+            ),
+          );
+          tiles.add(
+            _actionTile(
+              icon: Icons.edit_calendar_outlined,
+              color: Colors.purple,
+              title: 'Modificar Cita',
+              subtitle: 'Cambiar fecha u hora',
+              onTap: loading
+                  ? null
+                  : () => Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => BlocProvider.value(
@@ -353,35 +392,44 @@ class DetalleCitaPage extends StatelessWidget {
                         ),
                       ),
                     ),
-          ));
-          tiles.add(_actionTile(
-            icon: Icons.cancel_outlined,
-            color: Colors.red,
-            title: 'Cancelar Cita',
-            subtitle: 'Esta acción no se puede deshacer',
-            onTap: loading ? null : () => _mostrarDialogoCancelar(context),
-            isDestructive: true,
-          ));
+            ),
+          );
+          tiles.add(
+            _actionTile(
+              icon: Icons.cancel_outlined,
+              color: Colors.red,
+              title: 'Cancelar Cita',
+              subtitle: 'Esta acción no se puede deshacer',
+              onTap: loading ? null : () => _mostrarDialogoCancelar(context),
+              isDestructive: true,
+            ),
+          );
         }
 
         // MODIFICADA
         if (cita.estado == EstadoCita.MODIFICADA) {
           tiles.add(_sectionLabel('Revisión de cambios'));
-          tiles.add(_actionTile(
-            icon: Icons.check_circle_outline,
-            color: _verde,
-            title: 'Aceptar Modificación',
-            subtitle: 'Confirmar los nuevos datos',
-            onTap: loading ? null : () => _cambiarEstado(context, 'CONFIRMADA'),
-          ));
-          tiles.add(_actionTile(
-            icon: Icons.cancel_outlined,
-            color: Colors.red,
-            title: 'Rechazar y Cancelar',
-            subtitle: 'No aceptar la modificación',
-            onTap: loading ? null : () => _mostrarDialogoCancelar(context),
-            isDestructive: true,
-          ));
+          tiles.add(
+            _actionTile(
+              icon: Icons.check_circle_outline,
+              color: _verde,
+              title: 'Aceptar Modificación',
+              subtitle: 'Confirmar los nuevos datos',
+              onTap: loading
+                  ? null
+                  : () => _cambiarEstado(context, 'CONFIRMADA'),
+            ),
+          );
+          tiles.add(
+            _actionTile(
+              icon: Icons.cancel_outlined,
+              color: Colors.red,
+              title: 'Rechazar y Cancelar',
+              subtitle: 'No aceptar la modificación',
+              onTap: loading ? null : () => _mostrarDialogoCancelar(context),
+              isDestructive: true,
+            ),
+          );
         }
 
         // CONFIRMADA
@@ -390,99 +438,115 @@ class DetalleCitaPage extends StatelessWidget {
 
           if (esProvisional) {
             tiles.add(_sectionLabel('Atención requerida'));
-            tiles.add(_actionTile(
-              icon: Icons.person_add_alt_1_outlined,
-              color: Colors.orange,
-              title: 'Completar datos del paciente',
-              subtitle: 'Requerido antes de cerrar la cita',
-              onTap: loading
-                  ? null
-                  : () => Navigator.push(
+            tiles.add(
+              _actionTile(
+                icon: Icons.person_add_alt_1_outlined,
+                color: Colors.orange,
+                title: 'Completar datos del paciente',
+                subtitle: 'Requerido antes de cerrar la cita',
+                onTap: loading
+                    ? null
+                    : () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => BlocProvider.value(
                             value: context.read<PacienteBloc>(),
-                            child: CompletarPacientePage(paciente: cita.paciente),
+                            child: CompletarPacientePage(
+                              paciente: cita.paciente,
+                            ),
                           ),
                         ),
                       ),
-              isWarning: true,
-            ));
+                isWarning: true,
+              ),
+            );
           }
 
           tiles.add(_sectionLabel('Gestión médica'));
-          tiles.add(_actionTile(
-            icon: Icons.folder_open_outlined,
-            color: _primario,
-            title: 'Historial Clínico',
-            subtitle: 'Ver y gestionar notas, imágenes y videos',
-            onTap: loading ? null : () => _navigateToHistorial(context),
-          ));
-          tiles.add(_actionTile(
-            icon: Icons.healing_outlined,
-            color: Colors.purple,
-            title: 'Asignar Tratamiento',
-            subtitle: 'Registrar plan de tratamiento',
-            onTap: loading
-                ? null
-                : () => Navigator.push(
+          tiles.add(
+            _actionTile(
+              icon: Icons.folder_open_outlined,
+              color: _primario,
+              title: 'Historial Clínico',
+              subtitle: 'Ver y gestionar notas, imágenes y videos',
+              onTap: loading ? null : () => _navigateToHistorial(context),
+            ),
+          );
+          tiles.add(
+            _actionTile(
+              icon: Icons.healing_outlined,
+              color: Colors.purple,
+              title: 'Asignar Tratamiento',
+              subtitle: 'Registrar plan de tratamiento',
+              onTap: loading
+                  ? null
+                  : () => Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => BlocProvider(
-                          create: (_) => TratamientoBloc(),
+                          create: (_) =>
+                              AppDependencies.createTratamientoBloc(),
                           child: AsignarTratamientoPage(cita: cita),
                         ),
                       ),
                     ),
-          ));
-          tiles.add(_actionTile(
-            icon: Icons.receipt_long_outlined,
-            color: _verde,
-            title: 'Generar Receta',
-            subtitle: 'Emitir prescripción médica',
-            onTap: loading
-                ? null
-                : () => Navigator.push(
+            ),
+          );
+          tiles.add(
+            _actionTile(
+              icon: Icons.receipt_long_outlined,
+              color: _verde,
+              title: 'Generar Receta',
+              subtitle: 'Emitir prescripción médica',
+              onTap: loading
+                  ? null
+                  : () => Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => BlocProvider(
-                          create: (_) => TratamientoBloc(),
+                          create: (_) =>
+                              AppDependencies.createTratamientoBloc(),
                           child: GenerarRecetaPage(cita: cita),
                         ),
                       ),
                     ),
-          ));
+            ),
+          );
 
           tiles.add(_sectionLabel('Estado de la cita'));
-          tiles.add(_actionTile(
-            icon: Icons.task_alt_rounded,
-            color: _verde,
-            title: 'Marcar como Completada',
-            subtitle: esProvisional
-                ? 'Completa primero los datos del paciente'
-                : 'Cerrar esta cita como realizada',
-            onTap: esProvisional || loading
-                ? null
-                : () => _cambiarEstado(context, 'COMPLETADA'),
-            isDisabled: esProvisional,
-          ));
-          tiles.add(_actionTile(
-            icon: Icons.cancel_outlined,
-            color: Colors.red,
-            title: 'Cancelar Cita',
-            subtitle: 'Esta acción no se puede deshacer',
-            onTap: loading ? null : () => _mostrarDialogoCancelar(context),
-            isDestructive: true,
-          ));
+          tiles.add(
+            _actionTile(
+              icon: Icons.task_alt_rounded,
+              color: _verde,
+              title: 'Marcar como Completada',
+              subtitle: esProvisional
+                  ? 'Completa primero los datos del paciente'
+                  : 'Cerrar esta cita como realizada',
+              onTap: esProvisional || loading
+                  ? null
+                  : () => _cambiarEstado(context, 'COMPLETADA'),
+              isDisabled: esProvisional,
+            ),
+          );
+          tiles.add(
+            _actionTile(
+              icon: Icons.cancel_outlined,
+              color: Colors.red,
+              title: 'Cancelar Cita',
+              subtitle: 'Esta acción no se puede deshacer',
+              onTap: loading ? null : () => _mostrarDialogoCancelar(context),
+              isDestructive: true,
+            ),
+          );
         }
 
         if (loading) {
-          tiles.add(const Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: Center(
-              child: CircularProgressIndicator(color: _primario),
+          tiles.add(
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Center(child: CircularProgressIndicator(color: _primario)),
             ),
-          ));
+          );
         }
 
         if (tiles.isEmpty) return const SizedBox();
@@ -523,8 +587,8 @@ class DetalleCitaPage extends StatelessWidget {
     final tileColor = isDestructive
         ? Colors.red
         : isWarning
-            ? Colors.orange
-            : color;
+        ? Colors.orange
+        : color;
 
     return Opacity(
       opacity: isDisabled ? 0.45 : 1.0,
@@ -537,8 +601,8 @@ class DetalleCitaPage extends StatelessWidget {
             color: isDestructive
                 ? Colors.red.withValues(alpha: 0.25)
                 : isWarning
-                    ? Colors.orange.withValues(alpha: 0.25)
-                    : Colors.grey.shade200,
+                ? Colors.orange.withValues(alpha: 0.25)
+                : Colors.grey.shade200,
           ),
         ),
         child: InkWell(
@@ -609,8 +673,8 @@ class DetalleCitaPage extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) => BlocProvider(
           create: (_) => HistorialBloc(
-            repository: repository,
             obtenerHistorialUseCase: ObtenerHistorialUseCase(repository),
+            obtenerMiHistorialUseCase: ObtenerMiHistorialUseCase(repository),
             agregarNotaUseCase: AgregarNotaUseCase(repository),
             agregarLinkUseCase: AgregarLinkUseCase(repository),
             subirArchivoDriveUseCase: SubirArchivoDriveUseCase(repository),
@@ -641,7 +705,11 @@ class DetalleCitaPage extends StatelessWidget {
                 color: Colors.red.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.cancel_outlined, color: Colors.red, size: 22),
+              child: const Icon(
+                Icons.cancel_outlined,
+                color: Colors.red,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 12),
             const Text('Cancelar Cita', style: TextStyle(fontSize: 17)),

@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../domain/repositories/historial_repository.dart';
 import '../../domain/usecases/obtener_historial.dart';
+import '../../domain/usecases/obtener_mi_historial.dart';
 import '../../domain/usecases/agregar_nota.dart';
 import '../../domain/usecases/agregar_link.dart';
 import '../../domain/usecases/subir_archivo_drive.dart';
@@ -9,14 +9,14 @@ import 'historial_state.dart';
 
 class HistorialBloc extends Bloc<HistorialEvent, HistorialState> {
   final ObtenerHistorialUseCase obtenerHistorialUseCase;
+  final ObtenerMiHistorialUseCase obtenerMiHistorialUseCase;
   final AgregarNotaUseCase agregarNotaUseCase;
   final AgregarLinkUseCase agregarLinkUseCase;
   final SubirArchivoDriveUseCase subirArchivoDriveUseCase;
-  final HistorialRepository repository;
 
   HistorialBloc({
-    required this.repository,
     required this.obtenerHistorialUseCase,
+    required this.obtenerMiHistorialUseCase,
     required this.agregarNotaUseCase,
     required this.agregarLinkUseCase,
     required this.subirArchivoDriveUseCase,
@@ -101,7 +101,7 @@ class HistorialBloc extends Bloc<HistorialEvent, HistorialState> {
   ) async {
     emit(HistorialLoading());
     try {
-      final historial = await repository.obtenerMiHistorial();
+      final historial = await obtenerMiHistorialUseCase.execute();
       emit(HistorialObtenido(historial));
     } catch (e) {
       emit(HistorialError(e.toString().replaceAll('Exception: ', '')));

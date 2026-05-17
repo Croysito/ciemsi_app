@@ -1,0 +1,33 @@
+import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
+import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
+
+abstract class CitaRepository {
+  Future<List<CitaMedica>> listarCitas();
+
+  Future<void> reservarCita({
+    required String fecha,
+    required String hora,
+    required int servicioId,
+    int? pacienteId,
+    int? ciudadId,
+    int? agendaId,
+    String? notas,
+  });
+
+  Future<void> modificarCita({
+    required int id,
+    required String fecha,
+    required String hora,
+    required int servicioId,
+    String? notas,
+  });
+
+  Future<void> cambiarEstado(int id, String estado, {String? notas});
+
+  Future<List<Servicio>> listarServicios();
+
+  Future<List<String>> obtenerHorasDisponibles({
+    required int ciudadId,
+    required String fecha,
+  });
+}

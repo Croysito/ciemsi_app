@@ -5,7 +5,6 @@ class PacienteModel extends Paciente {
   const PacienteModel({
     required super.id,
     required super.ci,
-    super.edad,
     super.telefono,
     super.fechaNacimiento,
     required super.usuario,
@@ -15,7 +14,6 @@ class PacienteModel extends Paciente {
     return PacienteModel(
       id: json['id'],
       ci: json['ci'],
-      edad: json['edad'],
       telefono: json['telefono']?.toString(),
       fechaNacimiento: json['fechaNacimiento'] != null
           ? DateTime.parse(json['fechaNacimiento'])

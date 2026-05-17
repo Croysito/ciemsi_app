@@ -1,3 +1,4 @@
+import '../entities/auth_session.dart';
 import '../repositories/auth_repository.dart';
 
 class IniciarSesionUseCase {
@@ -5,7 +6,7 @@ class IniciarSesionUseCase {
 
   IniciarSesionUseCase(this.repository);
 
-  Future<Map<String, dynamic>> execute(String email, String password) {
+  Future<AuthSession> execute(String email, String password) {
     return repository.iniciarSesion(email, password);
   }
 }

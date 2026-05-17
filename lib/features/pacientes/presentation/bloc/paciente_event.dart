@@ -20,7 +20,6 @@ class RegistrarPacienteEvent extends PacienteEvent {
   final String nombre;
   final String apellido;
   final String email;
-  final int? edad;
   final String? telefono;
   final DateTime? fechaNacimiento;
   final int ciudadId;
@@ -30,7 +29,6 @@ class RegistrarPacienteEvent extends PacienteEvent {
     required this.nombre,
     required this.apellido,
     required this.email,
-    this.edad,
     this.telefono,
     this.fechaNacimiento,
     required this.ciudadId,
@@ -42,7 +40,6 @@ class RegistrarPacienteEvent extends PacienteEvent {
     nombre,
     apellido,
     email,
-    edad,
     telefono,
     fechaNacimiento,
     ciudadId,
@@ -55,7 +52,6 @@ class ModificarPacienteEvent extends PacienteEvent {
   final String? nombre;
   final String? apellido;
   final String? email;
-  final int? edad;
   final String? telefono;
   final DateTime? fechaNacimiento;
   final int ciudadId;
@@ -66,7 +62,6 @@ class ModificarPacienteEvent extends PacienteEvent {
     this.nombre,
     this.apellido,
     this.email,
-    this.edad,
     this.telefono,
     this.fechaNacimiento,
     required this.ciudadId,
@@ -81,7 +76,6 @@ class CompletarPacienteEvent extends PacienteEvent {
   final String nombre;
   final String apellido;
   final String email;
-  final int? edad;
   final String? telefono;
   final DateTime? fechaNacimiento;
   final int ciudadId;
@@ -92,7 +86,6 @@ class CompletarPacienteEvent extends PacienteEvent {
     required this.nombre,
     required this.apellido,
     required this.email,
-    this.edad,
     this.telefono,
     this.fechaNacimiento,
     required this.ciudadId,

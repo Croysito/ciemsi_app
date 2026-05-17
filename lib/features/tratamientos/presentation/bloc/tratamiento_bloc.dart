@@ -1,16 +1,36 @@
 import 'package:ciemsi_app/features/tratamientos/domain/entities/tratamiento_asignado.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
-import 'package:ciemsi_app/features/tratamientos/data/datasources/tratamiento_remote_datasource.dart';
+import '../../domain/usecases/agregar_suministro_tratamiento.dart';
+import '../../domain/usecases/asignar_tratamiento.dart';
+import '../../domain/usecases/completar_tratamiento.dart';
+import '../../domain/usecases/crear_tratamiento.dart';
+import '../../domain/usecases/generar_receta_tratamiento.dart';
+import '../../domain/usecases/listar_tratamientos.dart';
+import '../../domain/usecases/listar_tratamientos_asignados.dart';
+import '../../domain/usecases/listar_tratamientos_asignados_by_cita.dart';
 import 'tratamiento_event.dart';
 import 'tratamiento_state.dart';
 
 class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
-  final TratamientoRemoteDatasource datasource;
+  final ListarTratamientosUseCase listarTratamientosUseCase;
+  final CrearTratamientoUseCase crearTratamientoUseCase;
+  final AsignarTratamientoUseCase asignarTratamientoUseCase;
+  final ListarTratamientosAsignadosUseCase listarAsignadosUseCase;
+  final ListarTratamientosAsignadosByCitaUseCase listarAsignadosByCitaUseCase;
+  final AgregarSuministroTratamientoUseCase agregarSuministroUseCase;
+  final CompletarTratamientoUseCase completarTratamientoUseCase;
+  final GenerarRecetaTratamientoUseCase generarRecetaUseCase;
 
-  TratamientoBloc()
-    : datasource = TratamientoRemoteDatasource(ApiClientProvider.instance),
-      super(TratamientoInitial()) {
+  TratamientoBloc({
+    required this.listarTratamientosUseCase,
+    required this.crearTratamientoUseCase,
+    required this.asignarTratamientoUseCase,
+    required this.listarAsignadosUseCase,
+    required this.listarAsignadosByCitaUseCase,
+    required this.agregarSuministroUseCase,
+    required this.completarTratamientoUseCase,
+    required this.generarRecetaUseCase,
+  }) : super(TratamientoInitial()) {
     on<ListarTratamientosEvent>(_onListar);
     on<CrearTratamientoEvent>(_onCrear);
     on<AsignarTratamientoEvent>(_onAsignar);
@@ -28,7 +48,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
   ) async {
     emit(TratamientoLoading());
     try {
-      final tratamientos = await datasource.listarTratamientos();
+      final tratamientos = await listarTratamientosUseCase.execute();
       emit(TratamientosListados(tratamientos));
     } catch (e) {
       emit(TratamientoError(e.toString().replaceAll('Exception: ', '')));
@@ -41,7 +61,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
   ) async {
     emit(TratamientoLoading());
     try {
-      await datasource.crearTratamiento(
+      await crearTratamientoUseCase.execute(
         nombreTratamiento: event.nombreTratamiento,
         detalle: event.detalle,
         precioBase: event.precioBase,
@@ -59,7 +79,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
   ) async {
     emit(TratamientoLoading());
     try {
-      await datasource.asignarTratamiento(
+      await asignarTratamientoUseCase.execute(
         tratamientoId: event.tratamientoId,
         citaId: event.citaId,
         precio: event.precio,
@@ -77,8 +97,8 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
   ) async {
     emit(TratamientoLoading());
     try {
-      final List<TratamientoAsignado> tratamientos = await datasource
-          .listarAsignados();
+      final List<TratamientoAsignado> tratamientos =
+          await listarAsignadosUseCase.execute();
       emit(TratamientosAsignadosListados(tratamientos));
     } catch (e) {
       emit(TratamientoError(e.toString().replaceAll('Exception: ', '')));
@@ -91,8 +111,8 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
   ) async {
     emit(TratamientoLoading());
     try {
-      final List<TratamientoAsignado> tratamientos = await datasource
-          .listarAsignadosByCita(event.citaId);
+      final List<TratamientoAsignado> tratamientos =
+          await listarAsignadosByCitaUseCase.execute(event.citaId);
       emit(TratamientosAsignadosListados(tratamientos));
     } catch (e) {
       emit(TratamientoError(e.toString().replaceAll('Exception: ', '')));
@@ -105,7 +125,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
   ) async {
     emit(TratamientoLoading());
     try {
-      await datasource.agregarSuministro(
+      await agregarSuministroUseCase.execute(
         tratamientoAsignadoId: event.tratamientoAsignadoId,
         suministroId: event.suministroId,
         cantidad: event.cantidad,
@@ -123,7 +143,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
     emit(TratamientoLoading());
     try {
       for (final item in event.items) {
-        await datasource.agregarSuministro(
+        await agregarSuministroUseCase.execute(
           tratamientoAsignadoId: event.tratamientoAsignadoId,
           suministroId: item['suministroId'] as int,
           cantidad: item['cantidad'] as int,
@@ -141,7 +161,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
   ) async {
     emit(TratamientoLoading());
     try {
-      await datasource.completarTratamiento(event.id);
+      await completarTratamientoUseCase.execute(event.id);
       emit(TratamientoCompletado());
     } catch (e) {
       emit(TratamientoError(e.toString().replaceAll('Exception: ', '')));
@@ -154,7 +174,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
   ) async {
     emit(TratamientoLoading());
     try {
-      final receta = await datasource.generarReceta(
+      final receta = await generarRecetaUseCase.execute(
         citaId: event.citaId,
         detalle: event.detalle,
       );

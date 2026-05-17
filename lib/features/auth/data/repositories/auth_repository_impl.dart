@@ -1,3 +1,4 @@
+import '../../domain/entities/auth_session.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 
@@ -7,10 +8,7 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this.remoteDatasource);
 
   @override
-  Future<Map<String, dynamic>> iniciarSesion(
-    String email,
-    String password,
-  ) async {
+  Future<AuthSession> iniciarSesion(String email, String password) async {
     return await remoteDatasource.iniciarSesion(email, password);
   }
 

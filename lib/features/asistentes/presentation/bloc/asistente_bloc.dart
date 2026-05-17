@@ -1,15 +1,26 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
-import 'package:ciemsi_app/features/asistentes/data/datasources/asistente_remote_datasource.dart';
+import '../../domain/usecases/cambiar_estado_asistente.dart';
+import '../../domain/usecases/cambiar_password_asistente.dart';
+import '../../domain/usecases/crear_asistente.dart';
+import '../../domain/usecases/listar_asistentes.dart';
+import '../../domain/usecases/modificar_asistente.dart';
 import 'asistente_event.dart';
 import 'asistente_state.dart';
 
 class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
-  final AsistenteRemoteDatasource datasource;
+  final ListarAsistentesUseCase listarAsistentesUseCase;
+  final CrearAsistenteUseCase crearAsistenteUseCase;
+  final ModificarAsistenteUseCase modificarAsistenteUseCase;
+  final CambiarEstadoAsistenteUseCase cambiarEstadoAsistenteUseCase;
+  final CambiarPasswordAsistenteUseCase cambiarPasswordAsistenteUseCase;
 
-  AsistenteBloc()
-    : datasource = AsistenteRemoteDatasource(ApiClientProvider.instance),
-      super(AsistenteInitial()) {
+  AsistenteBloc({
+    required this.listarAsistentesUseCase,
+    required this.crearAsistenteUseCase,
+    required this.modificarAsistenteUseCase,
+    required this.cambiarEstadoAsistenteUseCase,
+    required this.cambiarPasswordAsistenteUseCase,
+  }) : super(AsistenteInitial()) {
     on<ListarAsistentesEvent>(_onListar);
     on<CrearAsistenteEvent>(_onCrear);
     on<ModificarAsistenteEvent>(_onModificar);
@@ -23,7 +34,7 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
   ) async {
     emit(AsistenteLoading());
     try {
-      final asistentes = await datasource.listarAsistentes();
+      final asistentes = await listarAsistentesUseCase.execute();
       emit(AsistentesListados(asistentes));
     } catch (e) {
       emit(AsistenteError(e.toString().replaceAll('Exception: ', '')));
@@ -36,7 +47,7 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
   ) async {
     emit(AsistenteLoading());
     try {
-      final resultado = await datasource.crearAsistente(
+      final resultado = await crearAsistenteUseCase.execute(
         nombre: event.nombre,
         apellido: event.apellido,
         email: event.email,
@@ -44,10 +55,7 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
         ciudadId: event.ciudadId,
       );
       emit(
-        AsistenteCreado(
-          email: resultado['credenciales']['email'],
-          password: resultado['credenciales']['password'],
-        ),
+        AsistenteCreado(email: resultado.email, password: resultado.password),
       );
     } catch (e) {
       emit(AsistenteError(e.toString().replaceAll('Exception: ', '')));
@@ -60,7 +68,7 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
   ) async {
     emit(AsistenteLoading());
     try {
-      await datasource.modificarAsistente(
+      await modificarAsistenteUseCase.execute(
         id: event.id,
         nombre: event.nombre,
         apellido: event.apellido,
@@ -79,7 +87,7 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
   ) async {
     emit(AsistenteLoading());
     try {
-      await datasource.cambiarEstado(event.id, event.estado);
+      await cambiarEstadoAsistenteUseCase.execute(event.id, event.estado);
       emit(EstadoCambiado());
     } catch (e) {
       emit(AsistenteError(e.toString().replaceAll('Exception: ', '')));
@@ -92,7 +100,7 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
   ) async {
     emit(AsistenteLoading());
     try {
-      await datasource.cambiarPassword(
+      await cambiarPasswordAsistenteUseCase.execute(
         passwordActual: event.passwordActual,
         passwordNuevo: event.passwordNuevo,
       );

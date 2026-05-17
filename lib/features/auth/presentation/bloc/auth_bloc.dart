@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/iniciar_sesion.dart';
 import '../../domain/usecases/recuperar_contrasena.dart';
 import '../../domain/usecases/cerrar_sesion.dart';
-import '../../domain/entities/usuario.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
@@ -33,12 +32,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Inicializar notificaciones después del login
       await NotificationService.inicializar();
 
-      emit(
-        AuthSuccess(
-          usuario: resultado['usuario'] as Usuario,
-          token: resultado['token'] as String,
-        ),
-      );
+      emit(AuthSuccess(usuario: resultado.usuario, token: resultado.token));
     } catch (e) {
       emit(AuthError(mensaje: e.toString().replaceAll('Exception: ', '')));
     }
