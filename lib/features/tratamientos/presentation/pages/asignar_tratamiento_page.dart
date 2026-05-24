@@ -6,8 +6,6 @@ import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_s
 import 'package:ciemsi_app/features/tratamientos/domain/entities/tratamiento.dart';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
 import 'package:ciemsi_app/features/suministros/domain/entities/suministro.dart';
-import 'package:ciemsi_app/features/suministros/data/models/suministro_model.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
 class AsignarTratamientoPage extends StatefulWidget {
   final CitaMedica cita;
@@ -24,37 +22,19 @@ class _AsignarTratamientoPageState extends State<AsignarTratamientoPage> {
   Tratamiento? _tratamientoSeleccionado;
   final _precioController = TextEditingController();
   final List<Map<String, dynamic>> _medicamentosSeleccionados = [];
-  bool _cargando = false;
 
   @override
   void initState() {
     super.initState();
-    _cargarDatos();
-    context.read<TratamientoBloc>().add(ListarTratamientosEvent());
+    context.read<TratamientoBloc>()
+      ..add(ListarTratamientosEvent())
+      ..add(CargarMedicamentosEvent());
   }
 
   @override
   void dispose() {
     _precioController.dispose();
     super.dispose();
-  }
-
-  Future<void> _cargarDatos() async {
-    setState(() => _cargando = true);
-    try {
-      final resMed = await ApiClientProvider.instance.dio.get(
-        '/suministros',
-        queryParameters: {'tipo': 'MEDICAMENTO'},
-      );
-      setState(() {
-        _medicamentos = (resMed.data as List)
-            .map((s) => SuministroModel.fromJson(s))
-            .toList();
-        _cargando = false;
-      });
-    } catch (e) {
-      setState(() => _cargando = false);
-    }
   }
 
   void _onTratamientoSeleccionado(Tratamiento? value) {
@@ -108,6 +88,9 @@ class _AsignarTratamientoPageState extends State<AsignarTratamientoPage> {
         listener: (context, state) {
           if (state is TratamientosListados) {
             setState(() => _tratamientos = state.tratamientos);
+          }
+          if (state is MedicamentosCargados) {
+            setState(() => _medicamentos = state.medicamentos);
           }
           if (state is TratamientoAsignadoExito) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -244,26 +227,32 @@ class _AsignarTratamientoPageState extends State<AsignarTratamientoPage> {
                       color: Color(0xFF00B5C8),
                     ),
                   ),
-                  _cargando
-                      ? const SizedBox(
+                  BlocBuilder<TratamientoBloc, TratamientoState>(
+                    builder: (context, state) {
+                      if (state is TratamientoLoading &&
+                          _medicamentos.isEmpty) {
+                        return const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Color(0xFF00B5C8),
                           ),
-                        )
-                      : TextButton.icon(
-                          onPressed: _agregarMedicamento,
-                          icon: const Icon(
-                            Icons.add,
-                            color: Color(0xFF8DC63F),
-                          ),
-                          label: const Text(
-                            'Agregar',
-                            style: TextStyle(color: Color(0xFF8DC63F)),
-                          ),
+                        );
+                      }
+                      return TextButton.icon(
+                        onPressed: _agregarMedicamento,
+                        icon: const Icon(
+                          Icons.add,
+                          color: Color(0xFF8DC63F),
                         ),
+                        label: const Text(
+                          'Agregar',
+                          style: TextStyle(color: Color(0xFF8DC63F)),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
               if (_medicamentosSeleccionados.isEmpty)

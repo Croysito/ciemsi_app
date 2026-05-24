@@ -4,7 +4,6 @@ import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_bloc.
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_event.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_state.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
 class CrearAsistentePage extends StatefulWidget {
   const CrearAsistentePage({super.key});
@@ -24,20 +23,7 @@ class _CrearAsistentePageState extends State<CrearAsistentePage> {
   @override
   void initState() {
     super.initState();
-    _cargarCiudades();
-  }
-
-  Future<void> _cargarCiudades() async {
-    try {
-      final response = await ApiClientProvider.instance.dio.get('/ciudades');
-      setState(() {
-        _ciudades = (response.data as List)
-            .map((c) => Ciudad(id: c['id'], nombreCiudad: c['nombreCiudad']))
-            .toList();
-      });
-    } catch (e) {
-      debugPrint('Error cargando ciudades: $e');
-    }
+    context.read<AsistenteBloc>().add(CargarCiudadesAsistenteEvent());
   }
 
   void _mostrarCredenciales(String email, String password) {
@@ -138,6 +124,11 @@ class _CrearAsistentePageState extends State<CrearAsistentePage> {
       ),
       body: BlocListener<AsistenteBloc, AsistenteState>(
         listener: (context, state) {
+          if (state is CiudadesAsistenteCargadas) {
+            setState(() {
+              _ciudades = state.ciudades;
+            });
+          }
           if (state is AsistenteCreado) {
             _mostrarCredenciales(state.email, state.password);
           }

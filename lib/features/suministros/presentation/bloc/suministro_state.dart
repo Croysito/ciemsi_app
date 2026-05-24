@@ -36,6 +36,13 @@ class AlertasCargadas extends SuministroState {
   List<Object?> get props => [stockBajo, proximosAVencer];
 }
 
+class CatalogoCargado extends SuministroState {
+  final List<Suministro> suministros;
+  CatalogoCargado(this.suministros);
+  @override
+  List<Object?> get props => [suministros];
+}
+
 class CompraRegistrada extends SuministroState {}
 
 class SuministroError extends SuministroState {

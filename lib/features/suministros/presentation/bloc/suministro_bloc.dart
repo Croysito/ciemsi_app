@@ -26,6 +26,7 @@ class SuministroBloc extends Bloc<SuministroEvent, SuministroState> {
     on<ObtenerInventarioEvent>(_onInventario);
     on<ObtenerAlertasEvent>(_onAlertas);
     on<RegistrarCompraEvent>(_onCompra);
+    on<CargarSuministrosCatalogoEvent>(_onCargarCatalogo);
   }
 
   Future<void> _onListar(
@@ -112,6 +113,19 @@ class SuministroBloc extends Bloc<SuministroEvent, SuministroState> {
         fecha: event.fecha,
       );
       emit(CompraRegistrada());
+    } catch (e) {
+      emit(SuministroError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onCargarCatalogo(
+    CargarSuministrosCatalogoEvent event,
+    Emitter<SuministroState> emit,
+  ) async {
+    emit(SuministroLoading());
+    try {
+      final suministros = await listarSuministrosUseCase.execute();
+      emit(CatalogoCargado(suministros));
     } catch (e) {
       emit(SuministroError(e.toString().replaceAll('Exception: ', '')));
     }

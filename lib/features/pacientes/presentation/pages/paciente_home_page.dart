@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ciemsi_app/core/di/app_dependencies.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/features/auth/domain/entities/usuario.dart';
+import 'package:ciemsi_app/features/pagos/presentation/bloc/pago_bloc.dart';
+import 'package:ciemsi_app/features/pagos/presentation/bloc/pago_event.dart';
+import 'package:ciemsi_app/features/pagos/presentation/bloc/pago_state.dart';
 import 'package:ciemsi_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ciemsi_app/features/auth/presentation/bloc/auth_event.dart';
 import 'package:ciemsi_app/features/auth/presentation/bloc/auth_state.dart';
@@ -12,6 +14,7 @@ import 'package:ciemsi_app/features/citas/presentation/pages/citas_page.dart';
 import 'package:ciemsi_app/features/historial/presentation/pages/mi_historial_page.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/tratamientos_asignados_page.dart';
+import 'package:ciemsi_app/features/pagos/presentation/pages/historial_pagos_paciente_page.dart';
 
 class PacienteHomePage extends StatefulWidget {
   final Usuario usuario;
@@ -25,18 +28,21 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
   int _currentIndex = 0;
   late final CitaBloc _citaBloc;
   late final TratamientoBloc _tratamientoBloc;
+  late final PagoBloc _pagoBloc;
 
   @override
   void initState() {
     super.initState();
     _citaBloc = AppDependencies.createCitaBloc();
     _tratamientoBloc = AppDependencies.createTratamientoBloc();
+    _pagoBloc = AppDependencies.createPagoBloc();
   }
 
   @override
   void dispose() {
     _citaBloc.close();
     _tratamientoBloc.close();
+    _pagoBloc.close();
     super.dispose();
   }
 
@@ -46,6 +52,7 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
       providers: [
         BlocProvider.value(value: _citaBloc),
         BlocProvider.value(value: _tratamientoBloc),
+        BlocProvider.value(value: _pagoBloc),
       ],
       child: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
@@ -65,6 +72,7 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
               CitasPage(usuario: widget.usuario),
               const MiHistorialPage(),
               TratamientosAsignadosPage(puedeGestionar: false),
+              const HistorialPagosPacientePage(),
               _PerfilTab(usuario: widget.usuario),
             ],
           ),
@@ -98,6 +106,11 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
           label: 'Tratamientos',
         ),
         BottomNavigationBarItem(
+          icon: Icon(Icons.receipt_long_outlined),
+          activeIcon: Icon(Icons.receipt_long),
+          label: 'Mis Pagos',
+        ),
+        BottomNavigationBarItem(
           icon: Icon(Icons.person_outlined),
           activeIcon: Icon(Icons.person),
           label: 'Mi Perfil',
@@ -118,41 +131,34 @@ class _PerfilTab extends StatefulWidget {
 }
 
 class _PerfilTabState extends State<_PerfilTab> {
-  Map<String, dynamic>? _perfil;
+  String _ci = '';
+  String _telefono = '';
   bool _cargando = true;
 
   @override
   void initState() {
     super.initState();
-    _cargarPerfil();
-  }
-
-  Future<void> _cargarPerfil() async {
-    try {
-      final res = await ApiClientProvider.instance.dio.get(
-        '/pacientes/mi-perfil',
-      );
-      if (mounted) {
-        setState(() {
-          _perfil = res.data is Map<String, dynamic>
-              ? res.data as Map<String, dynamic>
-              : null;
-          _cargando = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _cargando = false);
-    }
+    context.read<PagoBloc>().add(CargarPerfilCompletoEvent());
   }
 
   @override
   Widget build(BuildContext context) {
-    final ci = _perfil?['ci']?.toString() ?? '';
-    final esCiValido = ci.isNotEmpty && !ci.startsWith('PROV-');
-    final telefono = _perfil?['telefono']?.toString() ?? '';
+    final esCiValido = _ci.isNotEmpty && !_ci.startsWith('PROV-');
     final ciudad = widget.usuario.ciudad?.nombreCiudad;
 
-    return Scaffold(
+    return BlocListener<PagoBloc, PagoState>(
+      listener: (context, state) {
+        if (state is PerfilCompletoObtenido) {
+          setState(() {
+            _ci = state.ci;
+            _telefono = state.telefono;
+            _cargando = false;
+          });
+        } else if (state is PagoError) {
+          setState(() => _cargando = false);
+        }
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       appBar: AppBar(
         title: const Text(
@@ -231,12 +237,12 @@ class _PerfilTabState extends State<_PerfilTab> {
                             widget.usuario.email,
                           ),
                           if (esCiValido)
-                            _buildInfoRow(Icons.badge_outlined, 'CI', ci),
-                          if (telefono.isNotEmpty)
+                            _buildInfoRow(Icons.badge_outlined, 'CI', _ci),
+                          if (_telefono.isNotEmpty)
                             _buildInfoRow(
                               Icons.phone_outlined,
                               'Teléfono',
-                              telefono,
+                              _telefono,
                             ),
                           if (ciudad != null)
                             _buildInfoRow(
@@ -276,6 +282,7 @@ class _PerfilTabState extends State<_PerfilTab> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

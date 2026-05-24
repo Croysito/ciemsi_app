@@ -59,3 +59,5 @@ class RegistrarCompraEvent extends SuministroEvent {
   @override
   List<Object?> get props => [ciudadId, items];
 }
+
+class CargarSuministrosCatalogoEvent extends SuministroEvent {}

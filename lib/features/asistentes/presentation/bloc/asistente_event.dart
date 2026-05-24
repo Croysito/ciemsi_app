@@ -7,6 +7,8 @@ abstract class AsistenteEvent extends Equatable {
 
 class ListarAsistentesEvent extends AsistenteEvent {}
 
+class CargarCiudadesAsistenteEvent extends AsistenteEvent {}
+
 class CrearAsistenteEvent extends AsistenteEvent {
   final String nombre;
   final String apellido;

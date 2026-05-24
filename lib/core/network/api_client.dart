@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 class ApiClient {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.5:3000/api',
+    defaultValue: 'http://192.168.1.6:3000/api',
   );
   // Ejemplo: 'http://172.17.39.200/api'
 

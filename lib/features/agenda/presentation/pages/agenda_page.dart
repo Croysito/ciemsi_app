@@ -1,9 +1,12 @@
+import 'package:ciemsi_app/features/agenda/presentation/bloc/agenda_bloc.dart';
+import 'package:ciemsi_app/features/agenda/presentation/bloc/agenda_event.dart';
+import 'package:ciemsi_app/features/agenda/presentation/bloc/agenda_state.dart';
 import 'package:ciemsi_app/features/agenda/presentation/pages/crear_agenda.dart';
 import 'package:ciemsi_app/features/auth/domain/entities/usuario.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/features/agenda/data/models/agenda_model.dart';
 
 class AgendaPage extends StatefulWidget {
@@ -19,75 +22,37 @@ class _AgendaPageState extends State<AgendaPage> {
   List<AgendaModel> _agendas = [];
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
-  bool _cargando = false;
   Set<DateTime> _diasDoctora = {};
   Set<DateTime> _diasAsistente = {};
-  String? _errorCarga;
 
   @override
   void initState() {
     super.initState();
-    _cargarAgenda();
+    context.read<AgendaBloc>().add(CargarAgendasEvent());
   }
 
-  Future<void> _cargarAgenda() async {
-    setState(() {
-      _cargando = true;
-      _errorCarga = null;
-    });
-    try {
-      final response = await ApiClientProvider.instance.dio.get('/agenda');
-      debugPrint('[Agenda] Raw response: ${response.data}');
-
-      final lista = response.data;
-      if (lista is! List) {
-        setState(() {
-          _cargando = false;
-          _errorCarga = 'Respuesta inesperada del servidor: ${lista.runtimeType}';
-        });
-        return;
-      }
-
-      final agendas = <AgendaModel>[];
-      for (final item in lista) {
-        try {
-          agendas.add(AgendaModel.fromJson(item));
-        } catch (e) {
-          debugPrint('[Agenda] Error parseando item: $item → $e');
-        }
-      }
-
-      final diasDoctora = <DateTime>{};
-      final diasAsistente = <DateTime>{};
-      final ahora = DateTime.now();
-      for (int i = -30; i < 365; i++) {
-        final dia = ahora.add(Duration(days: i));
-        for (final agenda in agendas) {
-          if (agenda.estado && _agendaAplicaParaDia(agenda, dia)) {
-            final normalDay = DateTime(dia.year, dia.month, dia.day);
-            if (agenda.rolCreador == 'Doctora') {
-              diasDoctora.add(normalDay);
-            } else if (agenda.rolCreador == 'Asistente') {
-              diasAsistente.add(normalDay);
-            }
+  void _recalcularDias(List<AgendaModel> agendas) {
+    final diasDoctora = <DateTime>{};
+    final diasAsistente = <DateTime>{};
+    final ahora = DateTime.now();
+    for (int i = -30; i < 365; i++) {
+      final dia = ahora.add(Duration(days: i));
+      for (final agenda in agendas) {
+        if (agenda.estado && _agendaAplicaParaDia(agenda, dia)) {
+          final normalDay = DateTime(dia.year, dia.month, dia.day);
+          if (agenda.rolCreador == 'Doctora') {
+            diasDoctora.add(normalDay);
+          } else if (agenda.rolCreador == 'Asistente') {
+            diasAsistente.add(normalDay);
           }
         }
       }
-
-      debugPrint('[Agenda] Total: ${agendas.length}, activas: ${agendas.where((a) => a.estado).length}, inactivas: ${agendas.where((a) => !a.estado).length}');
-      setState(() {
-        _agendas = agendas;
-        _diasDoctora = diasDoctora;
-        _diasAsistente = diasAsistente;
-        _cargando = false;
-      });
-    } catch (e) {
-      debugPrint('[Agenda] Error cargando: $e');
-      setState(() {
-        _cargando = false;
-        _errorCarga = e.toString().replaceAll('Exception: ', '');
-      });
     }
+    setState(() {
+      _agendas = agendas;
+      _diasDoctora = diasDoctora;
+      _diasAsistente = diasAsistente;
+    });
   }
 
   bool _agendaAplicaParaDia(AgendaModel agenda, DateTime dia) {
@@ -126,57 +91,6 @@ class _AgendaPageState extends State<AgendaPage> {
       'DOMINGO': 'Dom',
     };
     return dias.map((d) => nombres[d] ?? d).join(' · ');
-  }
-
-  Future<void> _cambiarEstadoAgenda(int id, bool nuevoEstado) async {
-    try {
-      debugPrint('[Agenda] PATCH /agenda/$id/estado → estado=$nuevoEstado');
-      final res = await ApiClientProvider.instance.dio.patch(
-        '/agenda/$id/estado',
-        data: {'estado': nuevoEstado},
-      );
-      debugPrint('[Agenda] PATCH ok: ${res.statusCode} ${res.data}');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(nuevoEstado ? 'Agenda activada' : 'Agenda desactivada'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _cargarAgenda();
-    } catch (e) {
-      debugPrint('[Agenda] PATCH error: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 6),
-        ),
-      );
-    }
-  }
-
-  Future<void> _eliminarAgenda(int id) async {
-    try {
-      await ApiClientProvider.instance.dio.delete('/agenda/$id');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Agenda eliminada correctamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _cargarAgenda();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al eliminar: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   void _mostrarOpcionesAgenda(AgendaModel agenda) {
@@ -279,7 +193,9 @@ class _AgendaPageState extends State<AgendaPage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                _cambiarEstadoAgenda(agenda.id, !agenda.estado);
+                context
+                    .read<AgendaBloc>()
+                    .add(CambiarEstadoAgendaEvent(agenda.id, !agenda.estado));
               },
             ),
             ListTile(
@@ -317,7 +233,7 @@ class _AgendaPageState extends State<AgendaPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _eliminarAgenda(id);
+              context.read<AgendaBloc>().add(EliminarAgendaEvent(id));
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text(
@@ -356,7 +272,11 @@ class _AgendaPageState extends State<AgendaPage> {
     );
   }
 
-  Widget _buildDayMarker(DateTime day, {required bool esDoctora, required bool esAmbas}) {
+  Widget _buildDayMarker(
+    DateTime day, {
+    required bool esDoctora,
+    required bool esAmbas,
+  }) {
     if (esAmbas) {
       return Container(
         margin: const EdgeInsets.all(4),
@@ -401,341 +321,424 @@ class _AgendaPageState extends State<AgendaPage> {
 
   @override
   Widget build(BuildContext context) {
-    final agendasDia = _agendasDelDia(_selectedDay);
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
-      appBar: AppBar(
-        title: const Text(
-          'Agenda',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFF00B5C8),
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _cargarAgenda,
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF8DC63F),
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CrearAgendaPage(
-                usuario: widget.usuario,
-                fechaInicial: _selectedDay,
-              ),
+    return BlocListener<AgendaBloc, AgendaState>(
+      listener: (context, state) {
+        if (state is AgendasCargadas) {
+          _recalcularDias(state.agendas);
+        } else if (state is AgendaOperacionExitosa) {
+          final messenger = ScaffoldMessenger.of(context);
+          // Determine the last action by checking bloc stream isn't easy;
+          // We simply show a generic success and reload.
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Operación realizada correctamente'),
+              backgroundColor: Colors.green,
             ),
           );
-          _cargarAgenda();
-        },
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Nueva Agenda',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Calendario
-          Card(
-            margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+          context.read<AgendaBloc>().add(CargarAgendasEvent());
+        } else if (state is AgendaError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.mensaje),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 6),
             ),
-            child: TableCalendar(
-              locale: 'es_ES',
-              firstDay: DateTime.now().subtract(const Duration(days: 30)),
-              lastDay: DateTime.now().add(const Duration(days: 365)),
-              focusedDay: _focusedDay,
-              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-              onDaySelected: (selectedDay, focusedDay) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-              },
-              onPageChanged: (focusedDay) {
-                setState(() => _focusedDay = focusedDay);
-              },
-              calendarBuilders: CalendarBuilders(
-                defaultBuilder: (context, day, focusedDay) {
-                  final normalDay = DateTime(day.year, day.month, day.day);
-                  final esDoctora = _diasDoctora.contains(normalDay);
-                  final esAsistente = _diasAsistente.contains(normalDay);
-                  if (!esDoctora && !esAsistente) return null;
-                  return _buildDayMarker(
-                    day,
-                    esDoctora: esDoctora,
-                    esAmbas: esDoctora && esAsistente,
-                  );
-                },
-              ),
-              calendarStyle: const CalendarStyle(
-                selectedDecoration: BoxDecoration(
-                  color: Color(0xFF00B5C8),
-                  shape: BoxShape.circle,
-                ),
-                todayDecoration: BoxDecoration(
-                  color: Color(0xFF00B5C8),
-                  shape: BoxShape.circle,
-                ),
-                todayTextStyle: TextStyle(color: Colors.white),
-              ),
-              headerStyle: const HeaderStyle(
-                formatButtonVisible: false,
-                titleCentered: true,
-                titleTextStyle: TextStyle(
-                  color: Color(0xFF00B5C8),
+          );
+        }
+      },
+      child: BlocBuilder<AgendaBloc, AgendaState>(
+        builder: (context, state) {
+          final cargando = state is AgendaLoading;
+          final errorCarga =
+              (state is AgendaError && _agendas.isEmpty) ? state.mensaje : null;
+          final agendasDia = _agendasDelDia(_selectedDay);
+
+          return Scaffold(
+            backgroundColor: const Color(0xFFF4F4F4),
+            appBar: AppBar(
+              title: const Text(
+                'Agenda',
+                style: TextStyle(
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-                leftChevronIcon: Icon(
-                  Icons.chevron_left,
-                  color: Color(0xFF00B5C8),
-                ),
-                rightChevronIcon: Icon(
-                  Icons.chevron_right,
-                  color: Color(0xFF00B5C8),
                 ),
               ),
-            ),
-          ),
-
-          // Leyenda
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _legendItem(const Color(0xFF00B5C8), 'Doctora'),
-                const SizedBox(width: 16),
-                _legendItem(const Color(0xFF8DC63F), 'Asistente'),
-                const SizedBox(width: 16),
-                _legendItemGradient('Ambas'),
+              backgroundColor: const Color(0xFF00B5C8),
+              iconTheme: const IconThemeData(color: Colors.white),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () =>
+                      context.read<AgendaBloc>().add(CargarAgendasEvent()),
+                ),
               ],
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Encabezado del día seleccionado
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.calendar_today_outlined,
-                  size: 16,
-                  color: Color(0xFF00B5C8),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  DateFormat('EEEE, dd MMMM', 'es_ES').format(_selectedDay),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF00B5C8),
-                  ),
-                ),
-                const Spacer(),
-                if (agendasDia.isNotEmpty)
-                  Text(
-                    '${agendasDia.length} configuración${agendasDia.length > 1 ? 'es' : ''}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Lista de agendas del día
-          Expanded(
-            child: _cargando
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF00B5C8),
+            floatingActionButton: FloatingActionButton.extended(
+              backgroundColor: const Color(0xFF8DC63F),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: context.read<AgendaBloc>(),
+                      child: CrearAgendaPage(
+                        usuario: widget.usuario,
+                        fechaInicial: _selectedDay,
+                      ),
                     ),
-                  )
-                : _errorCarga != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.error_outline,
-                                  size: 48, color: Colors.red),
-                              const SizedBox(height: 8),
-                              Text(
-                                _errorCarga!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: _cargarAgenda,
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Reintentar'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF00B5C8),
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ],
+                  ),
+                );
+                if (context.mounted) {
+                  context.read<AgendaBloc>().add(CargarAgendasEvent());
+                }
+              },
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text(
+                'Nueva Agenda',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            body: Column(
+              children: [
+                // Calendario
+                Card(
+                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: TableCalendar(
+                    locale: 'es_ES',
+                    firstDay: DateTime.now().subtract(const Duration(days: 30)),
+                    lastDay: DateTime.now().add(const Duration(days: 365)),
+                    focusedDay: _focusedDay,
+                    selectedDayPredicate: (day) =>
+                        isSameDay(_selectedDay, day),
+                    onDaySelected: (selectedDay, focusedDay) {
+                      setState(() {
+                        _selectedDay = selectedDay;
+                        _focusedDay = focusedDay;
+                      });
+                    },
+                    onPageChanged: (focusedDay) {
+                      setState(() => _focusedDay = focusedDay);
+                    },
+                    calendarBuilders: CalendarBuilders(
+                      defaultBuilder: (context, day, focusedDay) {
+                        final normalDay =
+                            DateTime(day.year, day.month, day.day);
+                        final esDoctora = _diasDoctora.contains(normalDay);
+                        final esAsistente = _diasAsistente.contains(normalDay);
+                        if (!esDoctora && !esAsistente) return null;
+                        return _buildDayMarker(
+                          day,
+                          esDoctora: esDoctora,
+                          esAmbas: esDoctora && esAsistente,
+                        );
+                      },
+                    ),
+                    calendarStyle: const CalendarStyle(
+                      selectedDecoration: BoxDecoration(
+                        color: Color(0xFF00B5C8),
+                        shape: BoxShape.circle,
+                      ),
+                      todayDecoration: BoxDecoration(
+                        color: Color(0xFF00B5C8),
+                        shape: BoxShape.circle,
+                      ),
+                      todayTextStyle: TextStyle(color: Colors.white),
+                    ),
+                    headerStyle: const HeaderStyle(
+                      formatButtonVisible: false,
+                      titleCentered: true,
+                      titleTextStyle: TextStyle(
+                        color: Color(0xFF00B5C8),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      leftChevronIcon: Icon(
+                        Icons.chevron_left,
+                        color: Color(0xFF00B5C8),
+                      ),
+                      rightChevronIcon: Icon(
+                        Icons.chevron_right,
+                        color: Color(0xFF00B5C8),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Leyenda
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _legendItem(const Color(0xFF00B5C8), 'Doctora'),
+                      const SizedBox(width: 16),
+                      _legendItem(const Color(0xFF8DC63F), 'Asistente'),
+                      const SizedBox(width: 16),
+                      _legendItemGradient('Ambas'),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Encabezado del día seleccionado
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 16,
+                        color: Color(0xFF00B5C8),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        DateFormat(
+                          'EEEE, dd MMMM',
+                          'es_ES',
+                        ).format(_selectedDay),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF00B5C8),
+                        ),
+                      ),
+                      const Spacer(),
+                      if (agendasDia.isNotEmpty)
+                        Text(
+                          '${agendasDia.length} configuración${agendasDia.length > 1 ? 'es' : ''}',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
                           ),
                         ),
-                      )
-                    : agendasDia.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.event_busy_outlined,
-                                  size: 48,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Sin agenda para este día',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                            itemCount: agendasDia.length,
-                            itemBuilder: (context, index) {
-                              final agenda = agendasDia[index];
-                              final rolColor = agenda.rolCreador == 'Doctora'
-                                  ? const Color(0xFF00B5C8)
-                                  : const Color(0xFF8DC63F);
-                              final rolLabel = agenda.rolCreador == 'Doctora'
-                                  ? 'Dra.'
-                                  : 'Asist.';
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
 
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                // Lista de agendas del día
+                Expanded(
+                  child: cargando
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF00B5C8),
+                          ),
+                        )
+                      : errorCarga != null
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline,
+                                      size: 48,
+                                      color: Colors.red,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      errorCarga,
+                                      textAlign: TextAlign.center,
+                                      style:
+                                          const TextStyle(color: Colors.red),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ElevatedButton.icon(
+                                      onPressed: () => context
+                                          .read<AgendaBloc>()
+                                          .add(CargarAgendasEvent()),
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Reintentar'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF00B5C8),
+                                        foregroundColor: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                clipBehavior: Clip.antiAlias,
-                                child: IntrinsicHeight(
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
+                              ),
+                            )
+                          : agendasDia.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Container(width: 5, color: rolColor),
-                                      Expanded(
-                                        child: ListTile(
-                                          onTap: () =>
-                                              _mostrarOpcionesAgenda(agenda),
-                                          leading: CircleAvatar(
-                                            backgroundColor: agenda.estado
-                                                ? rolColor
-                                                : Colors.grey.shade400,
-                                            child: const Icon(
-                                              Icons.schedule,
-                                              color: Colors.white,
-                                              size: 20,
-                                            ),
-                                          ),
-                                          title: Text(
-                                            '${agenda.horaInicio.substring(0, 5)} — ${agenda.horaFin.substring(0, 5)}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          subtitle: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Cada ${agenda.intervalo} min',
-                                              ),
-                                              if (agenda.diasSemana != null)
-                                                Text(
-                                                  _formatearDias(
-                                                    agenda.diasSemana!,
-                                                  ),
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                  ),
-                                                ),
-                                              const SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  _buildChip(
-                                                    agenda.ciudad.nombreCiudad,
-                                                    Icons.location_on_outlined,
-                                                    Colors.grey,
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  _buildChip(
-                                                    rolLabel,
-                                                    Icons.person_outline,
-                                                    rolColor,
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                          isThreeLine: true,
-                                          trailing: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 4,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: agenda.estado
-                                                      ? const Color(
-                                                          0xFF8DC63F,
-                                                        ).withValues(alpha: 0.15)
-                                                      : Colors.grey.shade200,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Text(
-                                                  agenda.estado
-                                                      ? 'Activa'
-                                                      : 'Inactiva',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: agenda.estado
-                                                        ? const Color(
-                                                            0xFF8DC63F,
-                                                          )
-                                                        : Colors.grey,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              const Icon(
-                                                Icons.chevron_right,
-                                                color: Colors.grey,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
+                                      Icon(
+                                        Icons.event_busy_outlined,
+                                        size: 48,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'Sin agenda para este día',
+                                        style: TextStyle(color: Colors.grey),
                                       ),
                                     ],
                                   ),
+                                )
+                              : ListView.builder(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    0,
+                                    16,
+                                    100,
+                                  ),
+                                  itemCount: agendasDia.length,
+                                  itemBuilder: (context, index) {
+                                    final agenda = agendasDia[index];
+                                    final rolColor =
+                                        agenda.rolCreador == 'Doctora'
+                                            ? const Color(0xFF00B5C8)
+                                            : const Color(0xFF8DC63F);
+                                    final rolLabel =
+                                        agenda.rolCreador == 'Doctora'
+                                            ? 'Dra.'
+                                            : 'Asist.';
+
+                                    return Card(
+                                      margin:
+                                          const EdgeInsets.only(bottom: 10),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: IntrinsicHeight(
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            Container(
+                                              width: 5,
+                                              color: rolColor,
+                                            ),
+                                            Expanded(
+                                              child: ListTile(
+                                                onTap: () =>
+                                                    _mostrarOpcionesAgenda(
+                                                  agenda,
+                                                ),
+                                                leading: CircleAvatar(
+                                                  backgroundColor: agenda
+                                                          .estado
+                                                      ? rolColor
+                                                      : Colors.grey.shade400,
+                                                  child: const Icon(
+                                                    Icons.schedule,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                                title: Text(
+                                                  '${agenda.horaInicio.substring(0, 5)} — ${agenda.horaFin.substring(0, 5)}',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                subtitle: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Cada ${agenda.intervalo} min',
+                                                    ),
+                                                    if (agenda.diasSemana !=
+                                                        null)
+                                                      Text(
+                                                        _formatearDias(
+                                                          agenda.diasSemana!,
+                                                        ),
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    const SizedBox(height: 4),
+                                                    Row(
+                                                      children: [
+                                                        _buildChip(
+                                                          agenda.ciudad
+                                                              .nombreCiudad,
+                                                          Icons
+                                                              .location_on_outlined,
+                                                          Colors.grey,
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 6,
+                                                        ),
+                                                        _buildChip(
+                                                          rolLabel,
+                                                          Icons.person_outline,
+                                                          rolColor,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                                isThreeLine: true,
+                                                trailing: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color: agenda.estado
+                                                            ? const Color(
+                                                                0xFF8DC63F,
+                                                              ).withValues(
+                                                                alpha: 0.15,
+                                                              )
+                                                            : Colors
+                                                                .grey.shade200,
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                      ),
+                                                      child: Text(
+                                                        agenda.estado
+                                                            ? 'Activa'
+                                                            : 'Inactiva',
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: agenda.estado
+                                                              ? const Color(
+                                                                  0xFF8DC63F,
+                                                                )
+                                                              : Colors.grey,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    const Icon(
+                                                      Icons.chevron_right,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
-                              );
-                            },
-                          ),
-          ),
-        ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

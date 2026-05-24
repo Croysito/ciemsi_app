@@ -6,9 +6,11 @@ import 'package:intl/intl.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_event.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_state.dart';
+import 'package:ciemsi_app/features/recetas/presentation/bloc/receta_bloc.dart';
+import 'package:ciemsi_app/features/recetas/presentation/bloc/receta_event.dart';
+import 'package:ciemsi_app/features/recetas/presentation/bloc/receta_state.dart';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
 import 'package:ciemsi_app/core/utils/receta_pdf_generator.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
 class GenerarRecetaPage extends StatefulWidget {
   final CitaMedica cita;
@@ -43,7 +45,23 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
         _recetaGenerada = true;
         _generandoPdf = false;
       });
-      _agregarAlHistorial();
+
+      // Despachar evento al RecetaBloc para guardar en historial
+      final fecha = DateFormat('dd/MM/yyyy').format(widget.cita.fecha);
+      final texto =
+          'Receta médica\n'
+          'Fecha: $fecha | Servicio: ${widget.cita.servicio.nombreServicio}\n\n'
+          'Medicamentos prescritos:\n'
+          '${_detalleController.text.trim()}';
+
+      if (!mounted) return;
+      context.read<RecetaBloc>().add(
+        GuardarRecetaHistorialEvent(
+          historialId: widget.cita.paciente.id,
+          texto: texto,
+        ),
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Receta generada correctamente'),
@@ -59,23 +77,6 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
           backgroundColor: Colors.red,
         ),
       );
-    }
-  }
-
-  Future<void> _agregarAlHistorial() async {
-    final fecha = DateFormat('dd/MM/yyyy').format(widget.cita.fecha);
-    final detalle =
-        'Receta médica\n'
-        'Fecha: $fecha | Servicio: ${widget.cita.servicio.nombreServicio}\n\n'
-        'Medicamentos prescritos:\n'
-        '${_detalleController.text.trim()}';
-    try {
-      await ApiClientProvider.instance.dio.post(
-        '/historial/${widget.cita.paciente.id}/notas',
-        data: {'detalle': detalle},
-      );
-    } catch (e) {
-      debugPrint('Historial: no se pudo registrar la receta - $e');
     }
   }
 
@@ -100,20 +101,31 @@ class _GenerarRecetaPageState extends State<GenerarRecetaPage> {
         backgroundColor: const Color(0xFF00B5C8),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: BlocListener<TratamientoBloc, TratamientoState>(
-        listener: (context, state) {
-          if (state is RecetaGenerada) {
-            _generarPdfLocal();
-          }
-          if (state is TratamientoError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.mensaje),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        },
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<TratamientoBloc, TratamientoState>(
+            listener: (context, state) {
+              if (state is RecetaGenerada) {
+                _generarPdfLocal();
+              }
+              if (state is TratamientoError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.mensaje),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+          ),
+          BlocListener<RecetaBloc, RecetaState>(
+            listener: (context, state) {
+              if (state is RecetaError) {
+                debugPrint('Historial: no se pudo registrar la receta - ${state.mensaje}');
+              }
+            },
+          ),
+        ],
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(

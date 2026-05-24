@@ -5,8 +5,6 @@ import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_blo
 import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_event.dart';
 import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_state.dart';
 import 'package:ciemsi_app/features/suministros/domain/entities/suministro.dart';
-import 'package:ciemsi_app/features/suministros/data/models/suministro_model.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
 class RegistrarCompraPage extends StatefulWidget {
   final int ciudadId;
@@ -30,20 +28,7 @@ class _RegistrarCompraPageState extends State<RegistrarCompraPage> {
   @override
   void initState() {
     super.initState();
-    _cargarSuministros();
-  }
-
-  Future<void> _cargarSuministros() async {
-    try {
-      final response = await ApiClientProvider.instance.dio.get('/suministros');
-      setState(() {
-        _suministros = (response.data as List)
-            .map((s) => SuministroModel.fromJson(s))
-            .toList();
-      });
-    } catch (e) {
-      debugPrint('Error cargando suministros: $e');
-    }
+    context.read<SuministroBloc>().add(CargarSuministrosCatalogoEvent());
   }
 
   void _agregarItem() {
@@ -75,6 +60,9 @@ class _RegistrarCompraPageState extends State<RegistrarCompraPage> {
       ),
       body: BlocListener<SuministroBloc, SuministroState>(
         listener: (context, state) {
+          if (state is CatalogoCargado) {
+            setState(() => _suministros = state.suministros);
+          }
           if (state is CompraRegistrada) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(

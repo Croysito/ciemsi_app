@@ -1,5 +1,6 @@
 import 'package:ciemsi_app/features/tratamientos/domain/entities/tratamiento_asignado.dart'
     as entidad;
+import 'package:ciemsi_app/features/suministros/domain/entities/suministro.dart';
 import 'package:equatable/equatable.dart';
 import 'package:ciemsi_app/features/tratamientos/domain/entities/tratamiento.dart';
 
@@ -39,6 +40,13 @@ class RecetaGenerada extends TratamientoState {
   RecetaGenerada(this.receta);
   @override
   List<Object?> get props => [receta];
+}
+
+class MedicamentosCargados extends TratamientoState {
+  final List<Suministro> medicamentos;
+  MedicamentosCargados(this.medicamentos);
+  @override
+  List<Object?> get props => [medicamentos];
 }
 
 class TratamientoError extends TratamientoState {

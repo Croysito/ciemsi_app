@@ -1,4 +1,5 @@
 import 'package:ciemsi_app/features/tratamientos/domain/entities/tratamiento_asignado.dart';
+import 'package:ciemsi_app/features/suministros/domain/usecases/listar_suministros.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/agregar_suministro_tratamiento.dart';
 import '../../domain/usecases/asignar_tratamiento.dart';
@@ -20,6 +21,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
   final AgregarSuministroTratamientoUseCase agregarSuministroUseCase;
   final CompletarTratamientoUseCase completarTratamientoUseCase;
   final GenerarRecetaTratamientoUseCase generarRecetaUseCase;
+  final ListarSuministrosUseCase listarSuministrosUseCase;
 
   TratamientoBloc({
     required this.listarTratamientosUseCase,
@@ -30,6 +32,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
     required this.agregarSuministroUseCase,
     required this.completarTratamientoUseCase,
     required this.generarRecetaUseCase,
+    required this.listarSuministrosUseCase,
   }) : super(TratamientoInitial()) {
     on<ListarTratamientosEvent>(_onListar);
     on<CrearTratamientoEvent>(_onCrear);
@@ -40,6 +43,7 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
     on<AgregarMultiplesSuministrosEvent>(_onAgregarMultiples);
     on<CompletarTratamientoEvent>(_onCompletar);
     on<GenerarRecetaEvent>(_onGenerarReceta);
+    on<CargarMedicamentosEvent>(_onCargarMedicamentos);
   }
 
   Future<void> _onListar(
@@ -179,6 +183,20 @@ class TratamientoBloc extends Bloc<TratamientoEvent, TratamientoState> {
         detalle: event.detalle,
       );
       emit(RecetaGenerada(receta));
+    } catch (e) {
+      emit(TratamientoError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onCargarMedicamentos(
+    CargarMedicamentosEvent event,
+    Emitter<TratamientoState> emit,
+  ) async {
+    try {
+      final medicamentos = await listarSuministrosUseCase.execute(
+        tipo: 'MEDICAMENTO',
+      );
+      emit(MedicamentosCargados(medicamentos));
     } catch (e) {
       emit(TratamientoError(e.toString().replaceAll('Exception: ', '')));
     }

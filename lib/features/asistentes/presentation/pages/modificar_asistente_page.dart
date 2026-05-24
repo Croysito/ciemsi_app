@@ -5,7 +5,6 @@ import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_bloc.
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_event.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_state.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
 
 class ModificarAsistentePage extends StatefulWidget {
   final Asistente asistente;
@@ -28,29 +27,7 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
     _nombreController.text = widget.asistente.nombre;
     _apellidoController.text = widget.asistente.apellido;
     _emailController.text = widget.asistente.email;
-    _cargarCiudades();
-  }
-
-  Future<void> _cargarCiudades() async {
-    try {
-      final response = await ApiClientProvider.instance.dio.get('/ciudades');
-      setState(() {
-        _ciudades = (response.data as List)
-            .map((c) => Ciudad(id: c['id'], nombreCiudad: c['nombreCiudad']))
-            .toList();
-        if (widget.asistente.ciudad != null) {
-          try {
-            _ciudadSeleccionada = _ciudades.firstWhere(
-              (c) => c.id == widget.asistente.ciudad!.id,
-            );
-          } catch (e) {
-            _ciudadSeleccionada = null;
-          }
-        }
-      });
-    } catch (e) {
-      debugPrint('Error cargando ciudades: $e');
-    }
+    context.read<AsistenteBloc>().add(CargarCiudadesAsistenteEvent());
   }
 
   @override
@@ -75,6 +52,20 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
       ),
       body: BlocListener<AsistenteBloc, AsistenteState>(
         listener: (context, state) {
+          if (state is CiudadesAsistenteCargadas) {
+            setState(() {
+              _ciudades = state.ciudades;
+              if (widget.asistente.ciudad != null) {
+                try {
+                  _ciudadSeleccionada = _ciudades.firstWhere(
+                    (c) => c.id == widget.asistente.ciudad!.id,
+                  );
+                } catch (_) {
+                  _ciudadSeleccionada = null;
+                }
+              }
+            });
+          }
           if (state is AsistenteModificado) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(

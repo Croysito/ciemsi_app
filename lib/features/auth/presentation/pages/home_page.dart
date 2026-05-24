@@ -4,10 +4,15 @@ import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/pages/citas_page.dart';
 import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_bloc.dart';
 import 'package:ciemsi_app/features/suministros/presentation/pages/inventario_page.dart';
+import 'package:ciemsi_app/features/traslados/presentation/bloc/traslado_bloc.dart';
+import 'package:ciemsi_app/features/traslados/presentation/pages/traslados_page.dart';
 import 'package:ciemsi_app/features/suministros/presentation/pages/suministros_page.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/tratamientos_asignados_page.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/tratamientos_page.dart';
+import 'package:ciemsi_app/features/pagos/presentation/pages/productos_page.dart';
+import 'package:ciemsi_app/features/pagos/presentation/pages/compras_producto_page.dart';
+import 'package:ciemsi_app/features/pagos/presentation/pages/estado_cuenta_page.dart';
 import 'package:ciemsi_app/core/di/app_dependencies.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -19,7 +24,15 @@ import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../../../pacientes/presentation/pages/pacientes_page.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/pages/asistentes_page.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
+import 'package:ciemsi_app/features/auth/presentation/bloc/dashboard_bloc.dart';
+import 'package:ciemsi_app/features/auth/presentation/bloc/dashboard_event.dart';
+import 'package:ciemsi_app/features/auth/presentation/bloc/dashboard_state.dart';
+import 'package:ciemsi_app/features/pagos/presentation/bloc/pago_bloc.dart';
+import 'package:ciemsi_app/features/pagos/presentation/bloc/pago_event.dart';
+import 'package:ciemsi_app/features/pagos/presentation/bloc/pago_state.dart';
+import '../../../pacientes/presentation/bloc/paciente_event.dart';
+import '../../../pacientes/presentation/bloc/paciente_state.dart';
+import '../../../pacientes/domain/entities/paciente.dart';
 
 class HomePage extends StatefulWidget {
   final Usuario usuario;
@@ -30,12 +43,15 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 1;
+  int _currentIndex = 2;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final CitaBloc _citaBloc;
   late final TratamientoBloc _tratamientoBloc;
   late final SuministroBloc _suministroBloc;
+  late final TrasladoBloc _trasladoBloc;
+  late final DashboardBloc _dashboardBloc;
+  late final PagoBloc _pagoBloc;
 
   int? _ciudadIdInventario;
   String? _ciudadNombreInventario;
@@ -46,6 +62,9 @@ class _HomePageState extends State<HomePage> {
     _citaBloc = AppDependencies.createCitaBloc();
     _tratamientoBloc = AppDependencies.createTratamientoBloc();
     _suministroBloc = AppDependencies.createSuministroBloc();
+    _trasladoBloc = AppDependencies.createTrasladoBloc();
+    _dashboardBloc = AppDependencies.createDashboardBloc();
+    _pagoBloc = AppDependencies.createPagoBloc();
 
     if (widget.usuario.rol == 'Asistente' && widget.usuario.ciudad != null) {
       _ciudadIdInventario = widget.usuario.ciudad!.id;
@@ -58,6 +77,9 @@ class _HomePageState extends State<HomePage> {
     _citaBloc.close();
     _tratamientoBloc.close();
     _suministroBloc.close();
+    _trasladoBloc.close();
+    _dashboardBloc.close();
+    _pagoBloc.close();
     super.dispose();
   }
 
@@ -70,6 +92,9 @@ class _HomePageState extends State<HomePage> {
         BlocProvider.value(value: _citaBloc),
         BlocProvider.value(value: _tratamientoBloc),
         BlocProvider.value(value: _suministroBloc),
+        BlocProvider.value(value: _trasladoBloc),
+        BlocProvider.value(value: _dashboardBloc),
+        BlocProvider.value(value: _pagoBloc),
       ],
       child: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
@@ -81,28 +106,46 @@ class _HomePageState extends State<HomePage> {
             );
           }
         },
-        child: Scaffold(
-          key: _scaffoldKey,
-          drawer: _buildDrawer(context),
-          bottomNavigationBar: _buildBottomNav(),
-          body: IndexedStack(
-            index: _currentIndex,
-            children: [
-              CitasPage(usuario: widget.usuario, onMenuTap: _openDrawer),
-              _DashboardTab(usuario: widget.usuario, onMenuTap: _openDrawer),
-              TratamientosAsignadosPage(onMenuTap: _openDrawer),
-              _InventarioTab(
-                usuario: widget.usuario,
-                onMenuTap: _openDrawer,
-                ciudadId: _ciudadIdInventario,
-                ciudadNombre: _ciudadNombreInventario,
-                suministroBloc: _suministroBloc,
-                onCiudadSeleccionada: (id, nombre) => setState(() {
-                  _ciudadIdInventario = id;
-                  _ciudadNombreInventario = nombre;
-                }),
-              ),
-            ],
+        child: PopScope(
+          canPop: _currentIndex == 2,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            if (_currentIndex == 4 &&
+                _ciudadIdInventario != null &&
+                widget.usuario.rol != 'Asistente') {
+              setState(() {
+                _ciudadIdInventario = null;
+                _ciudadNombreInventario = null;
+              });
+            } else {
+              setState(() => _currentIndex = 2);
+            }
+          },
+          child: Scaffold(
+            key: _scaffoldKey,
+            drawer: _buildDrawer(context),
+            bottomNavigationBar: _buildBottomNav(),
+            body: IndexedStack(
+              index: _currentIndex,
+              children: [
+                CitasPage(usuario: widget.usuario, onMenuTap: _openDrawer),
+                _PagosTab(usuario: widget.usuario, onMenuTap: _openDrawer),
+                _DashboardTab(usuario: widget.usuario, onMenuTap: _openDrawer),
+                TratamientosAsignadosPage(onMenuTap: _openDrawer),
+                _InventarioTab(
+                  usuario: widget.usuario,
+                  onMenuTap: _openDrawer,
+                  ciudadId: _ciudadIdInventario,
+                  ciudadNombre: _ciudadNombreInventario,
+                  suministroBloc: _suministroBloc,
+                  trasladoBloc: _trasladoBloc,
+                  onCiudadSeleccionada: (id, nombre) => setState(() {
+                    _ciudadIdInventario = id;
+                    _ciudadNombreInventario = nombre;
+                  }),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -112,7 +155,13 @@ class _HomePageState extends State<HomePage> {
   Widget _buildBottomNav() {
     return BottomNavigationBar(
       currentIndex: _currentIndex,
-      onTap: (i) => setState(() => _currentIndex = i),
+      onTap: (i) => setState(() {
+        if (_currentIndex == 4 && i != 4 && widget.usuario.rol != 'Asistente') {
+          _ciudadIdInventario = null;
+          _ciudadNombreInventario = null;
+        }
+        _currentIndex = i;
+      }),
       selectedItemColor: const Color(0xFF00B5C8),
       unselectedItemColor: Colors.grey,
       type: BottomNavigationBarType.fixed,
@@ -122,6 +171,11 @@ class _HomePageState extends State<HomePage> {
           icon: Icon(Icons.calendar_today_outlined),
           activeIcon: Icon(Icons.calendar_today),
           label: 'Citas',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.payments_outlined),
+          activeIcon: Icon(Icons.payments),
+          label: 'Pagos',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
@@ -248,7 +302,77 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+            _drawerTile(
+              icon: Icons.inventory_2_outlined,
+              color: const Color(0xFF8DC63F),
+              label: 'Productos',
+              subtitle: 'Catálogo',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProductosPage()),
+                );
+              },
+            ),
+            _drawerTile(
+              icon: Icons.add_shopping_cart_outlined,
+              color: const Color(0xFF00B5C8),
+              label: 'Compras',
+              subtitle: 'Productos comprados',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ComprasProductoPage(
+                      ciudadIdInicial: widget.usuario.ciudad?.id,
+                      ciudadNombreInicial: widget.usuario.ciudad?.nombreCiudad,
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
+          _drawerTile(
+            icon: Icons.swap_horiz,
+            color: const Color(0xFF00B5C8),
+            label: 'Traslados',
+            subtitle: 'Entre sucursales',
+            onTap: () {
+              final ciudadId = widget.usuario.rol == 'Asistente'
+                  ? widget.usuario.ciudad?.id
+                  : _ciudadIdInventario;
+              final ciudadNombre = widget.usuario.rol == 'Asistente'
+                  ? widget.usuario.ciudad?.nombreCiudad
+                  : _ciudadNombreInventario;
+
+              Navigator.pop(context);
+
+              if (ciudadId == null || ciudadNombre == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Selecciona una ciudad en Inventario primero'),
+                  ),
+                );
+                return;
+              }
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider.value(
+                    value: _trasladoBloc,
+                    child: TrasladosPage(
+                      ciudadId: ciudadId,
+                      ciudadNombre: ciudadNombre,
+                      usuario: widget.usuario,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
           _drawerTile(
             icon: Icons.calendar_month_outlined,
             color: const Color(0xFF8DC63F),
@@ -259,7 +383,10 @@ class _HomePageState extends State<HomePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => AgendaPage(usuario: widget.usuario),
+                  builder: (_) => BlocProvider(
+                    create: (_) => AppDependencies.createAgendaBloc(),
+                    child: AgendaPage(usuario: widget.usuario),
+                  ),
                 ),
               );
             },
@@ -312,65 +439,16 @@ class _DashboardTab extends StatefulWidget {
 }
 
 class _DashboardTabState extends State<_DashboardTab> {
-  bool _cargando = true;
-  List<Map<String, dynamic>> _citasHoy = [];
-  List<Map<String, dynamic>> _cumpleanos = [];
-  List<Map<String, dynamic>> _alertasStock = [];
-
   @override
   void initState() {
     super.initState();
     _cargarDatos();
   }
 
-  Future<void> _cargarDatos() async {
-    if (!mounted) return;
-    setState(() => _cargando = true);
-    await Future.wait([_cargarCitas(), _cargarCumpleanos(), _cargarAlertas()]);
-    if (mounted) setState(() => _cargando = false);
-  }
-
-  Future<void> _cargarCitas() async {
-    try {
-      final res = await ApiClientProvider.instance.dio.get('/citas');
-      final hoy = DateTime.now();
-      _citasHoy =
-          (res.data as List).cast<Map<String, dynamic>>().where((c) {
-            final f = DateTime.tryParse(c['fecha']?.toString() ?? '');
-            return f != null &&
-                f.year == hoy.year &&
-                f.month == hoy.month &&
-                f.day == hoy.day;
-          }).toList()..sort((a, b) {
-            final ha = a['hora']?.toString() ?? '';
-            final hb = b['hora']?.toString() ?? '';
-            return ha.compareTo(hb);
-          });
-    } catch (_) {}
-  }
-
-  Future<void> _cargarCumpleanos() async {
-    try {
-      final res = await ApiClientProvider.instance.dio.get('/pacientes');
-      final hoy = DateTime.now();
-      _cumpleanos = (res.data as List).cast<Map<String, dynamic>>().where((p) {
-        final fn = DateTime.tryParse(p['fechaNacimiento']?.toString() ?? '');
-        return fn != null && fn.month == hoy.month && fn.day == hoy.day;
-      }).toList();
-    } catch (_) {}
-  }
-
-  Future<void> _cargarAlertas() async {
-    try {
-      final ciudad = widget.usuario.ciudad;
-      if (ciudad == null) return;
-      final res = await ApiClientProvider.instance.dio.get(
-        '/suministros/alertas',
-        queryParameters: {'ciudadId': ciudad.id},
-      );
-      _alertasStock = ((res.data['stockBajo'] as List?) ?? [])
-          .cast<Map<String, dynamic>>();
-    } catch (_) {}
+  void _cargarDatos() {
+    context.read<DashboardBloc>().add(
+      CargarDashboardEvent(ciudadId: widget.usuario.ciudad?.id),
+    );
   }
 
   @override
@@ -414,49 +492,56 @@ class _DashboardTabState extends State<_DashboardTab> {
           ),
         ],
       ),
-      body: _cargando
-          ? const Center(
+      body: BlocBuilder<DashboardBloc, DashboardState>(
+        builder: (context, state) {
+          if (state is DashboardLoading || state is DashboardInitial) {
+            return const Center(
               child: CircularProgressIndicator(color: Color(0xFF00B5C8)),
-            )
-          : RefreshIndicator(
-              onRefresh: _cargarDatos,
-              color: const Color(0xFF00B5C8),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Saludo
-                  Text(
-                    '$saludo, ${widget.usuario.nombre}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+            );
+          }
+          final citasHoy = state is DashboardCargado
+              ? state.citasHoy
+              : <Map<String, dynamic>>[];
+          final cumpleaneros = state is DashboardCargado
+              ? state.cumpleaneros
+              : <Map<String, dynamic>>[];
+          final alertasStock = state is DashboardCargado
+              ? state.alertasStock
+              : <Map<String, dynamic>>[];
+          return RefreshIndicator(
+            onRefresh: () async => _cargarDatos(),
+            color: const Color(0xFF00B5C8),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text(
+                  '$saludo, ${widget.usuario.nombre}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                  Text(
-                    widget.usuario.ciudad != null
-                        ? '${widget.usuario.rol} • ${widget.usuario.ciudad!.nombreCiudad}'
-                        : widget.usuario.rol,
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Cumpleaños
-                  if (_cumpleanos.isNotEmpty) ...[
-                    _CardCumpleanos(pacientes: _cumpleanos),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Alertas de stock
-                  if (_alertasStock.isNotEmpty) ...[
-                    _CardAlertas(alertas: _alertasStock),
-                    const SizedBox(height: 12),
-                  ],
-
-                  // Citas de hoy
-                  _CardCitasHoy(citas: _citasHoy),
+                ),
+                Text(
+                  widget.usuario.ciudad != null
+                      ? '${widget.usuario.rol} • ${widget.usuario.ciudad!.nombreCiudad}'
+                      : widget.usuario.rol,
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                if (cumpleaneros.isNotEmpty) ...[
+                  _CardCumpleanos(pacientes: cumpleaneros),
+                  const SizedBox(height: 12),
                 ],
-              ),
+                if (alertasStock.isNotEmpty) ...[
+                  _CardAlertas(alertas: alertasStock),
+                  const SizedBox(height: 12),
+                ],
+                _CardCitasHoy(citas: citasHoy),
+              ],
             ),
+          );
+        },
+      ),
     );
   }
 }
@@ -692,6 +777,229 @@ class _CardCitasHoy extends StatelessWidget {
   }
 }
 
+// ─── Pagos Tab ────────────────────────────────────────────────────────────────
+
+class _PagosTab extends StatefulWidget {
+  final Usuario usuario;
+  final VoidCallback onMenuTap;
+
+  const _PagosTab({required this.usuario, required this.onMenuTap});
+
+  @override
+  State<_PagosTab> createState() => _PagosTabState();
+}
+
+class _PagosTabState extends State<_PagosTab> {
+  final _searchController = TextEditingController();
+  List<Paciente> _todos = [];
+  List<Paciente> _filtrados = [];
+  Map<int, double> _deudas = {};
+  bool _cargando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_filtrar);
+    _cargar();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _cargar() {
+    setState(() => _cargando = true);
+    context.read<PacienteBloc>().add(ListarPacientesEvent());
+    context.read<PagoBloc>().add(CargarResumenDeudasEvent());
+  }
+
+  void _filtrar() {
+    final q = _searchController.text.trim().toLowerCase();
+    setState(() {
+      _filtrados = q.isEmpty
+          ? _todos
+          : _todos.where((p) {
+              return p.nombreCompleto.toLowerCase().contains(q) ||
+                  p.ci.toLowerCase().contains(q);
+            }).toList();
+    });
+  }
+
+  void _abrirEstadoCuenta(Paciente paciente) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EstadoCuentaPage(
+          pacienteId: paciente.id,
+          ciudadId: paciente.ciudad?.id ?? 0,
+          nombrePaciente: paciente.nombreCompleto,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: widget.onMenuTap,
+        ),
+        title: const Text(
+          'Pagos',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF00B5C8),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _cargar,
+          ),
+        ],
+      ),
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<PacienteBloc, PacienteState>(
+            listener: (context, state) {
+              if (state is PacientesListados) {
+                setState(() {
+                  _todos = state.pacientes;
+                  _cargando = false;
+                });
+                _filtrar();
+              } else if (state is PacienteError) {
+                setState(() => _cargando = false);
+              }
+            },
+          ),
+          BlocListener<PagoBloc, PagoState>(
+            listener: (context, state) {
+              if (state is ResumenDeudasCargado) {
+                setState(() => _deudas = state.deudas);
+                _filtrar();
+              }
+            },
+          ),
+        ],
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Buscar paciente por nombre o CI...',
+                  prefixIcon: const Icon(Icons.search, color: Color(0xFF00B5C8)),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () => _searchController.clear(),
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _cargando
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF00B5C8),
+                      ),
+                    )
+                  : _filtrados.isEmpty
+                      ? Center(
+                          child: Text(
+                            _searchController.text.isEmpty
+                                ? 'No hay pacientes registrados'
+                                : 'Sin resultados para "${_searchController.text}"',
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                          itemCount: _filtrados.length,
+                          itemBuilder: (_, i) {
+                            final p = _filtrados[i];
+                            final deuda = _deudas[p.id];
+                            final tieneDeuda = deuda != null && deuda > 0;
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              color: tieneDeuda ? Colors.red.shade50 : null,
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: tieneDeuda
+                                      ? Colors.red.shade100
+                                      : const Color(0xFFE0F7FA),
+                                  child: Icon(
+                                    Icons.person_outline,
+                                    color: tieneDeuda
+                                        ? Colors.red.shade700
+                                        : const Color(0xFF00B5C8),
+                                  ),
+                                ),
+                                title: Text(
+                                  p.nombreCompleto,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  p.ciudad?.nombreCiudad != null
+                                      ? 'CI: ${p.ci}  •  ${p.ciudad!.nombreCiudad}'
+                                      : 'CI: ${p.ci}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                trailing: tieneDeuda
+                                    ? Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.shade600,
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          'Bs. ${NumberFormat('#,##0.00', 'es').format(deuda)}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.chevron_right,
+                                        color: Colors.grey,
+                                      ),
+                                onTap: () => _abrirEstadoCuenta(p),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Inventario Tab ───────────────────────────────────────────────────────────
 
 class _InventarioTab extends StatelessWidget {
@@ -700,6 +1008,7 @@ class _InventarioTab extends StatelessWidget {
   final int? ciudadId;
   final String? ciudadNombre;
   final SuministroBloc suministroBloc;
+  final TrasladoBloc trasladoBloc;
   final void Function(int, String) onCiudadSeleccionada;
 
   const _InventarioTab({
@@ -708,18 +1017,23 @@ class _InventarioTab extends StatelessWidget {
     required this.ciudadId,
     required this.ciudadNombre,
     required this.suministroBloc,
+    required this.trasladoBloc,
     required this.onCiudadSeleccionada,
   });
 
   @override
   Widget build(BuildContext context) {
     if (ciudadId != null && ciudadNombre != null) {
-      return BlocProvider.value(
-        value: suministroBloc,
+      return MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: suministroBloc),
+          BlocProvider.value(value: trasladoBloc),
+        ],
         child: InventarioPage(
           ciudadId: ciudadId!,
           ciudadNombre: ciudadNombre!,
           onMenuTap: onMenuTap,
+          usuario: usuario,
         ),
       );
     }
@@ -753,84 +1067,85 @@ class _SelectorCiudadInventarioState extends State<_SelectorCiudadInventario> {
   @override
   void initState() {
     super.initState();
-    _cargar();
-  }
-
-  Future<void> _cargar() async {
-    try {
-      final res = await ApiClientProvider.instance.dio.get('/ciudades');
-      if (mounted) {
-        setState(() {
-          _ciudades = (res.data as List).cast<Map<String, dynamic>>();
-          _cargando = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _cargando = false);
-    }
+    context.read<PagoBloc>().add(CargarCiudadesPagoEvent());
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: widget.onMenuTap,
+    return BlocListener<PagoBloc, PagoState>(
+      listener: (context, state) {
+        if (state is CiudadesPagoCargadas) {
+          setState(() {
+            _ciudades = state.ciudades;
+            _cargando = false;
+          });
+        } else if (state is PagoError) {
+          setState(() => _cargando = false);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: widget.onMenuTap,
+          ),
+          title: const Text(
+            'Inventario',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: const Color(0xFF00B5C8),
         ),
-        title: const Text(
-          'Inventario',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFF00B5C8),
-      ),
-      body: _cargando
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF00B5C8)),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
-                  child: Text(
-                    'Selecciona una ciudad',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        body: _cargando
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF00B5C8)),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 24, 20, 12),
+                    child: Text(
+                      'Selecciona una ciudad',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _ciudades.length,
-                    itemBuilder: (_, i) {
-                      final c = _ciudades[i];
-                      final id = c['id'] is int
-                          ? c['id'] as int
-                          : int.tryParse(c['id'].toString());
-                      final nombre =
-                          c['nombreCiudad']?.toString() ?? 'Sin nombre';
-                      return Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.location_city_outlined,
-                            color: Color(0xFF00B5C8),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _ciudades.length,
+                      itemBuilder: (_, i) {
+                        final c = _ciudades[i];
+                        final id = c['id'] is int
+                            ? c['id'] as int
+                            : int.tryParse(c['id'].toString());
+                        final nombre =
+                            c['nombreCiudad']?.toString() ?? 'Sin nombre';
+                        return Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          title: Text(nombre),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: id != null
-                              ? () => widget.onSeleccionada(id, nombre)
-                              : null,
-                        ),
-                      );
-                    },
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.location_city_outlined,
+                              color: Color(0xFF00B5C8),
+                            ),
+                            title: Text(nombre),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: id != null
+                                ? () => widget.onSeleccionada(id, nombre)
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }

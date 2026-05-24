@@ -503,9 +503,17 @@ class DetalleCitaPage extends StatelessWidget {
                   : () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => BlocProvider(
-                          create: (_) =>
-                              AppDependencies.createTratamientoBloc(),
+                        builder: (_) => MultiBlocProvider(
+                          providers: [
+                            BlocProvider(
+                              create: (_) =>
+                                  AppDependencies.createTratamientoBloc(),
+                            ),
+                            BlocProvider(
+                              create: (_) =>
+                                  AppDependencies.createRecetaBloc(),
+                            ),
+                          ],
                           child: GenerarRecetaPage(cita: cita),
                         ),
                       ),

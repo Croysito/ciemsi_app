@@ -1,4 +1,6 @@
 import 'package:ciemsi_app/core/services/notification_service.dart';
+import 'package:ciemsi_app/core/network/api_client_provider.dart';
+import 'package:ciemsi_app/features/auth/data/models/usuario_model.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/iniciar_sesion.dart';
 import '../../domain/usecases/recuperar_contrasena.dart';
@@ -19,6 +21,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LoginEvent>(_onLogin);
     on<RecuperarContrasenaEvent>(_onRecuperarContrasena);
     on<CerrarSesionEvent>(_onCerrarSesion);
+    on<VerificarTokenEvent>(_onVerificarToken);
   }
 
   Future<void> _onLogin(LoginEvent event, Emitter<AuthState> emit) async {
@@ -61,6 +64,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(CerrarSesionSuccess());
     } catch (e) {
       emit(AuthError(mensaje: e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onVerificarToken(
+    VerificarTokenEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      ApiClientProvider.instance.setToken(event.token);
+      await ApiClientProvider.instance.dio.get('/ciudades');
+      final usuario = UsuarioModel.fromJson(event.usuarioData);
+      emit(SesionVerificada(usuario: usuario));
+    } catch (_) {
+      emit(SesionInvalida());
     }
   }
 }

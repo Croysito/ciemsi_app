@@ -3,6 +3,7 @@ import '../../domain/usecases/cambiar_estado_asistente.dart';
 import '../../domain/usecases/cambiar_password_asistente.dart';
 import '../../domain/usecases/crear_asistente.dart';
 import '../../domain/usecases/listar_asistentes.dart';
+import '../../domain/usecases/listar_ciudades_asistente.dart';
 import '../../domain/usecases/modificar_asistente.dart';
 import 'asistente_event.dart';
 import 'asistente_state.dart';
@@ -13,6 +14,7 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
   final ModificarAsistenteUseCase modificarAsistenteUseCase;
   final CambiarEstadoAsistenteUseCase cambiarEstadoAsistenteUseCase;
   final CambiarPasswordAsistenteUseCase cambiarPasswordAsistenteUseCase;
+  final ListarCiudadesAsistenteUseCase listarCiudadesUseCase;
 
   AsistenteBloc({
     required this.listarAsistentesUseCase,
@@ -20,12 +22,26 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
     required this.modificarAsistenteUseCase,
     required this.cambiarEstadoAsistenteUseCase,
     required this.cambiarPasswordAsistenteUseCase,
+    required this.listarCiudadesUseCase,
   }) : super(AsistenteInitial()) {
     on<ListarAsistentesEvent>(_onListar);
+    on<CargarCiudadesAsistenteEvent>(_onCargarCiudades);
     on<CrearAsistenteEvent>(_onCrear);
     on<ModificarAsistenteEvent>(_onModificar);
     on<CambiarEstadoAsistenteEvent>(_onCambiarEstado);
     on<CambiarPasswordEvent>(_onCambiarPassword);
+  }
+
+  Future<void> _onCargarCiudades(
+    CargarCiudadesAsistenteEvent event,
+    Emitter<AsistenteState> emit,
+  ) async {
+    try {
+      final ciudades = await listarCiudadesUseCase.execute();
+      emit(CiudadesAsistenteCargadas(ciudades));
+    } catch (e) {
+      emit(AsistenteError(e.toString().replaceAll('Exception: ', '')));
+    }
   }
 
   Future<void> _onListar(

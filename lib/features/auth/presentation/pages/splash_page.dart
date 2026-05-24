@@ -1,8 +1,10 @@
 import 'package:ciemsi_app/core/services/notification_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ciemsi_app/core/services/auth_storage_service.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
-import 'package:ciemsi_app/features/auth/data/models/usuario_model.dart';
+import 'package:ciemsi_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ciemsi_app/features/auth/presentation/bloc/auth_event.dart';
+import 'package:ciemsi_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:ciemsi_app/features/auth/presentation/pages/login_page.dart';
 import 'package:ciemsi_app/features/auth/presentation/pages/home_page.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/pages/paciente_home_page.dart';
@@ -64,28 +66,11 @@ class _SplashPageState extends State<SplashPage>
       final usuarioData = await AuthStorageService.obtenerUsuario();
 
       if (token != null && usuarioData != null) {
-        try {
-          ApiClientProvider.instance.setToken(token);
-
-          // Verificar que el token sigue válido
-          await ApiClientProvider.instance.dio.get('/ciudades');
-
-          final usuario = UsuarioModel.fromJson(usuarioData);
-          await NotificationService.inicializar();
-
-          if (!mounted) return;
-          final page = usuario.rol == 'Paciente'
-              ? PacienteHomePage(usuario: usuario)
-              : HomePage(usuario: usuario);
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => page),
-          );
-        } catch (e) {
-          // Token expirado, ir al login
-          await AuthStorageService.eliminarSesion();
-          _irAlLogin();
-        }
+        await NotificationService.inicializar();
+        if (!mounted) return;
+        context.read<AuthBloc>().add(
+          VerificarTokenEvent(token: token, usuarioData: usuarioData),
+        );
       } else {
         _irAlLogin();
       }
@@ -109,9 +94,25 @@ class _SplashPageState extends State<SplashPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
-      body: Center(
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is SesionVerificada) {
+          final usuario = state.usuario;
+          final page = usuario.rol == 'Paciente'
+              ? PacienteHomePage(usuario: usuario)
+              : HomePage(usuario: usuario);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => page),
+          );
+        } else if (state is SesionInvalida) {
+          AuthStorageService.eliminarSesion();
+          _irAlLogin();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -150,6 +151,7 @@ class _SplashPageState extends State<SplashPage>
             ),
           ],
         ),
+      ),
       ),
     );
   }

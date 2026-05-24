@@ -14,7 +14,7 @@ class SuministroModel extends Suministro {
 
   factory SuministroModel.fromJson(Map<String, dynamic> json) {
     return SuministroModel(
-      id: json['id'],
+      id: int.tryParse(json['id'].toString()) ?? 0,
       nombreSuministro: json['nombreSuministro'],
       unidadMedida: UnidadMedida.values.firstWhere(
         (e) => e.name == json['unidadMedida'],
@@ -25,7 +25,7 @@ class SuministroModel extends Suministro {
         (e) => e.name == json['tipo'],
         orElse: () => TipoSuministro.INSUMO,
       ),
-      umbral: json['umbral'] ?? 5,
+      umbral: int.tryParse(json['umbral'].toString()) ?? 5,
       estado: json['estado'] ?? true,
       precioVentaBase: json['precioVentaBase'] != null
           ? double.tryParse(json['precioVentaBase'].toString())

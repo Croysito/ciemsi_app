@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:ciemsi_app/features/asistentes/domain/entities/asistente.dart';
+import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 
 abstract class AsistenteState extends Equatable {
   @override
@@ -32,6 +33,14 @@ class AsistenteModificado extends AsistenteState {}
 class EstadoCambiado extends AsistenteState {}
 
 class PasswordCambiado extends AsistenteState {}
+
+class CiudadesAsistenteCargadas extends AsistenteState {
+  final List<Ciudad> ciudades;
+  CiudadesAsistenteCargadas(this.ciudades);
+
+  @override
+  List<Object?> get props => [ciudades];
+}
 
 class AsistenteError extends AsistenteState {
   final String mensaje;

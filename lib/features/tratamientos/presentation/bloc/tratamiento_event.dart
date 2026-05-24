@@ -94,3 +94,5 @@ class GenerarRecetaEvent extends TratamientoEvent {
   @override
   List<Object?> get props => [citaId, detalle];
 }
+
+class CargarMedicamentosEvent extends TratamientoEvent {}

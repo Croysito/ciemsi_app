@@ -5,6 +5,7 @@ import 'package:ciemsi_app/features/asistentes/domain/usecases/cambiar_estado_as
 import 'package:ciemsi_app/features/asistentes/domain/usecases/cambiar_password_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/domain/usecases/crear_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/domain/usecases/listar_asistentes.dart';
+import 'package:ciemsi_app/features/asistentes/domain/usecases/listar_ciudades_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/domain/usecases/modificar_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_bloc.dart';
 import 'package:ciemsi_app/features/citas/data/datasources/cita_remote_datasource.dart';
@@ -35,6 +36,33 @@ import 'package:ciemsi_app/features/tratamientos/domain/usecases/listar_tratamie
 import 'package:ciemsi_app/features/tratamientos/domain/usecases/listar_tratamientos_asignados.dart';
 import 'package:ciemsi_app/features/tratamientos/domain/usecases/listar_tratamientos_asignados_by_cita.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
+import 'package:ciemsi_app/features/pagos/data/datasources/pago_remote_datasource.dart';
+import 'package:ciemsi_app/features/pagos/data/repositories/pago_repository_impl.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/obtener_estado_cuenta.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/registrar_cobro_deuda.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/registrar_venta_producto.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/listar_productos.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/listar_inventario_productos.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/crear_producto.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/modificar_producto.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/cambiar_estado_producto.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/listar_compras_producto.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/registrar_compra_producto.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/listar_ciudades.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/obtener_mi_perfil_paciente.dart';
+import 'package:ciemsi_app/features/pagos/presentation/bloc/pago_bloc.dart';
+import 'package:ciemsi_app/features/traslados/data/datasources/traslado_remote_datasource.dart';
+import 'package:ciemsi_app/features/traslados/data/repositories/traslado_repository_impl.dart';
+import 'package:ciemsi_app/features/traslados/domain/usecases/listar_traslados.dart';
+import 'package:ciemsi_app/features/traslados/domain/usecases/crear_traslado.dart';
+import 'package:ciemsi_app/features/traslados/domain/usecases/confirmar_traslado.dart';
+import 'package:ciemsi_app/features/traslados/domain/usecases/consultar_stock_traslado.dart';
+import 'package:ciemsi_app/features/traslados/domain/usecases/devolver_traslado.dart';
+import 'package:ciemsi_app/features/traslados/domain/usecases/obtener_datos_creacion_traslado.dart';
+import 'package:ciemsi_app/features/traslados/presentation/bloc/traslado_bloc.dart';
+import 'package:ciemsi_app/features/agenda/presentation/bloc/agenda_bloc.dart';
+import 'package:ciemsi_app/features/recetas/presentation/bloc/receta_bloc.dart';
+import 'package:ciemsi_app/features/auth/presentation/bloc/dashboard_bloc.dart';
 
 class AppDependencies {
   const AppDependencies._();
@@ -67,6 +95,7 @@ class AppDependencies {
       cambiarPasswordAsistenteUseCase: CambiarPasswordAsistenteUseCase(
         repository,
       ),
+      listarCiudadesUseCase: ListarCiudadesAsistenteUseCase(repository),
     );
   }
 
@@ -88,6 +117,8 @@ class AppDependencies {
   static TratamientoBloc createTratamientoBloc() {
     final datasource = TratamientoRemoteDatasource(ApiClientProvider.instance);
     final repository = TratamientoRepositoryImpl(datasource);
+    final suministroDatasource = SuministroRemoteDatasource(ApiClientProvider.instance);
+    final suministroRepository = SuministroRepositoryImpl(suministroDatasource);
 
     return TratamientoBloc(
       listarTratamientosUseCase: ListarTratamientosUseCase(repository),
@@ -100,6 +131,57 @@ class AppDependencies {
       agregarSuministroUseCase: AgregarSuministroTratamientoUseCase(repository),
       completarTratamientoUseCase: CompletarTratamientoUseCase(repository),
       generarRecetaUseCase: GenerarRecetaTratamientoUseCase(repository),
+      listarSuministrosUseCase: ListarSuministrosUseCase(suministroRepository),
+    );
+  }
+
+  static TrasladoBloc createTrasladoBloc() {
+    final datasource = TrasladoRemoteDatasource(ApiClientProvider.instance);
+    final repository = TrasladoRepositoryImpl(datasource);
+    return TrasladoBloc(
+      listarUseCase: ListarTrasladosUseCase(repository),
+      crearUseCase: CrearTrasladoUseCase(repository),
+      confirmarUseCase: ConfirmarTrasladoUseCase(repository),
+      devolverUseCase: DevolverTrasladoUseCase(repository),
+      obtenerDatosCreacionUseCase: ObtenerDatosCreacionTrasladoUseCase(
+        repository,
+      ),
+      consultarStockUseCase: ConsultarStockTrasladoUseCase(repository),
+    );
+  }
+
+  static AgendaBloc createAgendaBloc() {
+    return AgendaBloc();
+  }
+
+  static RecetaBloc createRecetaBloc() {
+    return RecetaBloc();
+  }
+
+  static DashboardBloc createDashboardBloc() {
+    return DashboardBloc();
+  }
+
+  static PagoBloc createPagoBloc() {
+    final datasource = PagoRemoteDatasource(ApiClientProvider.instance);
+    final repository = PagoRepositoryImpl(datasource);
+    return PagoBloc(
+      obtenerEstadoCuentaUseCase: ObtenerEstadoCuentaUseCase(repository),
+      registrarCobroDeudaUseCase: RegistrarCobroDeudaUseCase(repository),
+      registrarVentaProductoUseCase: RegistrarVentaProductoUseCase(repository),
+      listarProductosUseCase: ListarProductosUseCase(repository),
+      listarInventarioProductosUseCase: ListarInventarioProductosUseCase(
+        repository,
+      ),
+      crearProductoUseCase: CrearProductoUseCase(repository),
+      modificarProductoUseCase: ModificarProductoUseCase(repository),
+      cambiarEstadoProductoUseCase: CambiarEstadoProductoUseCase(repository),
+      listarComprasProductoUseCase: ListarComprasProductoUseCase(repository),
+      registrarCompraProductoUseCase: RegistrarCompraProductoUseCase(
+        repository,
+      ),
+      listarCiudadesUseCase: ListarCiudadesUseCase(repository),
+      obtenerMiPerfilPacienteUseCase: ObtenerMiPerfilPacienteUseCase(repository),
     );
   }
 }

@@ -14,6 +14,7 @@ import '../../../historial/domain/usecases/agregar_link.dart';
 import '../../../historial/domain/usecases/subir_archivo_drive.dart';
 import '../../../../core/network/api_client_provider.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/pages/modificar_paciente_page.dart';
+import 'package:ciemsi_app/features/pagos/presentation/pages/estado_cuenta_page.dart';
 
 class DetallePacientePage extends StatelessWidget {
   final Paciente paciente;
@@ -147,6 +148,40 @@ class DetallePacientePage extends StatelessWidget {
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00B5C8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EstadoCuentaPage(
+                        pacienteId: paciente.id,
+                        ciudadId: paciente.ciudad!.id,
+                        nombrePaciente: paciente.nombreCompleto,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.receipt_long, color: Colors.white),
+                label: const Text(
+                  'Estado de Cuenta',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8DC63F),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

@@ -19,13 +19,13 @@ class InventarioModel extends InventarioItem {
 
   factory InventarioModel.fromJson(Map<String, dynamic> json) {
     return InventarioModel(
-      id: json['id'],
+      id: int.tryParse(json['id'].toString()) ?? 0,
       nombreSuministro: json['nombre_suministro'],
       unidadMedida: json['unidad_medida'],
       marca: json['marca'],
       tipo: json['tipo'],
-      umbral: json['umbral'] ?? 5,
-      ciudadId: json['ciudad_id'],
+      umbral: int.tryParse(json['umbral'].toString()) ?? 5,
+      ciudadId: int.tryParse(json['ciudad_id'].toString()) ?? 0,
       nombreCiudad: json['nombre_ciudad'],
       totalCompras: int.tryParse(json['total_compras'].toString()) ?? 0,
       totalSalidas: int.tryParse(json['total_salidas'].toString()) ?? 0,

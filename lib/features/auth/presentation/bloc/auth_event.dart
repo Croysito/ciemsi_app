@@ -25,3 +25,13 @@ class RecuperarContrasenaEvent extends AuthEvent {
 }
 
 class CerrarSesionEvent extends AuthEvent {}
+
+class VerificarTokenEvent extends AuthEvent {
+  final String token;
+  final Map<String, dynamic> usuarioData;
+
+  VerificarTokenEvent({required this.token, required this.usuarioData});
+
+  @override
+  List<Object> get props => [token];
+}

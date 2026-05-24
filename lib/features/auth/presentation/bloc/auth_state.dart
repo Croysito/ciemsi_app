@@ -32,3 +32,13 @@ class AuthError extends AuthState {
 class RecuperarContrasenaSuccess extends AuthState {}
 
 class CerrarSesionSuccess extends AuthState {}
+
+class SesionVerificada extends AuthState {
+  final Usuario usuario;
+  SesionVerificada({required this.usuario});
+
+  @override
+  List<Object> get props => [usuario];
+}
+
+class SesionInvalida extends AuthState {}

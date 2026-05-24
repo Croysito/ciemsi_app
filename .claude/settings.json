@@ -4,7 +4,33 @@
       "Read(//e/OTROS TRABAJOS/CIEMSI/ciemsi-backend/src/**)",
       "Read(//e/OTROS TRABAJOS/CIEMSI/ciemsi-backend/**)",
       "Bash(Get-ChildItem -Path \"lib\\\\features\\\\recetas\" -Recurse -ErrorAction SilentlyContinue)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Read(//e/OTROS TRABAJOS/CIEMSI/**)",
+      "PowerShell(Get-ChildItem \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -ExpandProperty FullName | Select-Object -First 80)",
+      "PowerShell(Get-ChildItem \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\" | Where-Object { $_.PSIsContainer } | Select-Object Name)",
+      "PowerShell(Get-ChildItem \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"e:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi_app\\\\lib\\\\features\" -Directory)",
+      "Bash(Select-Object Name)",
+      "PowerShell(Get-ChildItem -Path \"e:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi_app\\\\lib\\\\features\\\\auth\" -Recurse | Where-Object {$_.Extension -eq '.dart'} | Select-Object FullName)",
+      "Bash(dir \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\" /b /a:-d)",
+      "Bash(flutter analyze *)",
+      "Bash(Get-ChildItem -Path \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\\\\src\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(Head -50)",
+      "Bash(dart analyze *)",
+      "Bash(del \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\\\\src\\\\infrastructure\\\\database\\\\migrations\\\\20260524_inventario_descuenta_pendientes.sql\")",
+      "Bash(Get-ChildItem -Path \"e:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi_app\\\\lib\\\\features\" -Recurse -Filter \"*.dart\")"
+    ],
+    "additionalDirectories": [
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\infrastructure\\database\\migrations",
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\domain\\entities",
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\domain\\repositories",
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\application\\use-cases\\pagos",
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\infrastructure\\repositories",
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\presentation\\controllers",
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\presentation\\routes",
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\main",
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src"
     ]
   }
 }

@@ -1,8 +1,11 @@
 import '../entities/asistente.dart';
 import '../entities/asistente_registro_result.dart';
+import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 
 abstract class AsistenteRepository {
   Future<List<Asistente>> listarAsistentes();
+
+  Future<List<Ciudad>> listarCiudades();
 
   Future<AsistenteRegistroResult> crearAsistente({
     required String nombre,

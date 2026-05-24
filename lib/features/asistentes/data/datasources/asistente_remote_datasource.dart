@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:ciemsi_app/core/network/api_client.dart';
 import 'package:ciemsi_app/features/asistentes/data/models/asistente_model.dart';
+import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 
 class AsistenteRemoteDatasource {
   final ApiClient apiClient;
@@ -77,6 +78,19 @@ class AsistenteRemoteDatasource {
       );
     } on DioException catch (e) {
       throw Exception(e.response?.data['mensaje'] ?? 'Error al cambiar estado');
+    }
+  }
+
+  Future<List<Ciudad>> listarCiudades() async {
+    try {
+      final response = await apiClient.dio.get('/ciudades');
+      return (response.data as List)
+          .map((c) => Ciudad(id: c['id'], nombreCiudad: c['nombreCiudad']))
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['mensaje'] ?? 'Error al cargar ciudades',
+      );
     }
   }
 

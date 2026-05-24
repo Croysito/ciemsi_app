@@ -1,3 +1,4 @@
+import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 import '../../domain/entities/asistente.dart';
 import '../../domain/entities/asistente_registro_result.dart';
 import '../../domain/repositories/asistente_repository.dart';
@@ -11,6 +12,9 @@ class AsistenteRepositoryImpl implements AsistenteRepository {
   @override
   Future<List<Asistente>> listarAsistentes() =>
       remoteDatasource.listarAsistentes();
+
+  @override
+  Future<List<Ciudad>> listarCiudades() => remoteDatasource.listarCiudades();
 
   @override
   Future<AsistenteRegistroResult> crearAsistente({
