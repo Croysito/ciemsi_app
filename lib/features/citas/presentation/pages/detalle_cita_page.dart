@@ -2,11 +2,13 @@ import 'package:ciemsi_app/features/recetas/presentation/pages/generar_receta_pa
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:ciemsi_app/features/auth/domain/entities/usuario.dart';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_event.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
 import 'modificar_cita_page.dart';
+import 'pago_adelanto_page.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/asignar_tratamiento_page.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_bloc.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/pages/completar_paciente_page.dart';
@@ -21,10 +23,12 @@ import 'package:ciemsi_app/features/historial/domain/usecases/agregar_link.dart'
 import 'package:ciemsi_app/features/historial/domain/usecases/subir_archivo_drive.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/core/di/app_dependencies.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DetalleCitaPage extends StatelessWidget {
   final CitaMedica cita;
-  const DetalleCitaPage({super.key, required this.cita});
+  final Usuario usuario;
+  const DetalleCitaPage({super.key, required this.cita, required this.usuario});
 
   static const _primario = Color(0xFF00B5C8);
   static const _verde = Color(0xFF8DC63F);
@@ -33,6 +37,8 @@ class DetalleCitaPage extends StatelessWidget {
     switch (e) {
       case EstadoCita.PENDIENTE:
         return Colors.orange;
+      case EstadoCita.PENDIENTE_PAGO:
+        return Colors.deepOrange;
       case EstadoCita.MODIFICADA:
         return Colors.purple;
       case EstadoCita.CONFIRMADA:
@@ -48,6 +54,8 @@ class DetalleCitaPage extends StatelessWidget {
     switch (e) {
       case EstadoCita.PENDIENTE:
         return Icons.schedule_rounded;
+      case EstadoCita.PENDIENTE_PAGO:
+        return Icons.payment_rounded;
       case EstadoCita.MODIFICADA:
         return Icons.edit_calendar_rounded;
       case EstadoCita.CONFIRMADA:
@@ -63,6 +71,8 @@ class DetalleCitaPage extends StatelessWidget {
     switch (e) {
       case EstadoCita.PENDIENTE:
         return 'En espera de confirmación';
+      case EstadoCita.PENDIENTE_PAGO:
+        return 'Esperando comprobante de pago';
       case EstadoCita.MODIFICADA:
         return 'Solicitud de modificación pendiente';
       case EstadoCita.CONFIRMADA:
@@ -91,10 +101,14 @@ class DetalleCitaPage extends StatelessWidget {
       ),
       body: BlocListener<CitaBloc, CitaState>(
         listener: (context, state) {
-          if (state is EstadoCitaCambiado) {
+          if (state is EstadoCitaCambiado || state is PagoConfirmado) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Estado actualizado correctamente'),
+              SnackBar(
+                content: Text(
+                  state is PagoConfirmado
+                      ? 'Pago confirmado y cita confirmada correctamente'
+                      : 'Estado actualizado correctamente',
+                ),
                 backgroundColor: Colors.green,
               ),
             );
@@ -359,7 +373,74 @@ class DetalleCitaPage extends StatelessWidget {
     return BlocBuilder<CitaBloc, CitaState>(
       builder: (context, state) {
         final loading = state is CitaLoading;
+        final puedeGestionarCita = usuario.rol != 'Paciente';
+        final esPaciente = usuario.rol == 'Paciente';
         final tiles = <Widget>[];
+
+        // PENDIENTE_PAGO
+        if (cita.estado == EstadoCita.PENDIENTE_PAGO) {
+          tiles.add(_sectionLabel('Pago adelantado'));
+          if (cita.tieneComprobante) {
+            tiles.add(
+              _actionTile(
+                icon: Icons.receipt_long_outlined,
+                color: Colors.teal,
+                title: 'Ver comprobante',
+                subtitle: 'Revisar el comprobante subido por el paciente',
+                onTap: loading ? null : () => _verComprobante(context),
+              ),
+            );
+            if (puedeGestionarCita) {
+              tiles.add(
+                _actionTile(
+                  icon: Icons.check_circle_outline,
+                  color: _verde,
+                  title: 'Confirmar Pago y Cita',
+                  subtitle: 'Verificar pago y confirmar la cita',
+                  onTap: loading
+                      ? null
+                      : () => context.read<CitaBloc>().add(
+                          ConfirmarPagoEvent(cita.id),
+                        ),
+                ),
+              );
+            }
+          } else {
+            tiles.add(
+              _actionTile(
+                icon: Icons.upload_file_outlined,
+                color: Colors.orange,
+                title: esPaciente ? 'Subir comprobante' : 'Aún sin comprobante',
+                subtitle: esPaciente
+                    ? 'Completa el pago adelantado para confirmar tu reserva'
+                    : 'El paciente no ha subido el comprobante de pago',
+                onTap: esPaciente && !loading
+                    ? () => _abrirPagoAdelanto(context)
+                    : null,
+              ),
+            );
+          }
+          if (puedeGestionarCita) {
+            tiles.add(
+              _actionTile(
+                icon: Icons.cancel_outlined,
+                color: Colors.red,
+                title: 'Cancelar Cita',
+                subtitle: 'Esta acción no se puede deshacer',
+                onTap: loading ? null : () => _mostrarDialogoCancelar(context),
+                isDestructive: true,
+              ),
+            );
+          }
+        }
+
+        if (!puedeGestionarCita) {
+          if (tiles.isEmpty) return const SizedBox();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: tiles,
+          );
+        }
 
         // PENDIENTE
         if (cita.estado == EstadoCita.PENDIENTE) {
@@ -510,8 +591,7 @@ class DetalleCitaPage extends StatelessWidget {
                                   AppDependencies.createTratamientoBloc(),
                             ),
                             BlocProvider(
-                              create: (_) =>
-                                  AppDependencies.createRecetaBloc(),
+                              create: (_) => AppDependencies.createRecetaBloc(),
                             ),
                           ],
                           child: GenerarRecetaPage(cita: cita),
@@ -688,6 +768,36 @@ class DetalleCitaPage extends StatelessWidget {
             subirArchivoDriveUseCase: SubirArchivoDriveUseCase(repository),
           ),
           child: HistorialPage(paciente: cita.paciente),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _verComprobante(BuildContext context) async {
+    if (cita.comprobantePath == null) return;
+    final baseUrl = ApiClientProvider.instance.dio.options.baseUrl.replaceAll(
+      RegExp(r'/api$'),
+      '',
+    );
+    final uri = Uri.parse('$baseUrl${cita.comprobantePath}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el comprobante')),
+        );
+      }
+    }
+  }
+
+  void _abrirPagoAdelanto(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<CitaBloc>(),
+          child: PagoAdelantoPage(citaId: cita.id),
         ),
       ),
     );

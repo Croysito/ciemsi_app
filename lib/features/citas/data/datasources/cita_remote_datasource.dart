@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:ciemsi_app/core/network/api_client.dart';
 import 'package:ciemsi_app/features/citas/data/models/cita_model.dart';
@@ -25,6 +26,8 @@ class CitaRemoteDatasource {
     int? ciudadId,
     int? agendaId,
     String? notas,
+    double? adelantoMonto,
+    String? adelantoMetodo,
   }) async {
     try {
       final response = await apiClient.dio.post(
@@ -37,6 +40,8 @@ class CitaRemoteDatasource {
           if (ciudadId != null) 'ciudadId': ciudadId,
           if (agendaId != null) 'agendaId': agendaId,
           if (notas != null) 'notas': notas,
+          if (adelantoMonto != null) 'adelantoMonto': adelantoMonto,
+          if (adelantoMetodo != null) 'adelantoMetodo': adelantoMetodo,
         },
       );
       return response.data;
@@ -144,6 +149,68 @@ class CitaRemoteDatasource {
       );
     } on DioException catch (e) {
       throw Exception(e.response?.data['mensaje'] ?? 'Error al crear agenda');
+    }
+  }
+
+  Future<Map<String, dynamic>> obtenerQrPago() async {
+    try {
+      final response = await apiClient.dio.get('/citas/config/qr-pago');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['mensaje'] ?? 'Error al obtener QR');
+    }
+  }
+
+  Future<void> actualizarQrPago(String qrLink) async {
+    try {
+      await apiClient.dio.put('/citas/config/qr-pago', data: {'qrLink': qrLink});
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['mensaje'] ?? 'Error al actualizar QR');
+    }
+  }
+
+  Future<String> subirComprobante({
+    required int citaId,
+    required Uint8List bytes,
+    required String fileName,
+    required String mimeType,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'comprobante': MultipartFile.fromBytes(
+          bytes,
+          filename: fileName,
+          contentType: DioMediaType.parse(mimeType),
+        ),
+      });
+      final response = await apiClient.dio.post(
+        '/citas/$citaId/comprobante',
+        data: formData,
+        options: Options(receiveTimeout: const Duration(seconds: 60)),
+      );
+      return (response.data as Map<String, dynamic>)['comprobantePath'] as String;
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['mensaje'] ?? 'Error al subir comprobante');
+    }
+  }
+
+  Future<void> confirmarPago(int citaId) async {
+    try {
+      await apiClient.dio.post('/citas/$citaId/confirmar-pago');
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['mensaje'] ?? 'Error al confirmar pago');
+    }
+  }
+
+  Future<Uint8List> obtenerComprobante(int citaId) async {
+    try {
+      final response = await apiClient.dio.get(
+        '/citas/$citaId/comprobante',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Uint8List.fromList(response.data as List<int>);
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['mensaje'] ?? 'Error al obtener comprobante');
     }
   }
 

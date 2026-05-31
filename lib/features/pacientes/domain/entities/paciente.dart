@@ -7,6 +7,7 @@ class Paciente extends Equatable {
   final String ci;
   final String? telefono;
   final DateTime? fechaNacimiento;
+  final String? genero;
   final Usuario usuario;
 
   const Paciente({
@@ -14,6 +15,7 @@ class Paciente extends Equatable {
     required this.ci,
     this.telefono,
     this.fechaNacimiento,
+    this.genero,
     required this.usuario,
   });
 
@@ -33,5 +35,5 @@ class Paciente extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, ci, telefono, fechaNacimiento, usuario];
+  List<Object?> get props => [id, ci, telefono, fechaNacimiento, genero, usuario];
 }

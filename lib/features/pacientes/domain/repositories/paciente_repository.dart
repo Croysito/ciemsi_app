@@ -12,6 +12,7 @@ abstract class PacienteRepository {
     required String email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   });
   Future<void> modificarPaciente({
@@ -22,6 +23,7 @@ abstract class PacienteRepository {
     String? email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   });
   Future<void> completarPaciente({
@@ -32,6 +34,7 @@ abstract class PacienteRepository {
     required String email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   });
   Future<List<Ciudad>> listarCiudades();

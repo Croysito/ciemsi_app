@@ -6,6 +6,7 @@ class ServicioModel extends Servicio {
     required super.nombreServicio,
     required super.tiempoMin,
     required super.estado,
+    super.roles = const [],
   });
 
   factory ServicioModel.fromJson(Map<String, dynamic> json) {
@@ -14,6 +15,14 @@ class ServicioModel extends Servicio {
       nombreServicio: json['nombreServicio'],
       tiempoMin: json['tiempoMin'] ?? 30,
       estado: json['estado'] ?? true,
+      roles: (json['roles'] as List?)?.map((r) => r.toString()).toList() ?? [],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'nombreServicio': nombreServicio,
+    'tiempoMin': tiempoMin,
+    'estado': estado,
+    'roles': roles,
+  };
 }

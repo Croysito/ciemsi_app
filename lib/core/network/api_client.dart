@@ -1,11 +1,11 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 class ApiClient {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.6:3000/api',
+    defaultValue: 'http://192.168.1.5:3000/api',
   );
-  // Ejemplo: 'http://172.17.39.200/api'
 
   final Dio _dio;
 
@@ -13,11 +13,22 @@ class ApiClient {
     : _dio = Dio(
         BaseOptions(
           baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 10),
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
           headers: {'Content-Type': 'application/json'},
         ),
+      ) {
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          error: true,
+          logPrint: (o) => debugPrint('[DIO] $o'),
+        ),
       );
+    }
+  }
 
   Dio get dio => _dio;
 

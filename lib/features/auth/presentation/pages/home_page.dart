@@ -1,7 +1,9 @@
 import 'package:ciemsi_app/features/agenda/presentation/pages/agenda_page.dart';
+import 'package:ciemsi_app/features/cuentas/presentation/pages/cuentas_page.dart';
 import 'package:ciemsi_app/features/auth/presentation/pages/splash_page.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/pages/citas_page.dart';
+import 'package:ciemsi_app/features/citas/presentation/pages/gestionar_qr_page.dart';
 import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_bloc.dart';
 import 'package:ciemsi_app/features/suministros/presentation/pages/inventario_page.dart';
 import 'package:ciemsi_app/features/traslados/presentation/bloc/traslado_bloc.dart';
@@ -11,6 +13,7 @@ import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_b
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/tratamientos_asignados_page.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/tratamientos_page.dart';
 import 'package:ciemsi_app/features/pagos/presentation/pages/productos_page.dart';
+import 'package:ciemsi_app/features/servicios/presentation/pages/servicios_page.dart';
 import 'package:ciemsi_app/features/pagos/presentation/pages/compras_producto_page.dart';
 import 'package:ciemsi_app/features/pagos/presentation/pages/estado_cuenta_page.dart';
 import 'package:ciemsi_app/core/di/app_dependencies.dart';
@@ -250,6 +253,24 @@ class _HomePageState extends State<HomePage> {
           ),
           if (isDoctora) ...[
             _drawerTile(
+              icon: Icons.medical_services_outlined,
+              color: const Color(0xFF00B5C8),
+              label: 'Servicios',
+              subtitle: 'Catálogo y roles',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider(
+                      create: (_) => AppDependencies.createServicioBloc(),
+                      child: const ServiciosPage(),
+                    ),
+                  ),
+                );
+              },
+            ),
+            _drawerTile(
               icon: Icons.badge_outlined,
               color: const Color(0xFF8DC63F),
               label: 'Asistentes',
@@ -333,6 +354,24 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+            _drawerTile(
+              icon: Icons.qr_code_2_outlined,
+              color: const Color(0xFF8DC63F),
+              label: 'QR de pago',
+              subtitle: 'Configurar adelanto',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: _citaBloc,
+                      child: const GestionarQrPage(),
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
           _drawerTile(
             icon: Icons.swap_horiz,
@@ -352,7 +391,9 @@ class _HomePageState extends State<HomePage> {
               if (ciudadId == null || ciudadNombre == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Selecciona una ciudad en Inventario primero'),
+                    content: Text(
+                      'Selecciona una ciudad en Inventario primero',
+                    ),
                   ),
                 );
                 return;
@@ -391,6 +432,25 @@ class _HomePageState extends State<HomePage> {
               );
             },
           ),
+          if (isDoctora)
+            _drawerTile(
+              icon: Icons.account_balance_wallet_outlined,
+              color: const Color(0xFF00B5C8),
+              label: 'Cuentas',
+              subtitle: 'Caja y banco',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider(
+                      create: (_) => AppDependencies.createCuentaBloc(),
+                      child: const CuentasPage(),
+                    ),
+                  ),
+                );
+              },
+            ),
           const Divider(height: 1),
           _drawerTile(
             icon: Icons.logout,
@@ -515,7 +575,7 @@ class _DashboardTabState extends State<_DashboardTab> {
               padding: const EdgeInsets.all(16),
               children: [
                 Text(
-                  '$saludo, ${widget.usuario.nombre}',
+                  saludo,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -827,8 +887,8 @@ class _PagosTabState extends State<_PagosTab> {
     });
   }
 
-  void _abrirEstadoCuenta(Paciente paciente) {
-    Navigator.push(
+  Future<void> _abrirEstadoCuenta(Paciente paciente) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => EstadoCuentaPage(
@@ -838,6 +898,9 @@ class _PagosTabState extends State<_PagosTab> {
         ),
       ),
     );
+    if (mounted) {
+      context.read<PagoBloc>().add(CargarResumenDeudasEvent());
+    }
   }
 
   @override
@@ -893,7 +956,10 @@ class _PagosTabState extends State<_PagosTab> {
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Buscar paciente por nombre o CI...',
-                  prefixIcon: const Icon(Icons.search, color: Color(0xFF00B5C8)),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: Color(0xFF00B5C8),
+                  ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear),
@@ -918,80 +984,79 @@ class _PagosTabState extends State<_PagosTab> {
                       ),
                     )
                   : _filtrados.isEmpty
-                      ? Center(
-                          child: Text(
-                            _searchController.text.isEmpty
-                                ? 'No hay pacientes registrados'
-                                : 'Sin resultados para "${_searchController.text}"',
-                            style: const TextStyle(color: Colors.grey),
+                  ? Center(
+                      child: Text(
+                        _searchController.text.isEmpty
+                            ? 'No hay pacientes registrados'
+                            : 'Sin resultados para "${_searchController.text}"',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                      itemCount: _filtrados.length,
+                      itemBuilder: (_, i) {
+                        final p = _filtrados[i];
+                        final deuda = _deudas[p.id];
+                        final tieneDeuda = deuda != null && deuda > 0;
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                          itemCount: _filtrados.length,
-                          itemBuilder: (_, i) {
-                            final p = _filtrados[i];
-                            final deuda = _deudas[p.id];
-                            final tieneDeuda = deuda != null && deuda > 0;
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                          color: tieneDeuda ? Colors.red.shade50 : null,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: tieneDeuda
+                                  ? Colors.red.shade100
+                                  : const Color(0xFFE0F7FA),
+                              child: Icon(
+                                Icons.person_outline,
+                                color: tieneDeuda
+                                    ? Colors.red.shade700
+                                    : const Color(0xFF00B5C8),
                               ),
-                              color: tieneDeuda ? Colors.red.shade50 : null,
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: tieneDeuda
-                                      ? Colors.red.shade100
-                                      : const Color(0xFFE0F7FA),
-                                  child: Icon(
-                                    Icons.person_outline,
-                                    color: tieneDeuda
-                                        ? Colors.red.shade700
-                                        : const Color(0xFF00B5C8),
-                                  ),
-                                ),
-                                title: Text(
-                                  p.nombreCompleto,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  p.ciudad?.nombreCiudad != null
-                                      ? 'CI: ${p.ci}  •  ${p.ciudad!.nombreCiudad}'
-                                      : 'CI: ${p.ci}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                trailing: tieneDeuda
-                                    ? Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.shade600,
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          'Bs. ${NumberFormat('#,##0.00', 'es').format(deuda)}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.chevron_right,
-                                        color: Colors.grey,
+                            ),
+                            title: Text(
+                              p.nombreCompleto,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              p.ciudad?.nombreCiudad != null
+                                  ? 'CI: ${p.ci}  •  ${p.ciudad!.nombreCiudad}'
+                                  : 'CI: ${p.ci}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            trailing: tieneDeuda
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade600,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      'Bs. ${NumberFormat('#,##0.00', 'es').format(deuda)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                onTap: () => _abrirEstadoCuenta(p),
-                              ),
-                            );
-                          },
-                        ),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.grey,
+                                  ),
+                            onTap: () => _abrirEstadoCuenta(p),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

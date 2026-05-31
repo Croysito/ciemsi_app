@@ -7,6 +7,7 @@ class PacienteModel extends Paciente {
     required super.ci,
     super.telefono,
     super.fechaNacimiento,
+    super.genero,
     required super.usuario,
   });
 
@@ -18,6 +19,7 @@ class PacienteModel extends Paciente {
       fechaNacimiento: json['fechaNacimiento'] != null
           ? DateTime.parse(json['fechaNacimiento'])
           : null,
+      genero: json['genero']?.toString(),
       usuario: UsuarioModel.fromJson(json['usuario']),
     );
   }

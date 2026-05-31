@@ -42,6 +42,33 @@ class DisponibilidadCargada extends CitaState {
   List<Object?> get props => [horasDisponibles, fecha];
 }
 
+class QrPagoCargado extends CitaState {
+  final String? qrLink;
+  final double adelantoMonto;
+  QrPagoCargado({required this.qrLink, required this.adelantoMonto});
+  @override
+  List<Object?> get props => [qrLink, adelantoMonto];
+}
+
+class QrPagoActualizado extends CitaState {}
+
+class ComprobanteSubido extends CitaState {
+  final int citaId;
+  ComprobanteSubido(this.citaId);
+  @override
+  List<Object?> get props => [citaId];
+}
+
+class PagoConfirmado extends CitaState {}
+
+// CitaReservada ahora incluye el citaId para redirigir al pago
+class CitaReservadaConPago extends CitaState {
+  final int citaId;
+  CitaReservadaConPago(this.citaId);
+  @override
+  List<Object?> get props => [citaId];
+}
+
 class CitaError extends CitaState {
   final String mensaje;
   CitaError(this.mensaje);

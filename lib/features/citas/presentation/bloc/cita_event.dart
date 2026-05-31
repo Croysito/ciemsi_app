@@ -15,6 +15,9 @@ class ReservarCitaEvent extends CitaEvent {
   final int? ciudadId;
   final int? agendaId;
   final String? notas;
+  final bool esPaciente;
+  final double? adelantoMonto;
+  final String? adelantoMetodo;
 
   ReservarCitaEvent({
     required this.fecha,
@@ -24,6 +27,9 @@ class ReservarCitaEvent extends CitaEvent {
     this.ciudadId,
     this.agendaId,
     this.notas,
+    this.esPaciente = false,
+    this.adelantoMonto,
+    this.adelantoMetodo,
   });
 
   @override
@@ -70,4 +76,35 @@ class CargarDisponibilidadEvent extends CitaEvent {
 
   @override
   List<Object?> get props => [ciudadId, fecha];
+}
+
+class ObtenerQrPagoEvent extends CitaEvent {}
+
+class ActualizarQrPagoEvent extends CitaEvent {
+  final String qrLink;
+  ActualizarQrPagoEvent(this.qrLink);
+  @override
+  List<Object?> get props => [qrLink];
+}
+
+class SubirComprobanteEvent extends CitaEvent {
+  final int citaId;
+  final List<int> bytes;
+  final String fileName;
+  final String mimeType;
+  SubirComprobanteEvent({
+    required this.citaId,
+    required this.bytes,
+    required this.fileName,
+    required this.mimeType,
+  });
+  @override
+  List<Object?> get props => [citaId, fileName];
+}
+
+class ConfirmarPagoEvent extends CitaEvent {
+  final int citaId;
+  ConfirmarPagoEvent(this.citaId);
+  @override
+  List<Object?> get props => [citaId];
 }

@@ -26,7 +26,11 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
   List<Ciudad> _ciudades = [];
   Ciudad? _ciudadSeleccionada;
   DateTime? _fechaSeleccionada;
-  DateTime _focusedDay = DateTime.now();
+  DateTime _focusedDay = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
   final List<String> _diasSeleccionados = [];
   TimeOfDay? _horaInicio;
   TimeOfDay? _horaFin;
@@ -49,9 +53,12 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
   @override
   void initState() {
     super.initState();
-    _fechaSeleccionada = widget.fechaInicial;
     if (widget.fechaInicial != null) {
-      _focusedDay = widget.fechaInicial!;
+      final f = widget.fechaInicial!;
+      final normalized = DateTime(f.year, f.month, f.day);
+      final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      _fechaSeleccionada = normalized.isBefore(today) ? today : normalized;
+      _focusedDay = _fechaSeleccionada!;
     }
 
     if (_esAsistente) {
@@ -145,6 +152,7 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
             if (_ciudades.isNotEmpty) {
               _ciudadSeleccionada = _ciudades.first;
             }
+            _guardando = false;
           });
         } else if (state is AgendaOperacionExitosa) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -282,8 +290,8 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
                   ),
                   child: TableCalendar(
                     locale: 'es_ES',
-                    firstDay: DateTime.now(),
-                    lastDay: DateTime.now().add(const Duration(days: 365)),
+                    firstDay: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
+                    lastDay: DateTime(DateTime.now().year + 1, DateTime.now().month, DateTime.now().day),
                     focusedDay: _focusedDay,
                     selectedDayPredicate: (day) =>
                         isSameDay(_fechaSeleccionada, day),

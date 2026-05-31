@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
 import 'package:ciemsi_app/features/citas/domain/repositories/cita_repository.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
@@ -13,7 +14,7 @@ class CitaRepositoryImpl implements CitaRepository {
   Future<List<CitaMedica>> listarCitas() => remoteDatasource.listarCitas();
 
   @override
-  Future<void> reservarCita({
+  Future<int> reservarCita({
     required String fecha,
     required String hora,
     required int servicioId,
@@ -21,8 +22,10 @@ class CitaRepositoryImpl implements CitaRepository {
     int? ciudadId,
     int? agendaId,
     String? notas,
+    double? adelantoMonto,
+    String? adelantoMetodo,
   }) async {
-    await remoteDatasource.reservarCita(
+    final result = await remoteDatasource.reservarCita(
       fecha: fecha,
       hora: hora,
       servicioId: servicioId,
@@ -30,7 +33,10 @@ class CitaRepositoryImpl implements CitaRepository {
       ciudadId: ciudadId,
       agendaId: agendaId,
       notas: notas,
+      adelantoMonto: adelantoMonto,
+      adelantoMetodo: adelantoMetodo,
     );
+    return result['citaId'] as int;
   }
 
   @override
@@ -67,4 +73,29 @@ class CitaRepositoryImpl implements CitaRepository {
     );
     return List<String>.from(resultado['horasDisponibles'] ?? []);
   }
+
+  @override
+  Future<Map<String, dynamic>> obtenerQrPago() =>
+      remoteDatasource.obtenerQrPago();
+
+  @override
+  Future<void> actualizarQrPago(String qrLink) =>
+      remoteDatasource.actualizarQrPago(qrLink);
+
+  @override
+  Future<String> subirComprobante({
+    required int citaId,
+    required Uint8List bytes,
+    required String fileName,
+    required String mimeType,
+  }) => remoteDatasource.subirComprobante(
+    citaId: citaId,
+    bytes: bytes,
+    fileName: fileName,
+    mimeType: mimeType,
+  );
+
+  @override
+  Future<void> confirmarPago(int citaId) =>
+      remoteDatasource.confirmarPago(citaId);
 }

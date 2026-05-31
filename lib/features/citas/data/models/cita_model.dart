@@ -15,6 +15,9 @@ class CitaModel extends CitaMedica {
     super.notas,
     required super.creadoPor,
     required super.createdAt,
+    super.adelantoMonto,
+    super.adelantoMetodo,
+    super.comprobantePath,
   });
 
   factory CitaModel.fromJson(Map<String, dynamic> json) {
@@ -39,6 +42,9 @@ class CitaModel extends CitaMedica {
       notas: json['notas'],
       creadoPor: json['creadoPor'] ?? {},
       createdAt: DateTime.parse(json['createdAt']),
+      adelantoMonto:   (json['adelantoMonto'] as num?)?.toDouble(),
+      adelantoMetodo:  json['adelantoMetodo'] as String?,
+      comprobantePath: json['comprobantePath'] as String?,
     );
   }
 }

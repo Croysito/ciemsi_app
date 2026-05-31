@@ -15,6 +15,7 @@ import '../../domain/usecases/subir_archivo_drive.dart';
 import '../bloc/historial_bloc.dart';
 import '../bloc/historial_event.dart';
 import '../bloc/historial_state.dart';
+import '../widgets/bold_markdown_text.dart';
 
 class MiHistorialPage extends StatefulWidget {
   const MiHistorialPage({super.key});
@@ -186,7 +187,7 @@ class _MiHistorialView extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
+                BoldMarkdownText(
                   nota.detalle,
                   style: const TextStyle(color: Colors.black87, height: 1.5),
                 ),

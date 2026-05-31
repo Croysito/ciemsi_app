@@ -9,6 +9,7 @@ import 'package:ciemsi_app/features/citas/presentation/bloc/cita_event.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
 import 'package:ciemsi_app/features/servicios/data/models/servicio_model.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
+import 'pago_adelanto_page.dart';
 
 class ReservarCitaPacientePage extends StatefulWidget {
   const ReservarCitaPacientePage({super.key});
@@ -304,13 +305,18 @@ class _ReservarCitaPacientePageState extends State<ReservarCitaPacientePage> {
             });
           }
           if (state is CitaReservada) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Cita reservada correctamente'),
-                backgroundColor: Colors.green,
+            Navigator.pop(context, true);
+          }
+          if (state is CitaReservadaConPago) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BlocProvider.value(
+                  value: context.read<CitaBloc>(),
+                  child: PagoAdelantoPage(citaId: state.citaId),
+                ),
               ),
             );
-            Navigator.pop(context, true);
           }
           if (state is CitaError) {
             setState(() => _cargandoHoras = false);
@@ -517,6 +523,7 @@ class _ReservarCitaPacientePageState extends State<ReservarCitaPacientePage> {
         notas: _notasController.text.trim().isEmpty
             ? null
             : _notasController.text.trim(),
+        esPaciente: true,
       ),
     );
   }

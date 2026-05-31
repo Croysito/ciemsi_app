@@ -54,6 +54,7 @@ class PacienteBloc extends Bloc<PacienteEvent, PacienteState> {
         email: event.email,
         telefono: event.telefono,
         fechaNacimiento: event.fechaNacimiento,
+        genero: event.genero,
         ciudadId: event.ciudadId,
       );
       emit(
@@ -81,6 +82,7 @@ class PacienteBloc extends Bloc<PacienteEvent, PacienteState> {
         email: event.email,
         telefono: event.telefono,
         fechaNacimiento: event.fechaNacimiento,
+        genero: event.genero,
         ciudadId: event.ciudadId,
       );
       emit(PacienteModificado());
@@ -116,6 +118,7 @@ class PacienteBloc extends Bloc<PacienteEvent, PacienteState> {
         email: event.email,
         telefono: event.telefono,
         fechaNacimiento: event.fechaNacimiento,
+        genero: event.genero,
         ciudadId: event.ciudadId,
       );
       emit(PacienteCompletado());

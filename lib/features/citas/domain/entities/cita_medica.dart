@@ -3,7 +3,7 @@ import 'package:ciemsi_app/features/pacientes/domain/entities/paciente.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
 
-enum EstadoCita { PENDIENTE, MODIFICADA, CONFIRMADA, CANCELADA, COMPLETADA }
+enum EstadoCita { PENDIENTE, PENDIENTE_PAGO, MODIFICADA, CONFIRMADA, CANCELADA, COMPLETADA }
 
 class CitaMedica extends Equatable {
   final int id;
@@ -16,6 +16,9 @@ class CitaMedica extends Equatable {
   final String? notas;
   final Map<String, dynamic> creadoPor;
   final DateTime createdAt;
+  final double? adelantoMonto;
+  final String? adelantoMetodo;
+  final String? comprobantePath;
 
   const CitaMedica({
     required this.id,
@@ -28,7 +31,12 @@ class CitaMedica extends Equatable {
     this.notas,
     required this.creadoPor,
     required this.createdAt,
+    this.adelantoMonto,
+    this.adelantoMetodo,
+    this.comprobantePath,
   });
+
+  bool get tieneComprobante => comprobantePath != null && comprobantePath!.isNotEmpty;
 
   @override
   List<Object?> get props => [

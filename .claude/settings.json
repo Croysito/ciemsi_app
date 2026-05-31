@@ -19,7 +19,42 @@
       "Bash(Head -50)",
       "Bash(dart analyze *)",
       "Bash(del \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\\\\src\\\\infrastructure\\\\database\\\\migrations\\\\20260524_inventario_descuenta_pendientes.sql\")",
-      "Bash(Get-ChildItem -Path \"e:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi_app\\\\lib\\\\features\" -Recurse -Filter \"*.dart\")"
+      "Bash(Get-ChildItem -Path \"e:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi_app\\\\lib\\\\features\" -Recurse -Filter \"*.dart\")",
+      "Bash(Get-ChildItem -Path \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\\\\src\\\\infrastructure\\\\database\\\\migrations\" -File)",
+      "Bash(Sort-Object Name)",
+      "Read(//e/OTROS TRABAJOS/CIEMSI/ciemsi_app/**)",
+      "PowerShell(Get-ChildItem -Path \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\" | Where-Object { $_.Name -match \"\\\\.js$\" })",
+      "Bash(Get-Content \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\\\\src\\\\infrastructure\\\\repositories\\\\TrasladoRepository.js\")",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://192.168.1.6:3000/\" -TimeoutSec 5 -UseBasicParsing; $r.StatusCode; $r.Content } catch { $_.Exception.Message })",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://192.168.1.6:3000/api/ciudades\" -TimeoutSec 5 -UseBasicParsing; $r.StatusCode; $r.Content } catch { $_.Exception.Message })",
+      "PowerShell(netsh advfirewall firewall show rule name=\"Node.js JavaScript Runtime\" dir=in verbose)",
+      "PowerShell(netsh advfirewall firewall show rule name=\"Node.js: Server-side JavaScript\" dir=in verbose)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:3000/api/auth/login\" -Method POST -Body '{\"email\":\"test@test.com\",\"password\":\"test\"}' -ContentType \"application/json\" -TimeoutSec 5 -UseBasicParsing; $r.StatusCode; $r.Content } catch { $_.Exception.Response.StatusCode.value__; $_.Exception.Message })",
+      "PowerShell($body = '{\"email\":\"test@ciemsi.com\",\"password\":\"test123\"}'; try { $r = Invoke-WebRequest -Uri \"http://192.168.1.6:3000/api/auth/login\" -Method POST -Body $body -ContentType \"application/json\" -TimeoutSec 5 -UseBasicParsing; \"STATUS: $\\($r.StatusCode\\)\"; $r.Content } catch { \"STATUS: $\\($_.Exception.Response.StatusCode.value__\\)\"; $_.Exception.Message })",
+      "Read(//c/Program Files/PostgreSQL/**)",
+      "PowerShell(Get-Service)",
+      "PowerShell(wsl --list --running 2>&1)",
+      "PowerShell(wsl --list --verbose 2>&1)",
+      "PowerShell(sc.exe query \"postgresql-x64-18\" 2>&1)",
+      "PowerShell(Start-Service \"postgresql-x64-18\" 2>&1)",
+      "PowerShell(Get-Service \"postgresql-x64-18\")",
+      "PowerShell(Start-Process powershell -Verb RunAs -ArgumentList \"-NoProfile -Command `\"Start-Service postgresql-x64-18; exit`\"\" -Wait 2>&1 | Out-String)",
+      "PowerShell(sc.exe qc \"postgresql-x64-18\" 2>&1)",
+      "Bash(Get-ChildItem \"e:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi_app\\\\lib\\\\features\" -Directory)",
+      "PowerShell(Get-Process | Where-Object { $_.Name -match \"^dart$|^dartvm$|^flutter$\" } | Stop-Process -Force -Confirm:$false; Write-Host \"Procesos dart/dartvm terminados\")",
+      "Bash(flutter --version)",
+      "Read(//c/flutter/bin/**)",
+      "PowerShell(Get-Content \"C:\\\\flutter\\\\bin\\\\cache\\\\flutter.bat.lock\"; \\(Get-Item \"C:\\\\flutter\\\\bin\\\\cache\\\\flutter.bat.lock\"\\).Length)",
+      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" --version 2>&1)",
+      "PowerShell(Start-Process -FilePath \"C:\\\\flutter\\\\bin\\\\flutter.bat\" -ArgumentList \"--version\" -Wait -NoNewWindow 2>&1)",
+      "Read(//c/flutter/packages/flutter_tools/lib/src/isolated/native_assets/**)",
+      "Read(//c/flutter/packages/flutter_tools/lib/src/build_system/targets/**)",
+      "PowerShell(Select-String -Path \"C:\\\\flutter\\\\packages\\\\flutter_tools\\\\lib\\\\src\\\\build_system\\\\targets\\\\native_assets.dart\" -Pattern \"DartBuild|dart_build|compileFlutter\" -CaseSensitive:$false)",
+      "PowerShell(Get-Process -Name \"dart\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "PowerShell(Get-ChildItem \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\\\\src\" -Recurse | ForEach-Object { $_.FullName } | head -50)",
+      "PowerShell(Get-ChildItem \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\\\\src\" -Recurse | Select-Object -First 50 | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"E:\\\\OTROS TRABAJOS\\\\CIEMSI\\\\ciemsi-backend\\\\src\\\\application\\\\use-cases\\\\pacientes\" -Recurse | ForEach-Object { $_.FullName })"
     ],
     "additionalDirectories": [
       "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\infrastructure\\database\\migrations",
@@ -30,7 +65,8 @@
       "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\presentation\\controllers",
       "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\presentation\\routes",
       "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src\\main",
-      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src"
+      "E:\\OTROS TRABAJOS\\CIEMSI\\ciemsi-backend\\src",
+      "e:\\OTROS TRABAJOS\\CIEMSI\\ciemsi_app\\android\\app\\src\\main\\res"
     ]
   }
 }

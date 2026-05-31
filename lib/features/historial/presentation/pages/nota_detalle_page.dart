@@ -8,6 +8,7 @@ import '../../domain/entities/link_archivo.dart';
 import '../bloc/historial_bloc.dart';
 import '../bloc/historial_event.dart';
 import '../bloc/historial_state.dart';
+import '../widgets/bold_markdown_text.dart';
 import '../../../../core/services/google_auth_service.dart';
 
 class NotaDetallePage extends StatefulWidget {
@@ -297,7 +298,7 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text(
+                    child: BoldMarkdownText(
                       widget.nota.detalle,
                       style: const TextStyle(fontSize: 15, height: 1.5),
                     ),

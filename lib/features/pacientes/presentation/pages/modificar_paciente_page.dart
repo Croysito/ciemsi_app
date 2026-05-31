@@ -24,6 +24,7 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
   final _fechaNacimientoController = TextEditingController();
   Ciudad? _ciudadSeleccionada;
   List<Ciudad> _ciudades = [];
+  String? _generoSeleccionado;
 
   @override
   void initState() {
@@ -38,6 +39,7 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
         widget.paciente.fechaNacimiento!,
       );
     }
+    _generoSeleccionado = widget.paciente.genero;
     context.read<PacienteBloc>().add(CargarCiudadesEvent());
   }
 
@@ -203,6 +205,28 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
               ),
               const SizedBox(height: 12),
 
+              // Género
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.wc_outlined, color: Color(0xFF00B5C8), size: 20),
+                    const SizedBox(width: 12),
+                    const Text('Género', style: TextStyle(color: Color(0xFF00B5C8))),
+                    const Spacer(),
+                    _buildGeneroOption('M', 'Masculino'),
+                    const SizedBox(width: 8),
+                    _buildGeneroOption('F', 'Femenino'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
               // Ciudad
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -278,6 +302,7 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
                                   email: _emailController.text.trim(),
                                   telefono: _telefonoController.text.trim(),
                                   fechaNacimiento: fechaNac,
+                                  genero: _generoSeleccionado,
                                   ciudadId: _ciudadSeleccionada!.id,
                                 ),
                               );
@@ -303,6 +328,31 @@ class _ModificarPacientePageState extends State<ModificarPacientePage> {
                 },
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGeneroOption(String valor, String etiqueta) {
+    final seleccionado = _generoSeleccionado == valor;
+    return GestureDetector(
+      onTap: () => setState(() => _generoSeleccionado = seleccionado ? null : valor),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: seleccionado ? const Color(0xFF00B5C8) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: seleccionado ? const Color(0xFF00B5C8) : Colors.grey.shade300,
+          ),
+        ),
+        child: Text(
+          etiqueta,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: seleccionado ? Colors.white : Colors.black54,
           ),
         ),
       ),

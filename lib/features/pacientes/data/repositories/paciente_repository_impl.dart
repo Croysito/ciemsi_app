@@ -24,6 +24,7 @@ class PacienteRepositoryImpl implements PacienteRepository {
     required String email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   }) => remoteDatasource.registrarPaciente(
     ci: ci,
@@ -32,6 +33,7 @@ class PacienteRepositoryImpl implements PacienteRepository {
     email: email,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
+    genero: genero,
     ciudadId: ciudadId,
   );
 
@@ -44,6 +46,7 @@ class PacienteRepositoryImpl implements PacienteRepository {
     String? email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   }) => remoteDatasource.modificarPaciente(
     id: id,
@@ -53,6 +56,7 @@ class PacienteRepositoryImpl implements PacienteRepository {
     email: email,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
+    genero: genero,
     ciudadId: ciudadId,
   );
 
@@ -65,6 +69,7 @@ class PacienteRepositoryImpl implements PacienteRepository {
     required String email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   }) => remoteDatasource.completarPaciente(
     id: id,
@@ -74,6 +79,7 @@ class PacienteRepositoryImpl implements PacienteRepository {
     email: email,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
+    genero: genero,
     ciudadId: ciudadId,
   );
 

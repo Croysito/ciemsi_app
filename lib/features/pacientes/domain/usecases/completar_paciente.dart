@@ -12,6 +12,7 @@ class CompletarPacienteUseCase {
     required String email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   }) => repository.completarPaciente(
         id: id,
@@ -21,6 +22,7 @@ class CompletarPacienteUseCase {
         email: email,
         telefono: telefono,
         fechaNacimiento: fechaNacimiento,
+        genero: genero,
         ciudadId: ciudadId,
       );
 }

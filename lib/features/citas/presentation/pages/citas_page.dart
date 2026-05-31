@@ -12,7 +12,13 @@ import 'detalle_cita_page.dart';
 class CitasPage extends StatefulWidget {
   final Usuario usuario;
   final VoidCallback? onMenuTap;
-  const CitasPage({super.key, required this.usuario, this.onMenuTap});
+  final VoidCallback? onAsistenteIA;
+  const CitasPage({
+    super.key,
+    required this.usuario,
+    this.onMenuTap,
+    this.onAsistenteIA,
+  });
 
   @override
   State<CitasPage> createState() => _CitasPageState();
@@ -44,6 +50,8 @@ class _CitasPageState extends State<CitasPage> {
     switch (estado) {
       case EstadoCita.PENDIENTE:
         return Colors.orange;
+      case EstadoCita.PENDIENTE_PAGO:
+        return Colors.deepOrange;
       case EstadoCita.MODIFICADA:
         return Colors.purple;
       case EstadoCita.CONFIRMADA:
@@ -59,6 +67,8 @@ class _CitasPageState extends State<CitasPage> {
     switch (estado) {
       case EstadoCita.PENDIENTE:
         return Icons.schedule;
+      case EstadoCita.PENDIENTE_PAGO:
+        return Icons.payment_rounded;
       case EstadoCita.MODIFICADA:
         return Icons.edit_calendar;
       case EstadoCita.CONFIRMADA:
@@ -108,23 +118,68 @@ class _CitasPageState extends State<CitasPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF8DC63F),
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: context.read<CitaBloc>(),
-                child: ReservarCitaPage(usuario: widget.usuario),
+      floatingActionButton: widget.onAsistenteIA != null
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'fab_asistente',
+                  backgroundColor: const Color(0xFF00B5C8),
+                  onPressed: widget.onAsistenteIA,
+                  child: const Icon(
+                    Icons.smart_toy_outlined,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                FloatingActionButton.extended(
+                  heroTag: 'fab_nueva_cita',
+                  backgroundColor: const Color(0xFF8DC63F),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BlocProvider.value(
+                          value: context.read<CitaBloc>(),
+                          child: ReservarCitaPage(usuario: widget.usuario),
+                        ),
+                      ),
+                    );
+                    if (context.mounted) {
+                      context.read<CitaBloc>().add(ListarCitasEvent());
+                    }
+                  },
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  label: const Text(
+                    'Nueva Cita',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            )
+          : FloatingActionButton.extended(
+              backgroundColor: const Color(0xFF8DC63F),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BlocProvider.value(
+                      value: context.read<CitaBloc>(),
+                      child: ReservarCitaPage(usuario: widget.usuario),
+                    ),
+                  ),
+                );
+                if (context.mounted) {
+                  context.read<CitaBloc>().add(ListarCitasEvent());
+                }
+              },
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text(
+                'Nueva Cita',
+                style: TextStyle(color: Colors.white),
               ),
             ),
-          );
-          context.read<CitaBloc>().add(ListarCitasEvent());
-        },
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Nueva Cita', style: TextStyle(color: Colors.white)),
-      ),
       body: BlocBuilder<CitaBloc, CitaState>(
         builder: (context, state) {
           if (state is CitaLoading) {
@@ -156,8 +211,13 @@ class _CitasPageState extends State<CitasPage> {
           }
 
           if (state is CitaReservada ||
+              state is CitaReservadaConPago ||
               state is EstadoCitaCambiado ||
-              state is CitaModificada) {
+              state is CitaModificada ||
+              state is PagoConfirmado ||
+              state is QrPagoCargado ||
+              state is QrPagoActualizado ||
+              state is ComprobanteSubido) {
             context.read<CitaBloc>().add(ListarCitasEvent());
             return const Center(
               child: CircularProgressIndicator(color: Color(0xFF00B5C8)),
@@ -374,7 +434,7 @@ class _CitasPageState extends State<CitasPage> {
             MaterialPageRoute(
               builder: (_) => BlocProvider.value(
                 value: context.read<CitaBloc>(),
-                child: DetalleCitaPage(cita: cita),
+                child: DetalleCitaPage(cita: cita, usuario: widget.usuario),
               ),
             ),
           );

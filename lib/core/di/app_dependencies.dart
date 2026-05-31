@@ -10,12 +10,16 @@ import 'package:ciemsi_app/features/asistentes/domain/usecases/modificar_asisten
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_bloc.dart';
 import 'package:ciemsi_app/features/citas/data/datasources/cita_remote_datasource.dart';
 import 'package:ciemsi_app/features/citas/data/repositories/cita_repository_impl.dart';
+import 'package:ciemsi_app/features/citas/domain/usecases/actualizar_qr_pago.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/cambiar_estado_cita.dart';
+import 'package:ciemsi_app/features/citas/domain/usecases/confirmar_pago_cita.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/listar_citas.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/listar_servicios_cita.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/modificar_cita.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/obtener_horas_disponibles.dart';
+import 'package:ciemsi_app/features/citas/domain/usecases/obtener_qr_pago.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/reservar_cita.dart';
+import 'package:ciemsi_app/features/citas/domain/usecases/subir_comprobante_cita.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/suministros/data/datasources/suministro_remote_datasource.dart';
 import 'package:ciemsi_app/features/suministros/data/repositories/suministro_repository_impl.dart';
@@ -60,7 +64,18 @@ import 'package:ciemsi_app/features/traslados/domain/usecases/consultar_stock_tr
 import 'package:ciemsi_app/features/traslados/domain/usecases/devolver_traslado.dart';
 import 'package:ciemsi_app/features/traslados/domain/usecases/obtener_datos_creacion_traslado.dart';
 import 'package:ciemsi_app/features/traslados/presentation/bloc/traslado_bloc.dart';
+import 'package:ciemsi_app/features/cuentas/data/datasources/cuenta_remote_datasource.dart';
+import 'package:ciemsi_app/features/cuentas/data/repositories/cuenta_repository_impl.dart';
+import 'package:ciemsi_app/features/cuentas/presentation/bloc/cuenta_bloc.dart';
+import 'package:ciemsi_app/features/asistente/data/datasources/asistente_datasource.dart';
+import 'package:ciemsi_app/features/asistente/presentation/bloc/asistente_bloc.dart';
 import 'package:ciemsi_app/features/agenda/presentation/bloc/agenda_bloc.dart';
+import 'package:ciemsi_app/features/servicios/data/datasources/servicio_remote_datasource.dart';
+import 'package:ciemsi_app/features/servicios/data/repositories/servicio_repository_impl.dart';
+import 'package:ciemsi_app/features/servicios/domain/usecases/listar_servicios.dart';
+import 'package:ciemsi_app/features/servicios/domain/usecases/crear_servicio.dart';
+import 'package:ciemsi_app/features/servicios/domain/usecases/modificar_servicio.dart';
+import 'package:ciemsi_app/features/servicios/presentation/bloc/servicio_bloc.dart';
 import 'package:ciemsi_app/features/recetas/presentation/bloc/receta_bloc.dart';
 import 'package:ciemsi_app/features/auth/presentation/bloc/dashboard_bloc.dart';
 
@@ -72,14 +87,16 @@ class AppDependencies {
     final repository = CitaRepositoryImpl(datasource);
 
     return CitaBloc(
-      listarCitasUseCase: ListarCitasUseCase(repository),
-      reservarCitaUseCase: ReservarCitaUseCase(repository),
-      modificarCitaUseCase: ModificarCitaUseCase(repository),
-      cambiarEstadoCitaUseCase: CambiarEstadoCitaUseCase(repository),
-      listarServiciosCitaUseCase: ListarServiciosCitaUseCase(repository),
-      obtenerHorasDisponiblesUseCase: ObtenerHorasDisponiblesUseCase(
-        repository,
-      ),
+      listarCitasUseCase:            ListarCitasUseCase(repository),
+      reservarCitaUseCase:           ReservarCitaUseCase(repository),
+      modificarCitaUseCase:          ModificarCitaUseCase(repository),
+      cambiarEstadoCitaUseCase:      CambiarEstadoCitaUseCase(repository),
+      listarServiciosCitaUseCase:    ListarServiciosCitaUseCase(repository),
+      obtenerHorasDisponiblesUseCase: ObtenerHorasDisponiblesUseCase(repository),
+      obtenerQrPagoUseCase:          ObtenerQrPagoUseCase(repository),
+      actualizarQrPagoUseCase:       ActualizarQrPagoUseCase(repository),
+      subirComprobanteUseCase:       SubirComprobanteCitaUseCase(repository),
+      confirmarPagoUseCase:          ConfirmarPagoCitaUseCase(repository),
     );
   }
 
@@ -154,12 +171,32 @@ class AppDependencies {
     return AgendaBloc();
   }
 
+  static ServicioBloc createServicioBloc() {
+    final datasource = ServicioRemoteDatasource(ApiClientProvider.instance);
+    final repository = ServicioRepositoryImpl(datasource);
+    return ServicioBloc(
+      listarUseCase: ListarServiciosUseCase(repository),
+      crearUseCase: CrearServicioUseCase(repository),
+      modificarUseCase: ModificarServicioUseCase(repository),
+    );
+  }
+
   static RecetaBloc createRecetaBloc() {
     return RecetaBloc();
   }
 
   static DashboardBloc createDashboardBloc() {
     return DashboardBloc();
+  }
+
+  static CuentaBloc createCuentaBloc() {
+    final datasource = CuentaRemoteDatasource(ApiClientProvider.instance);
+    final repository = CuentaRepositoryImpl(datasource);
+    return CuentaBloc(repository);
+  }
+
+  static ChatbotBloc createChatbotBloc() {
+    return ChatbotBloc(AsistenteDatasource(ApiClientProvider.instance));
   }
 
   static PagoBloc createPagoBloc() {

@@ -8,6 +8,7 @@ import '../bloc/historial_state.dart';
 import '../../domain/entities/nota_evolucion.dart';
 import 'agregar_nota_page.dart';
 import 'nota_detalle_page.dart';
+import '../widgets/bold_markdown_text.dart';
 
 class HistorialPage extends StatefulWidget {
   final Paciente paciente;
@@ -187,7 +188,7 @@ class _HistorialPageState extends State<HistorialPage> {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
+              BoldMarkdownText(
                 nota.detalle,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,

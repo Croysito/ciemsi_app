@@ -61,6 +61,11 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
   // ── Paso 6: Notas ────────────────────────────────────────────
   final _notasController = TextEditingController();
 
+  // ── Pago adelantado ──────────────────────────────────────────
+  bool _tieneAdelanto = false;
+  String _adelantoMetodo = 'qr';
+  final double _adelantoMonto = 50;
+
   // ── Getters de progreso ──────────────────────────────────────
   bool get _pacienteStepCompleto =>
       _pacienteSeleccionado != null || _usarPacienteNuevo;
@@ -654,7 +659,56 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // ── Pago adelantado ───────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.payments_outlined, color: Color(0xFF00B5C8), size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            '¿Se realizó un pago adelantado?',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        Switch(
+                          value: _tieneAdelanto,
+                          activeColor: const Color(0xFF00B5C8),
+                          onChanged: (v) => setState(() => _tieneAdelanto = v),
+                        ),
+                      ],
+                    ),
+                    if (_tieneAdelanto) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Monto: Bs. ${_adelantoMonto.toStringAsFixed(0)}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Text('Método: ', style: TextStyle(fontSize: 13)),
+                          _buildMetodoOption('efectivo', 'Efectivo'),
+                          const SizedBox(width: 8),
+                          _buildMetodoOption('qr', 'QR / Transferencia'),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
 
               // ── Botón ────────────────────────────────────────────────
               BlocBuilder<CitaBloc, CitaState>(
@@ -751,11 +805,38 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
         notas: _notasController.text.trim().isEmpty
             ? null
             : _notasController.text.trim(),
+        adelantoMonto: _tieneAdelanto ? _adelantoMonto : null,
+        adelantoMetodo: _tieneAdelanto ? _adelantoMetodo : null,
       ),
     );
   }
 
   // ── Widget helpers ─────────────────────────────────────────────
+
+  Widget _buildMetodoOption(String valor, String etiqueta) {
+    final sel = _adelantoMetodo == valor;
+    return GestureDetector(
+      onTap: () => setState(() => _adelantoMetodo = valor),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: sel ? const Color(0xFF00B5C8) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: sel ? const Color(0xFF00B5C8) : Colors.grey.shade300,
+          ),
+        ),
+        child: Text(
+          etiqueta,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: sel ? Colors.white : Colors.black54,
+          ),
+        ),
+      ),
+    );
+  }
 
   /// Encabezado de paso con número y color según estado activo
   Widget _buildStepHeader(String numero, String titulo, {required bool activo}) {

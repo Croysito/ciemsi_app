@@ -35,6 +35,7 @@ class PacienteRemoteDatasource {
     required String email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   }) async {
     try {
@@ -47,6 +48,7 @@ class PacienteRemoteDatasource {
           'email': email,
           'telefono': telefono,
           'fechaNacimiento': fechaNacimiento?.toIso8601String(),
+          'genero': genero,
           'ciudadId': ciudadId,
         },
       );
@@ -68,6 +70,7 @@ class PacienteRemoteDatasource {
     String? email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   }) async {
     try {
@@ -80,6 +83,7 @@ class PacienteRemoteDatasource {
           if (email != null) 'email': email,
           'telefono': telefono,
           'fechaNacimiento': fechaNacimiento?.toIso8601String(),
+          'genero': genero,
           'ciudadId': ciudadId,
         },
       );
@@ -96,6 +100,7 @@ class PacienteRemoteDatasource {
     required String email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   }) async {
     try {
@@ -108,6 +113,7 @@ class PacienteRemoteDatasource {
           'email': email,
           'telefono': telefono,
           'fechaNacimiento': fechaNacimiento?.toIso8601String(),
+          'genero': genero,
           'ciudadId': ciudadId,
         },
       );

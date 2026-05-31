@@ -1,10 +1,15 @@
+import 'dart:typed_data';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/cambiar_estado_cita.dart';
+import '../../domain/usecases/confirmar_pago_cita.dart';
 import '../../domain/usecases/listar_citas.dart';
 import '../../domain/usecases/listar_servicios_cita.dart';
 import '../../domain/usecases/modificar_cita.dart';
 import '../../domain/usecases/obtener_horas_disponibles.dart';
+import '../../domain/usecases/actualizar_qr_pago.dart';
+import '../../domain/usecases/obtener_qr_pago.dart';
 import '../../domain/usecases/reservar_cita.dart';
+import '../../domain/usecases/subir_comprobante_cita.dart';
 import 'cita_event.dart';
 import 'cita_state.dart';
 
@@ -15,6 +20,10 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
   final CambiarEstadoCitaUseCase cambiarEstadoCitaUseCase;
   final ListarServiciosCitaUseCase listarServiciosCitaUseCase;
   final ObtenerHorasDisponiblesUseCase obtenerHorasDisponiblesUseCase;
+  final ObtenerQrPagoUseCase obtenerQrPagoUseCase;
+  final ActualizarQrPagoUseCase actualizarQrPagoUseCase;
+  final SubirComprobanteCitaUseCase subirComprobanteUseCase;
+  final ConfirmarPagoCitaUseCase confirmarPagoUseCase;
 
   CitaBloc({
     required this.listarCitasUseCase,
@@ -23,6 +32,10 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     required this.cambiarEstadoCitaUseCase,
     required this.listarServiciosCitaUseCase,
     required this.obtenerHorasDisponiblesUseCase,
+    required this.obtenerQrPagoUseCase,
+    required this.actualizarQrPagoUseCase,
+    required this.subirComprobanteUseCase,
+    required this.confirmarPagoUseCase,
   }) : super(CitaInitial()) {
     on<ListarCitasEvent>(_onListar);
     on<ReservarCitaEvent>(_onReservar);
@@ -30,12 +43,13 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     on<CambiarEstadoCitaEvent>(_onCambiarEstado);
     on<CargarServiciosEvent>(_onCargarServicios);
     on<CargarDisponibilidadEvent>(_onCargarDisponibilidad);
+    on<ObtenerQrPagoEvent>(_onObtenerQr);
+    on<ActualizarQrPagoEvent>(_onActualizarQr);
+    on<SubirComprobanteEvent>(_onSubirComprobante);
+    on<ConfirmarPagoEvent>(_onConfirmarPago);
   }
 
-  Future<void> _onListar(
-    ListarCitasEvent event,
-    Emitter<CitaState> emit,
-  ) async {
+  Future<void> _onListar(ListarCitasEvent event, Emitter<CitaState> emit) async {
     emit(CitaLoading());
     try {
       final citas = await listarCitasUseCase.execute();
@@ -45,13 +59,10 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     }
   }
 
-  Future<void> _onReservar(
-    ReservarCitaEvent event,
-    Emitter<CitaState> emit,
-  ) async {
+  Future<void> _onReservar(ReservarCitaEvent event, Emitter<CitaState> emit) async {
     emit(CitaLoading());
     try {
-      await reservarCitaUseCase.execute(
+      final citaId = await reservarCitaUseCase.execute(
         fecha: event.fecha,
         hora: event.hora,
         servicioId: event.servicioId,
@@ -59,17 +70,21 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
         ciudadId: event.ciudadId,
         agendaId: event.agendaId,
         notas: event.notas,
+        adelantoMonto: event.adelantoMonto,
+        adelantoMetodo: event.adelantoMetodo,
       );
-      emit(CitaReservada());
+      // Si es rol Paciente (sin adelanto propio), emite estado con citaId para ir a pago
+      if (event.esPaciente) {
+        emit(CitaReservadaConPago(citaId));
+      } else {
+        emit(CitaReservada());
+      }
     } catch (e) {
       emit(CitaError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
-  Future<void> _onModificar(
-    ModificarCitaEvent event,
-    Emitter<CitaState> emit,
-  ) async {
+  Future<void> _onModificar(ModificarCitaEvent event, Emitter<CitaState> emit) async {
     emit(CitaLoading());
     try {
       await modificarCitaUseCase.execute(
@@ -85,27 +100,17 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     }
   }
 
-  Future<void> _onCambiarEstado(
-    CambiarEstadoCitaEvent event,
-    Emitter<CitaState> emit,
-  ) async {
+  Future<void> _onCambiarEstado(CambiarEstadoCitaEvent event, Emitter<CitaState> emit) async {
     emit(CitaLoading());
     try {
-      await cambiarEstadoCitaUseCase.execute(
-        event.id,
-        event.estado,
-        notas: event.notas,
-      );
+      await cambiarEstadoCitaUseCase.execute(event.id, event.estado, notas: event.notas);
       emit(EstadoCitaCambiado());
     } catch (e) {
       emit(CitaError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
-  Future<void> _onCargarServicios(
-    CargarServiciosEvent event,
-    Emitter<CitaState> emit,
-  ) async {
+  Future<void> _onCargarServicios(CargarServiciosEvent event, Emitter<CitaState> emit) async {
     emit(CitaLoading());
     try {
       final servicios = await listarServiciosCitaUseCase.execute();
@@ -115,10 +120,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     }
   }
 
-  Future<void> _onCargarDisponibilidad(
-    CargarDisponibilidadEvent event,
-    Emitter<CitaState> emit,
-  ) async {
+  Future<void> _onCargarDisponibilidad(CargarDisponibilidadEvent event, Emitter<CitaState> emit) async {
     emit(CitaLoading());
     try {
       final horas = await obtenerHorasDisponiblesUseCase.execute(
@@ -126,6 +128,54 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
         fecha: event.fecha,
       );
       emit(DisponibilidadCargada(horasDisponibles: horas, fecha: event.fecha));
+    } catch (e) {
+      emit(CitaError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onObtenerQr(ObtenerQrPagoEvent event, Emitter<CitaState> emit) async {
+    emit(CitaLoading());
+    try {
+      final data = await obtenerQrPagoUseCase.execute();
+      emit(QrPagoCargado(
+        qrLink:        data['qrLink'] as String?,
+        adelantoMonto: (data['adelantoMonto'] as num?)?.toDouble() ?? 50.0,
+      ));
+    } catch (e) {
+      emit(CitaError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onActualizarQr(ActualizarQrPagoEvent event, Emitter<CitaState> emit) async {
+    emit(CitaLoading());
+    try {
+      await actualizarQrPagoUseCase.execute(event.qrLink);
+      emit(QrPagoActualizado());
+    } catch (e) {
+      emit(CitaError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onSubirComprobante(SubirComprobanteEvent event, Emitter<CitaState> emit) async {
+    emit(CitaLoading());
+    try {
+      await subirComprobanteUseCase.execute(
+        citaId:   event.citaId,
+        bytes:    Uint8List.fromList(event.bytes),
+        fileName: event.fileName,
+        mimeType: event.mimeType,
+      );
+      emit(ComprobanteSubido(event.citaId));
+    } catch (e) {
+      emit(CitaError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onConfirmarPago(ConfirmarPagoEvent event, Emitter<CitaState> emit) async {
+    emit(CitaLoading());
+    try {
+      await confirmarPagoUseCase.execute(event.citaId);
+      emit(PagoConfirmado());
     } catch (e) {
       emit(CitaError(e.toString().replaceAll('Exception: ', '')));
     }

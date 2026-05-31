@@ -5,7 +5,7 @@ class ReservarCitaUseCase {
 
   ReservarCitaUseCase(this.repository);
 
-  Future<void> execute({
+  Future<int> execute({
     required String fecha,
     required String hora,
     required int servicioId,
@@ -13,6 +13,8 @@ class ReservarCitaUseCase {
     int? ciudadId,
     int? agendaId,
     String? notas,
+    double? adelantoMonto,
+    String? adelantoMetodo,
   }) => repository.reservarCita(
     fecha: fecha,
     hora: hora,
@@ -21,5 +23,7 @@ class ReservarCitaUseCase {
     ciudadId: ciudadId,
     agendaId: agendaId,
     notas: notas,
+    adelantoMonto: adelantoMonto,
+    adelantoMetodo: adelantoMetodo,
   );
 }

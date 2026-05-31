@@ -90,9 +90,13 @@ class DetallePacientePage extends StatelessWidget {
                       _buildInfoRow(
                         Icons.calendar_today_outlined,
                         'Fecha de nacimiento',
-                        DateFormat(
-                          'dd/MM/yyyy',
-                        ).format(paciente.fechaNacimiento!),
+                        DateFormat('dd/MM/yyyy').format(paciente.fechaNacimiento!),
+                      ),
+                    if (paciente.genero != null)
+                      _buildInfoRow(
+                        Icons.wc_outlined,
+                        'Género',
+                        paciente.genero == 'M' ? 'Masculino' : 'Femenino',
                       ),
                     _buildInfoRow(
                       Icons.location_city_outlined,

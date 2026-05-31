@@ -12,6 +12,7 @@ class RegistrarPacienteUseCase {
     required String email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   }) => repository.registrarPaciente(
     ci: ci,
@@ -20,6 +21,7 @@ class RegistrarPacienteUseCase {
     email: email,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
+    genero: genero,
     ciudadId: ciudadId,
   );
 }

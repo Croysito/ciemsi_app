@@ -12,6 +12,7 @@ class ModificarPacienteUseCase {
     String? email,
     String? telefono,
     DateTime? fechaNacimiento,
+    String? genero,
     required int ciudadId,
   }) => repository.modificarPaciente(
     id: id,
@@ -21,6 +22,7 @@ class ModificarPacienteUseCase {
     email: email,
     telefono: telefono,
     fechaNacimiento: fechaNacimiento,
+    genero: genero,
     ciudadId: ciudadId,
   );
 }
