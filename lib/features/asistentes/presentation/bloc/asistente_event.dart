@@ -57,6 +57,25 @@ class CambiarEstadoAsistenteEvent extends AsistenteEvent {
   List<Object?> get props => [id, estado];
 }
 
+class CargarPermisosAsistenteEvent extends AsistenteEvent {
+  final int id;
+
+  CargarPermisosAsistenteEvent({required this.id});
+
+  @override
+  List<Object?> get props => [id];
+}
+
+class ActualizarPermisosAsistenteEvent extends AsistenteEvent {
+  final int id;
+  final Map<String, bool> permisos;
+
+  ActualizarPermisosAsistenteEvent({required this.id, required this.permisos});
+
+  @override
+  List<Object?> get props => [id, permisos];
+}
+
 class CambiarPasswordEvent extends AsistenteEvent {
   final String passwordActual;
   final String passwordNuevo;

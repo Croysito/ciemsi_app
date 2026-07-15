@@ -8,6 +8,7 @@ class CuentaBloc extends Bloc<CuentaEvent, CuentaState> {
 
   CuentaBloc(this._repo) : super(CuentaInitial()) {
     on<CargarResumenCuentasEvent>(_onCargarResumen);
+    on<CargarResumenMensualEvent>(_onCargarResumenMensual);
     on<CargarHistorialEvent>(_onCargarHistorial);
     on<CargarSaldoInicialEvent>(_onCargarSaldoInicial);
     on<SetSaldoInicialEvent>(_onSetSaldoInicial);
@@ -22,6 +23,19 @@ class CuentaBloc extends Bloc<CuentaEvent, CuentaState> {
     try {
       final data = await _repo.obtenerResumen(ciudadId: e.ciudadId);
       emit(ResumenCuentasCargado(data));
+    } catch (ex) {
+      emit(CuentaError(ex.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onCargarResumenMensual(CargarResumenMensualEvent e, Emitter<CuentaState> emit) async {
+    try {
+      final data = await _repo.obtenerResumenMensual(
+        ciudadId: e.ciudadId,
+        anio: e.anio,
+        mes: e.mes,
+      );
+      emit(ResumenMensualCargado(data));
     } catch (ex) {
       emit(CuentaError(ex.toString().replaceAll('Exception: ', '')));
     }

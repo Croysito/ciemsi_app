@@ -5,6 +5,7 @@ import '../bloc/cuenta_bloc.dart';
 import '../bloc/cuenta_event.dart';
 import '../bloc/cuenta_state.dart';
 import '../../domain/entities/resumen_cuenta.dart';
+import '../../domain/entities/resumen_mensual_cuenta.dart';
 import '../../domain/entities/historial_movimiento.dart';
 import 'registrar_movimiento_page.dart';
 import 'registrar_traspaso_page.dart';
@@ -26,6 +27,8 @@ class _CuentasPageState extends State<CuentasPage> with SingleTickerProviderStat
   List<HistorialMovimiento> _historialCompleto = [];
   List<ResumenCuenta> _resumenCuentas = [];
   bool _cargandoResumen = true;
+  DateTime _mesSeleccionado = DateTime(DateTime.now().year, DateTime.now().month);
+  ResumenMensualCuenta? _resumenMensual;
 
   @override
   void initState() {
@@ -41,9 +44,43 @@ class _CuentasPageState extends State<CuentasPage> with SingleTickerProviderStat
   }
 
   void _cargarHistorial(ResumenCuenta r) {
-    setState(() => _resumenSeleccionado = r);
-    context.read<CuentaBloc>().add(CargarHistorialEvent(ciudadId: r.ciudadId));
+    setState(() {
+      _resumenSeleccionado = r;
+      _mesSeleccionado = DateTime(DateTime.now().year, DateTime.now().month);
+    });
+    _recargarMes();
     _tabCtrl.animateTo(1);
+  }
+
+  bool get _esMesActual {
+    final ahora = DateTime.now();
+    return _mesSeleccionado.year == ahora.year && _mesSeleccionado.month == ahora.month;
+  }
+
+  void _cambiarMes(int delta) {
+    if (delta > 0 && _esMesActual) return;
+    setState(() {
+      _mesSeleccionado = DateTime(_mesSeleccionado.year, _mesSeleccionado.month + delta);
+    });
+    _recargarMes();
+  }
+
+  void _recargarMes() {
+    final ciudadId = _resumenSeleccionado?.ciudadId;
+    if (ciudadId == null) return;
+    final primerDia = DateTime(_mesSeleccionado.year, _mesSeleccionado.month, 1);
+    final ultimoDia = DateTime(_mesSeleccionado.year, _mesSeleccionado.month + 1, 0);
+    final fmt = DateFormat('yyyy-MM-dd');
+    context.read<CuentaBloc>().add(CargarResumenMensualEvent(
+          ciudadId: ciudadId,
+          anio: _mesSeleccionado.year,
+          mes: _mesSeleccionado.month,
+        ));
+    context.read<CuentaBloc>().add(CargarHistorialEvent(
+          ciudadId: ciudadId,
+          fechaDesde: fmt.format(primerDia),
+          fechaHasta: fmt.format(ultimoDia),
+        ));
   }
 
   List<HistorialMovimiento> get _historialFiltrado {
@@ -79,17 +116,17 @@ class _CuentasPageState extends State<CuentasPage> with SingleTickerProviderStat
             });
           } else if (state is HistorialCargado) {
             setState(() => _historialCompleto = state.movimientos);
+          } else if (state is ResumenMensualCargado) {
+            setState(() => _resumenMensual = state.resumen);
           } else if (state is MovimientoExtraRegistrado) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Movimiento registrado'), backgroundColor: Colors.green),
             );
             context.read<CuentaBloc>().add(CargarResumenCuentasEvent(ciudadId: widget.ciudadIdInicial));
-            if (_resumenSeleccionado != null) {
-              context.read<CuentaBloc>().add(CargarHistorialEvent(ciudadId: _resumenSeleccionado!.ciudadId));
-            }
+            if (_resumenSeleccionado != null) _recargarMes();
           } else if (state is MovimientoExtraEliminado) {
             if (_resumenSeleccionado != null) {
-              context.read<CuentaBloc>().add(CargarHistorialEvent(ciudadId: _resumenSeleccionado!.ciudadId));
+              _recargarMes();
               context.read<CuentaBloc>().add(CargarResumenCuentasEvent(ciudadId: widget.ciudadIdInicial));
             }
           } else if (state is TraspasoRegistrado) {
@@ -97,12 +134,10 @@ class _CuentasPageState extends State<CuentasPage> with SingleTickerProviderStat
               const SnackBar(content: Text('Traspaso registrado'), backgroundColor: Colors.green),
             );
             context.read<CuentaBloc>().add(CargarResumenCuentasEvent(ciudadId: widget.ciudadIdInicial));
-            if (_resumenSeleccionado != null) {
-              context.read<CuentaBloc>().add(CargarHistorialEvent(ciudadId: _resumenSeleccionado!.ciudadId));
-            }
+            if (_resumenSeleccionado != null) _recargarMes();
           } else if (state is TraspasoEliminado) {
             if (_resumenSeleccionado != null) {
-              context.read<CuentaBloc>().add(CargarHistorialEvent(ciudadId: _resumenSeleccionado!.ciudadId));
+              _recargarMes();
               context.read<CuentaBloc>().add(CargarResumenCuentasEvent(ciudadId: widget.ciudadIdInicial));
             }
           } else if (state is CuentaError) {
@@ -124,6 +159,11 @@ class _CuentasPageState extends State<CuentasPage> with SingleTickerProviderStat
               filtroTipo: _filtroTipo,
               ciudadSeleccionada: _resumenSeleccionado,
               onFiltroChanged: (v) => setState(() => _filtroTipo = v),
+              mesSeleccionado: _mesSeleccionado,
+              resumenMensual: _resumenMensual,
+              puedeAvanzarMes: !_esMesActual,
+              onMesAnterior: () => _cambiarMes(-1),
+              onMesSiguiente: () => _cambiarMes(1),
             ),
           ],
         ),
@@ -354,13 +394,28 @@ class _HistorialTab extends StatelessWidget {
   final String filtroTipo;
   final ResumenCuenta? ciudadSeleccionada;
   final void Function(String) onFiltroChanged;
+  final DateTime mesSeleccionado;
+  final ResumenMensualCuenta? resumenMensual;
+  final bool puedeAvanzarMes;
+  final VoidCallback onMesAnterior;
+  final VoidCallback onMesSiguiente;
 
   const _HistorialTab({
     required this.movimientos,
     required this.filtroTipo,
     required this.ciudadSeleccionada,
     required this.onFiltroChanged,
+    required this.mesSeleccionado,
+    required this.resumenMensual,
+    required this.puedeAvanzarMes,
+    required this.onMesAnterior,
+    required this.onMesSiguiente,
   });
+
+  static const _nombresMes = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -378,17 +433,67 @@ class _HistorialTab extends StatelessWidget {
       );
     }
 
+    final fmt = NumberFormat.currency(locale: 'es_BO', symbol: 'Bs ', decimalDigits: 2);
+
     return BlocBuilder<CuentaBloc, CuentaState>(
-      buildWhen: (_, s) => s is CuentaLoading || s is HistorialCargado || s is CuentaError,
+      buildWhen: (_, s) =>
+          s is CuentaLoading || s is HistorialCargado || s is ResumenMensualCargado || s is CuentaError,
       builder: (context, state) {
         if (state is CuentaLoading) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF00B5C8)));
         }
         return Column(
           children: [
-            // Filtro
+            // Selector de mes
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    color: const Color(0xFF00B5C8),
+                    onPressed: onMesAnterior,
+                  ),
+                  Text(
+                    '${_nombresMes[mesSeleccionado.month - 1]} ${mesSeleccionado.year}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    color: puedeAvanzarMes ? const Color(0xFF00B5C8) : Colors.grey.shade300,
+                    onPressed: puedeAvanzarMes ? onMesSiguiente : null,
+                  ),
+                ],
+              ),
+            ),
+            if (resumenMensual != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                child: Row(
+                  children: [
+                    Expanded(child: _SaldoChip(
+                      label: 'Saldo inicial • Caja',
+                      icon: Icons.money,
+                      color: Colors.grey,
+                      monto: resumenMensual!.saldoInicialCaja,
+                      fmt: fmt,
+                    )),
+                    const SizedBox(width: 8),
+                    Expanded(child: _SaldoChip(
+                      label: 'Saldo inicial • Banco',
+                      icon: Icons.account_balance_outlined,
+                      color: Colors.grey,
+                      monto: resumenMensual!.saldoInicialBanco,
+                      fmt: fmt,
+                    )),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 8),
+            // Filtro
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
               child: Row(
                 children: [
                   Text('${ciudadSeleccionada!.nombreCiudad}  •',
@@ -419,6 +524,29 @@ class _HistorialTab extends StatelessWidget {
                             ? () => context.read<CuentaBloc>().add(EliminarTraspasoEvent(movimientos[i].id))
                             : null,
                   ),
+                ),
+              ),
+            if (resumenMensual != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+                child: Row(
+                  children: [
+                    Expanded(child: _SaldoChip(
+                      label: 'Saldo final • Caja',
+                      icon: Icons.money,
+                      color: const Color(0xFF00B5C8),
+                      monto: resumenMensual!.saldoFinalCaja,
+                      fmt: fmt,
+                    )),
+                    const SizedBox(width: 8),
+                    Expanded(child: _SaldoChip(
+                      label: 'Saldo final • Banco',
+                      icon: Icons.account_balance_outlined,
+                      color: const Color(0xFF8DC63F),
+                      monto: resumenMensual!.saldoFinalBanco,
+                      fmt: fmt,
+                    )),
+                  ],
                 ),
               ),
           ],

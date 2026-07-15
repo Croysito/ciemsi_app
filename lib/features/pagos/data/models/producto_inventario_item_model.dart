@@ -17,10 +17,10 @@ class ProductoInventarioItemModel extends ProductoInventarioItem {
       id: int.tryParse(json['id'].toString()) ?? 0,
       nombre: json['nombre']?.toString() ?? '',
       unidadMedida: json['unidad_medida']?.toString() ?? '',
-      saldo: int.tryParse(json['saldo'].toString()) ?? 0,
+      saldo: double.tryParse(json['saldo'].toString()) ?? 0,
       umbral: int.tryParse(json['umbral'].toString()) ?? 0,
-      totalCompras: int.tryParse(json['total_compras'].toString()) ?? 0,
-      totalVentas: int.tryParse(json['total_ventas'].toString()) ?? 0,
+      totalCompras: double.tryParse(json['total_compras'].toString()) ?? 0,
+      totalVentas: double.tryParse(json['total_ventas'].toString()) ?? 0,
       stockBajo: json['stock_bajo'] == true,
     );
   }

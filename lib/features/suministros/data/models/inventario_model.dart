@@ -27,9 +27,9 @@ class InventarioModel extends InventarioItem {
       umbral: int.tryParse(json['umbral'].toString()) ?? 5,
       ciudadId: int.tryParse(json['ciudad_id'].toString()) ?? 0,
       nombreCiudad: json['nombre_ciudad'],
-      totalCompras: int.tryParse(json['total_compras'].toString()) ?? 0,
-      totalSalidas: int.tryParse(json['total_salidas'].toString()) ?? 0,
-      saldo: int.tryParse(json['saldo'].toString()) ?? 0,
+      totalCompras: double.tryParse(json['total_compras'].toString()) ?? 0,
+      totalSalidas: double.tryParse(json['total_salidas'].toString()) ?? 0,
+      saldo: double.tryParse(json['saldo'].toString()) ?? 0,
       stockBajo: json['stock_bajo'] ?? false,
     );
   }

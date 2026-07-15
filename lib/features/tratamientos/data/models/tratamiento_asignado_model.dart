@@ -34,7 +34,7 @@ class TratamientoAsignadoModel extends TratamientoAsignado {
               umbral: 5,
               estado: true,
             ),
-            cantidad: s['cantidad'],
+            cantidad: double.tryParse(s['cantidad'].toString()) ?? 0,
             agregadoPor: s['agregadoPor'] ?? 'DOCTORA',
           ),
         )

@@ -37,6 +37,7 @@ class PerfilPacienteAsistente {
   final String? telefono;
   final DateTime? fechaNacimiento;
   final int? edad;
+  final String? genero;
 
   const PerfilPacienteAsistente({
     this.nombreCompleto,
@@ -44,6 +45,7 @@ class PerfilPacienteAsistente {
     this.telefono,
     this.fechaNacimiento,
     this.edad,
+    this.genero,
   });
 
   factory PerfilPacienteAsistente.fromJson(Map<String, dynamic> json) {
@@ -55,6 +57,7 @@ class PerfilPacienteAsistente {
           ? DateTime.tryParse(json['fechaNacimiento'] as String)
           : null,
       edad: json['edad'] as int?,
+      genero: json['genero'] as String?,
     );
   }
 }

@@ -81,6 +81,38 @@ class AsistenteRemoteDatasource {
     }
   }
 
+  Future<Map<String, bool>> obtenerPermisos(int id) async {
+    try {
+      final response = await apiClient.dio.get('/asistentes/$id/permisos');
+      return (response.data as Map).map(
+        (key, value) => MapEntry(key.toString(), value == true),
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['mensaje'] ?? 'Error al obtener permisos',
+      );
+    }
+  }
+
+  Future<Map<String, bool>> actualizarPermisos(
+    int id,
+    Map<String, bool> permisos,
+  ) async {
+    try {
+      final response = await apiClient.dio.put(
+        '/asistentes/$id/permisos',
+        data: {'permisos': permisos},
+      );
+      return (response.data as Map).map(
+        (key, value) => MapEntry(key.toString(), value == true),
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['mensaje'] ?? 'Error al actualizar permisos',
+      );
+    }
+  }
+
   Future<List<Ciudad>> listarCiudades() async {
     try {
       final response = await apiClient.dio.get('/ciudades');

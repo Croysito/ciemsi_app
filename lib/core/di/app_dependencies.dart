@@ -1,12 +1,14 @@
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/features/asistentes/data/datasources/asistente_remote_datasource.dart';
 import 'package:ciemsi_app/features/asistentes/data/repositories/asistente_repository_impl.dart';
+import 'package:ciemsi_app/features/asistentes/domain/usecases/actualizar_permisos_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/domain/usecases/cambiar_estado_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/domain/usecases/cambiar_password_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/domain/usecases/crear_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/domain/usecases/listar_asistentes.dart';
 import 'package:ciemsi_app/features/asistentes/domain/usecases/listar_ciudades_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/domain/usecases/modificar_asistente.dart';
+import 'package:ciemsi_app/features/asistentes/domain/usecases/obtener_permisos_asistente.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_bloc.dart';
 import 'package:ciemsi_app/features/citas/data/datasources/cita_remote_datasource.dart';
 import 'package:ciemsi_app/features/citas/data/repositories/cita_repository_impl.dart';
@@ -113,6 +115,8 @@ class AppDependencies {
         repository,
       ),
       listarCiudadesUseCase: ListarCiudadesAsistenteUseCase(repository),
+      obtenerPermisosUseCase: ObtenerPermisosAsistenteUseCase(repository),
+      actualizarPermisosUseCase: ActualizarPermisosAsistenteUseCase(repository),
     );
   }
 

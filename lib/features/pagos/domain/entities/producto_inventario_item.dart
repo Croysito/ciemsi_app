@@ -4,10 +4,10 @@ class ProductoInventarioItem extends Equatable {
   final int id;
   final String nombre;
   final String unidadMedida;
-  final int saldo;
+  final double saldo;
   final int umbral;
-  final int totalCompras;
-  final int totalVentas;
+  final double totalCompras;
+  final double totalVentas;
   final bool stockBajo;
 
   const ProductoInventarioItem({

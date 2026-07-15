@@ -58,6 +58,16 @@ class AsistenteRepositoryImpl implements AsistenteRepository {
       remoteDatasource.cambiarEstado(id, estado);
 
   @override
+  Future<Map<String, bool>> obtenerPermisos(int id) =>
+      remoteDatasource.obtenerPermisos(id);
+
+  @override
+  Future<Map<String, bool>> actualizarPermisos(
+    int id,
+    Map<String, bool> permisos,
+  ) => remoteDatasource.actualizarPermisos(id, permisos);
+
+  @override
   Future<void> cambiarPassword({
     required String passwordActual,
     required String passwordNuevo,

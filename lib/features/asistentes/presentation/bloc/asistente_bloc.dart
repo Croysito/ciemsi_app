@@ -1,10 +1,12 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../domain/usecases/actualizar_permisos_asistente.dart';
 import '../../domain/usecases/cambiar_estado_asistente.dart';
 import '../../domain/usecases/cambiar_password_asistente.dart';
 import '../../domain/usecases/crear_asistente.dart';
 import '../../domain/usecases/listar_asistentes.dart';
 import '../../domain/usecases/listar_ciudades_asistente.dart';
 import '../../domain/usecases/modificar_asistente.dart';
+import '../../domain/usecases/obtener_permisos_asistente.dart';
 import 'asistente_event.dart';
 import 'asistente_state.dart';
 
@@ -15,6 +17,8 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
   final CambiarEstadoAsistenteUseCase cambiarEstadoAsistenteUseCase;
   final CambiarPasswordAsistenteUseCase cambiarPasswordAsistenteUseCase;
   final ListarCiudadesAsistenteUseCase listarCiudadesUseCase;
+  final ObtenerPermisosAsistenteUseCase obtenerPermisosUseCase;
+  final ActualizarPermisosAsistenteUseCase actualizarPermisosUseCase;
 
   AsistenteBloc({
     required this.listarAsistentesUseCase,
@@ -23,6 +27,8 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
     required this.cambiarEstadoAsistenteUseCase,
     required this.cambiarPasswordAsistenteUseCase,
     required this.listarCiudadesUseCase,
+    required this.obtenerPermisosUseCase,
+    required this.actualizarPermisosUseCase,
   }) : super(AsistenteInitial()) {
     on<ListarAsistentesEvent>(_onListar);
     on<CargarCiudadesAsistenteEvent>(_onCargarCiudades);
@@ -30,6 +36,8 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
     on<ModificarAsistenteEvent>(_onModificar);
     on<CambiarEstadoAsistenteEvent>(_onCambiarEstado);
     on<CambiarPasswordEvent>(_onCambiarPassword);
+    on<CargarPermisosAsistenteEvent>(_onCargarPermisos);
+    on<ActualizarPermisosAsistenteEvent>(_onActualizarPermisos);
   }
 
   Future<void> _onCargarCiudades(
@@ -105,6 +113,33 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
     try {
       await cambiarEstadoAsistenteUseCase.execute(event.id, event.estado);
       emit(EstadoCambiado());
+    } catch (e) {
+      emit(AsistenteError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onCargarPermisos(
+    CargarPermisosAsistenteEvent event,
+    Emitter<AsistenteState> emit,
+  ) async {
+    try {
+      final permisos = await obtenerPermisosUseCase.execute(event.id);
+      emit(PermisosAsistenteCargados(permisos));
+    } catch (e) {
+      emit(AsistenteError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onActualizarPermisos(
+    ActualizarPermisosAsistenteEvent event,
+    Emitter<AsistenteState> emit,
+  ) async {
+    try {
+      final permisos = await actualizarPermisosUseCase.execute(
+        event.id,
+        event.permisos,
+      );
+      emit(PermisosAsistenteActualizados(permisos));
     } catch (e) {
       emit(AsistenteError(e.toString().replaceAll('Exception: ', '')));
     }

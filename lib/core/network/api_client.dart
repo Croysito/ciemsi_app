@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 class ApiClient {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.7:3000/api',
+    defaultValue: 'http://172.17.57.36:3000/api',
   );
 
   final Dio _dio;

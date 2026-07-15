@@ -366,7 +366,7 @@ class _DialogAgregarItemState extends State<_DialogAgregarItem> {
             const SizedBox(height: 12),
             TextField(
               controller: _cantidadController,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: 'Cantidad',
                 border: OutlineInputBorder(
@@ -470,7 +470,7 @@ class _DialogAgregarItemState extends State<_DialogAgregarItem> {
               'suministroId': _suministroSeleccionado!.id,
               'nombreSuministro': _suministroSeleccionado!.nombreSuministro,
               'tipo': _suministroSeleccionado!.tipo.name,
-              'cantidad': int.parse(_cantidadController.text),
+              'cantidad': double.parse(_cantidadController.text),
               'precioUnitario': double.parse(_precioCompraController.text),
               'fechaVencimiento': _fechaVencimiento != null
                   ? DateFormat('yyyy-MM-dd').format(_fechaVencimiento!)

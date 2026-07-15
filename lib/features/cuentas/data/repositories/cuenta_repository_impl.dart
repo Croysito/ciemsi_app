@@ -1,4 +1,5 @@
 import '../../domain/entities/resumen_cuenta.dart';
+import '../../domain/entities/resumen_mensual_cuenta.dart';
 import '../../domain/entities/historial_movimiento.dart';
 import '../datasources/cuenta_remote_datasource.dart';
 
@@ -20,6 +21,12 @@ class CuentaRepositoryImpl {
         fechaHasta: fechaHasta,
         tipo: tipo,
       );
+
+  Future<ResumenMensualCuenta> obtenerResumenMensual({
+    required int ciudadId,
+    required int anio,
+    required int mes,
+  }) => _ds.obtenerResumenMensual(ciudadId: ciudadId, anio: anio, mes: mes);
 
   Future<Map<String, double>> obtenerSaldoInicial(int ciudadId) =>
       _ds.obtenerSaldoInicial(ciudadId);

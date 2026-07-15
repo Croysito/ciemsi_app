@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/resumen_cuenta.dart';
+import '../../domain/entities/resumen_mensual_cuenta.dart';
 import '../../domain/entities/historial_movimiento.dart';
 
 abstract class CuentaState extends Equatable {
@@ -24,6 +25,13 @@ class HistorialCargado extends CuentaState {
   const HistorialCargado(this.movimientos);
   @override
   List<Object?> get props => [movimientos];
+}
+
+class ResumenMensualCargado extends CuentaState {
+  final ResumenMensualCuenta resumen;
+  const ResumenMensualCargado(this.resumen);
+  @override
+  List<Object?> get props => [resumen];
 }
 
 class SaldoInicialCargado extends CuentaState {

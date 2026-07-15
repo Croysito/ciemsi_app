@@ -4,6 +4,7 @@ import 'package:ciemsi_app/features/asistentes/domain/entities/asistente.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_bloc.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_event.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/bloc/asistente_state.dart';
+import 'package:ciemsi_app/features/asistentes/domain/entities/modulo_asistente.dart';
 import 'package:ciemsi_app/features/pacientes/domain/entities/ciudad.dart';
 
 class ModificarAsistentePage extends StatefulWidget {
@@ -20,6 +21,9 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
   final _emailController = TextEditingController();
   Ciudad? _ciudadSeleccionada;
   List<Ciudad> _ciudades = [];
+  Map<String, bool> _permisos = {
+    for (final modulo in ModuloAsistente.todos) modulo.clave: false,
+  };
 
   @override
   void initState() {
@@ -28,6 +32,9 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
     _apellidoController.text = widget.asistente.apellido;
     _emailController.text = widget.asistente.email;
     context.read<AsistenteBloc>().add(CargarCiudadesAsistenteEvent());
+    context.read<AsistenteBloc>().add(
+      CargarPermisosAsistenteEvent(id: widget.asistente.id),
+    );
   }
 
   @override
@@ -65,6 +72,9 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
                 }
               }
             });
+          }
+          if (state is PermisosAsistenteCargados) {
+            setState(() => _permisos = {..._permisos, ...state.permisos});
           }
           if (state is AsistenteModificado) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -130,6 +140,39 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Módulos habilitados',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Column(
+                  children: ModuloAsistente.todos
+                      .map(
+                        (modulo) => CheckboxListTile(
+                          title: Text(modulo.etiqueta),
+                          value: _permisos[modulo.clave] ?? false,
+                          activeColor: const Color(0xFF00B5C8),
+                          onChanged: (value) => setState(
+                            () => _permisos[modulo.clave] = value ?? false,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
               const SizedBox(height: 32),
 
               BlocBuilder<AsistenteBloc, AsistenteState>(
@@ -162,6 +205,12 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
                                   apellido: _apellidoController.text.trim(),
                                   email: _emailController.text.trim(),
                                   ciudadId: _ciudadSeleccionada!.id,
+                                ),
+                              );
+                              context.read<AsistenteBloc>().add(
+                                ActualizarPermisosAsistenteEvent(
+                                  id: widget.asistente.id,
+                                  permisos: _permisos,
                                 ),
                               );
                             },

@@ -25,6 +25,13 @@ abstract class AsistenteRepository {
 
   Future<void> cambiarEstado(int id, bool estado);
 
+  Future<Map<String, bool>> obtenerPermisos(int id);
+
+  Future<Map<String, bool>> actualizarPermisos(
+    int id,
+    Map<String, bool> permisos,
+  );
+
   Future<void> cambiarPassword({
     required String passwordActual,
     required String passwordNuevo,

@@ -39,6 +39,8 @@ class HomeDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDoctora = usuario.rol == 'Doctora';
+    bool puedeVer(String modulo) =>
+        isDoctora || (usuario.permisos[modulo] ?? false);
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -89,7 +91,7 @@ class HomeDrawer extends StatelessWidget {
               );
             },
           ),
-          if (isDoctora) ...[
+          if (puedeVer('servicios'))
             _drawerTile(
               icon: Icons.medical_services_outlined,
               color: const Color(0xFF00B5C8),
@@ -108,6 +110,7 @@ class HomeDrawer extends StatelessWidget {
                 );
               },
             ),
+          if (isDoctora)
             _drawerTile(
               icon: Icons.badge_outlined,
               color: const Color(0xFF8DC63F),
@@ -125,6 +128,7 @@ class HomeDrawer extends StatelessWidget {
                 );
               },
             ),
+          if (puedeVer('suministros'))
             _drawerTile(
               icon: Icons.medication_outlined,
               color: const Color(0xFF00B5C8),
@@ -143,6 +147,7 @@ class HomeDrawer extends StatelessWidget {
                 );
               },
             ),
+          if (puedeVer('tratamientos'))
             _drawerTile(
               icon: Icons.healing_outlined,
               color: Colors.purple,
@@ -161,6 +166,7 @@ class HomeDrawer extends StatelessWidget {
                 );
               },
             ),
+          if (puedeVer('productos'))
             _drawerTile(
               icon: Icons.inventory_2_outlined,
               color: const Color(0xFF8DC63F),
@@ -174,6 +180,7 @@ class HomeDrawer extends StatelessWidget {
                 );
               },
             ),
+          if (puedeVer('compras'))
             _drawerTile(
               icon: Icons.add_shopping_cart_outlined,
               color: const Color(0xFF00B5C8),
@@ -192,6 +199,7 @@ class HomeDrawer extends StatelessWidget {
                 );
               },
             ),
+          if (puedeVer('qr_pago'))
             _drawerTile(
               icon: Icons.qr_code_2_outlined,
               color: const Color(0xFF8DC63F),
@@ -210,7 +218,6 @@ class HomeDrawer extends StatelessWidget {
                 );
               },
             ),
-          ],
           _drawerTile(
             icon: Icons.swap_horiz,
             color: const Color(0xFF00B5C8),
@@ -270,7 +277,7 @@ class HomeDrawer extends StatelessWidget {
               );
             },
           ),
-          if (isDoctora)
+          if (puedeVer('cuentas'))
             _drawerTile(
               icon: Icons.account_balance_wallet_outlined,
               color: const Color(0xFF00B5C8),

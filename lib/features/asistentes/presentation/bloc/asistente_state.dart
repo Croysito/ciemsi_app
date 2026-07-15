@@ -42,6 +42,22 @@ class CiudadesAsistenteCargadas extends AsistenteState {
   List<Object?> get props => [ciudades];
 }
 
+class PermisosAsistenteCargados extends AsistenteState {
+  final Map<String, bool> permisos;
+  PermisosAsistenteCargados(this.permisos);
+
+  @override
+  List<Object?> get props => [permisos];
+}
+
+class PermisosAsistenteActualizados extends AsistenteState {
+  final Map<String, bool> permisos;
+  PermisosAsistenteActualizados(this.permisos);
+
+  @override
+  List<Object?> get props => [permisos];
+}
+
 class AsistenteError extends AsistenteState {
   final String mensaje;
   AsistenteError(this.mensaje);

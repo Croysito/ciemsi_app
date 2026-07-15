@@ -5,7 +5,7 @@ class AsignadoSuministro extends Equatable {
   final int id;
   final int tratamientoAsignadoId;
   final Suministro suministro;
-  final int cantidad;
+  final double cantidad;
   final String agregadoPor;
 
   const AsignadoSuministro({

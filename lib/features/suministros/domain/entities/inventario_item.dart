@@ -9,9 +9,9 @@ class InventarioItem extends Equatable {
   final int umbral;
   final int ciudadId;
   final String nombreCiudad;
-  final int totalCompras;
-  final int totalSalidas;
-  final int saldo;
+  final double totalCompras;
+  final double totalSalidas;
+  final double saldo;
   final bool stockBajo;
 
   const InventarioItem({

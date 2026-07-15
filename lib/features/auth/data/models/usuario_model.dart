@@ -10,6 +10,7 @@ class UsuarioModel extends Usuario {
     required super.email,
     required super.rol,
     super.ciudad,
+    super.permisos,
   });
 
   factory UsuarioModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +26,13 @@ class UsuarioModel extends Usuario {
       ciudad = CiudadModel.fromJson(json['ciudad']);
     }
 
+    Map<String, bool> permisos = const {};
+    if (json['permisos'] is Map) {
+      permisos = (json['permisos'] as Map).map(
+        (key, value) => MapEntry(key.toString(), value == true),
+      );
+    }
+
     return UsuarioModel(
       id: json['id'],
       nombre: json['nombre'],
@@ -32,6 +40,7 @@ class UsuarioModel extends Usuario {
       email: json['email'],
       rol: rolNombre,
       ciudad: ciudad,
+      permisos: permisos,
     );
   }
 
@@ -44,5 +53,6 @@ class UsuarioModel extends Usuario {
     'ciudad': ciudad != null
         ? {'id': ciudad!.id, 'nombreCiudad': ciudad!.nombreCiudad}
         : null,
+    'permisos': permisos,
   };
 }

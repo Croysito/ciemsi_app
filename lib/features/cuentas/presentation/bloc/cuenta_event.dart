@@ -28,6 +28,19 @@ class CargarHistorialEvent extends CuentaEvent {
   List<Object?> get props => [ciudadId, fechaDesde, fechaHasta, tipo];
 }
 
+class CargarResumenMensualEvent extends CuentaEvent {
+  final int ciudadId;
+  final int anio;
+  final int mes;
+  const CargarResumenMensualEvent({
+    required this.ciudadId,
+    required this.anio,
+    required this.mes,
+  });
+  @override
+  List<Object?> get props => [ciudadId, anio, mes];
+}
+
 class CargarSaldoInicialEvent extends CuentaEvent {
   final int ciudadId;
   const CargarSaldoInicialEvent(this.ciudadId);

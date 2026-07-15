@@ -1,28 +1,51 @@
+import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../bloc/asistente_bloc.dart';
 import '../bloc/asistente_event.dart';
 import '../bloc/asistente_state.dart';
 
-enum _RespuestaTipo { texto, multiple, unica, escala, frecuencia, zonaCuerpo }
+enum _RespuestaTipo { texto, numero, fecha, hora, unica, multiple }
+
+bool _esSi(String respuesta) {
+  final normalizada = respuesta.trim().toLowerCase();
+  return normalizada == 'sí' || normalizada == 'si';
+}
+
+bool _noEsNinguno(String respuesta) =>
+    !respuesta.trim().toLowerCase().startsWith('ninguno');
 
 class _PreguntaClinica {
+  final String id;
   final String modulo;
   final String pregunta;
   final _RespuestaTipo tipo;
   final List<String> opciones;
   final String? ayuda;
   final IconData icono;
+  final bool multilinea;
+  final bool ocultarSiMasculino;
+  final bool soloMasculino;
+  final String? dependeDeId;
+  final bool Function(String respuesta)? mostrarSi;
 
   const _PreguntaClinica({
+    required this.id,
     required this.modulo,
     required this.pregunta,
     required this.tipo,
     this.opciones = const [],
     this.ayuda,
     this.icono = Icons.medical_information_outlined,
+    this.multilinea = false,
+    this.ocultarSiMasculino = false,
+    this.soloMasculino = false,
+    this.dependeDeId,
+    this.mostrarSi,
   });
 }
 
@@ -39,16 +62,19 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
   final _scrollController = ScrollController();
 
   int _preguntaActual = 0;
-  double _valorEscala = 5;
   bool _flujoCompletado = false;
   bool _debeScrollChat = false;
   bool _saludoEnviado = false;
   bool _mostrarFormulario = false;
   bool? _esNuevo; // null = cargando
-  final Set<int> _indicesSaltados = {};
+  String? _generoPaciente; // 'M', 'F' o null
+  final Set<String> _idsAutoCompletados = {};
+  final Map<String, String> _respuestasPorId = {};
   final List<String> _respuestasAcumuladas = [];
   final List<String> _resumenRespuestas = [];
   final Set<String> _seleccionMultiple = {};
+  DateTime? _fechaSeleccionada;
+  TimeOfDay? _horaSeleccionada;
   bool _borradorRestaurado = false;
   bool _perfilPrecargado = false;
 
@@ -56,465 +82,758 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
   static const _borradorCompletadoKey = 'asistente_borrador_completado';
   static const _borradorPendientesKey = 'asistente_borrador_pendientes';
   static const _borradorResumenKey = 'asistente_borrador_resumen';
+  static const _borradorRespuestasKey = 'asistente_borrador_respuestas';
 
   // TTS
   final AudioPlayer _audioPlayer = AudioPlayer();
   String? _textoReproduciendo;
   int _ttsVersion = 0;
-
-  static const _frecuencias = ['Nunca', '1-2/semana', '3-5/semana', 'Diario'];
-
-  static const _zonasCuerpo = [
-    'Cabeza',
-    'Pecho',
-    'Abdomen',
-    'Espalda',
-    'Pelvis',
-    'Brazo/mano',
-    'Pierna/pie',
-    'Todo el cuerpo',
-  ];
+  bool _modoAudible = true;
+  static const _modoAudibleKey = 'asistente_modo_audible';
 
   static const _preguntas = [
+    // BLOQUE 1: DATOS PERSONALES E IDENTIFICACION
     _PreguntaClinica(
-      modulo: 'Identificacion',
-      pregunta: 'Nombre completo',
+      id: 'Q1',
+      modulo: 'Bloque 1: Datos personales e identificación',
+      pregunta: 'Nombres y Apellidos Completos',
       tipo: _RespuestaTipo.texto,
       icono: Icons.badge_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Identificacion',
-      pregunta: 'Edad',
-      tipo: _RespuestaTipo.unica,
-      opciones: ['Menos de 18', '18 a 29', '30 a 44', '45 a 59', '60 o mas'],
+      id: 'Q2',
+      modulo: 'Bloque 1: Datos personales e identificación',
+      pregunta: 'Edad (años cumplidos)',
+      tipo: _RespuestaTipo.numero,
       icono: Icons.cake_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Identificacion',
-      pregunta: 'Fecha de nacimiento',
-      tipo: _RespuestaTipo.texto,
-      ayuda: 'Puedes escribirla como dia/mes/anio.',
+      id: 'Q3',
+      modulo: 'Bloque 1: Datos personales e identificación',
+      pregunta: 'Fecha de Nacimiento',
+      tipo: _RespuestaTipo.fecha,
       icono: Icons.event_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Identificacion',
-      pregunta: 'Lugar de nacimiento',
+      id: 'Q4',
+      modulo: 'Bloque 1: Datos personales e identificación',
+      pregunta: 'Lugar de Nacimiento (Ciudad, Departamento/Estado, País)',
       tipo: _RespuestaTipo.texto,
       icono: Icons.place_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Identificacion',
-      pregunta: 'Lugares donde ha vivido',
+      id: 'Q5',
+      modulo: 'Bloque 1: Datos personales e identificación',
+      pregunta: 'Lugares de residencia anteriores',
       tipo: _RespuestaTipo.texto,
-      ayuda: 'Incluye ciudad o zona y tiempo aproximado si lo recuerdas.',
+      multilinea: true,
+      ayuda:
+          'Mencione las ciudades o países donde ha vivido por más de 6 meses.',
       icono: Icons.map_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Identificacion',
-      pregunta: 'Numero de celular',
+      id: 'Q6',
+      modulo: 'Bloque 1: Datos personales e identificación',
+      pregunta: 'Dirección de domicilio actual',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      ayuda: 'Incluya zona o barrio, ciudad y país.',
+      icono: Icons.home_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q7',
+      modulo: 'Bloque 1: Datos personales e identificación',
+      pregunta: 'Teléfono celular de contacto',
       tipo: _RespuestaTipo.texto,
       icono: Icons.phone_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Identificacion',
-      pregunta: 'Contacto de tutor o persona de confianza',
+      id: 'Q8',
+      modulo: 'Bloque 1: Datos personales e identificación',
+      pregunta: 'Teléfono celular de un familiar o contacto de emergencia',
       tipo: _RespuestaTipo.texto,
+      ayuda: 'Obligatorio si es menor de edad o adulto mayor.',
       icono: Icons.contact_phone_outlined,
     ),
+
+    // BLOQUE 2: ANTECEDENTES MEDICOS Y QUIRURGICOS
     _PreguntaClinica(
-      modulo: 'Semiologia actual',
-      pregunta:
-          'Cual es el principal problema o sintoma por el que busca ayuda hoy?',
-      tipo: _RespuestaTipo.texto,
-      icono: Icons.help_outline,
-    ),
-    _PreguntaClinica(
-      modulo: 'Semiologia actual',
-      pregunta: 'Desde cuando comenzo?',
+      id: 'Q10',
+      modulo: 'Bloque 2: Antecedentes médicos y quirúrgicos',
+      pregunta: '¿Tiene antecedentes de cirugías (operaciones quirúrgicas)?',
       tipo: _RespuestaTipo.unica,
-      opciones: [
-        'Hoy',
-        'Hace unos dias',
-        'Hace semanas',
-        'Hace meses',
-        'Hace anos',
-        'No recuerdo',
-      ],
-      icono: Icons.schedule_outlined,
+      opciones: ['Sí', 'No'],
+      icono: Icons.local_hospital_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Semiologia actual',
-      pregunta: 'Donde siente el problema?',
-      tipo: _RespuestaTipo.zonaCuerpo,
-      icono: Icons.accessibility_new_outlined,
+      id: 'Q11',
+      modulo: 'Bloque 2: Antecedentes médicos y quirúrgicos',
+      pregunta: 'Detalle sus cirugías',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      ayuda:
+          'Qué le operaron, en qué año aproximado y si hubo alguna complicación.',
+      icono: Icons.healing_outlined,
+      dependeDeId: 'Q10',
+      mostrarSi: _esSi,
     ),
     _PreguntaClinica(
-      modulo: 'Semiologia actual',
-      pregunta: 'Que intensidad tiene de 0 a 10?',
-      tipo: _RespuestaTipo.escala,
-      ayuda: '0 es sin molestia y 10 es la mayor intensidad imaginable.',
-      icono: Icons.speed_outlined,
+      id: 'Q12',
+      modulo: 'Bloque 2: Antecedentes médicos y quirúrgicos',
+      pregunta:
+          '¿Ha padecido alguna enfermedad que requiriera tratamiento médico continuo por una semana o más?',
+      tipo: _RespuestaTipo.unica,
+      opciones: ['Sí', 'No'],
+      icono: Icons.assignment_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Semiologia actual',
-      pregunta: 'Que empeora el sintoma?',
+      id: 'Q13',
+      modulo: 'Bloque 2: Antecedentes médicos y quirúrgicos',
+      pregunta: 'Detalle de enfermedades anteriores',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      ayuda:
+          'Nombre de la enfermedad, medicamentos que tomó y por cuánto tiempo.',
+      icono: Icons.medical_information_outlined,
+      dependeDeId: 'Q12',
+      mostrarSi: _esSi,
+    ),
+    _PreguntaClinica(
+      id: 'Q14',
+      modulo: 'Bloque 2: Antecedentes médicos y quirúrgicos',
+      pregunta: '¿Ha sido hospitalizado alguna vez?',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      ayuda:
+          "Si es así, indique brevemente la causa y el año. De lo contrario, escriba 'No'.",
+      icono: Icons.local_hospital_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q15',
+      modulo: 'Bloque 2: Antecedentes médicos y quirúrgicos',
+      pregunta: '¿Ha recibido transfusiones de sangre en el pasado?',
+      tipo: _RespuestaTipo.unica,
+      opciones: ['Sí', 'No', 'No lo sé'],
+      icono: Icons.bloodtype_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q16',
+      modulo: 'Bloque 2: Antecedentes médicos y quirúrgicos',
+      pregunta: '¿Tiene alergias conocidas?',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      ayuda:
+          "Medicamentos, alimentos, sustancias, insectos, etc. Indicar 'Ninguna' si no presenta.",
+      icono: Icons.warning_amber_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q17',
+      modulo: 'Bloque 2: Antecedentes médicos y quirúrgicos',
+      pregunta:
+          '¿Toma algún medicamento, suplemento o hierba medicinal de forma regular actualmente?',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      ayuda:
+          "Indique nombre y dosis si los recuerda. De lo contrario, escriba 'Ninguno'.",
+      icono: Icons.medication_outlined,
+    ),
+
+    // BLOQUE 3: ESTILO DE VIDA Y HABITOS DE SALUD
+    _PreguntaClinica(
+      id: 'Q18',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta:
+          '¿En su entorno laboral o actividades diarias, está expuesto regularmente a alguno de los siguientes factores?',
       tipo: _RespuestaTipo.multiple,
       opciones: [
-        'Movimiento',
-        'Comer',
-        'Ayuno',
-        'Estres',
-        'Frio',
-        'Calor',
-        'Noche',
-        'Trabajo',
-        'Ejercicio',
-        'Nada claro',
-        'Otro',
-      ],
-      icono: Icons.trending_up_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Semiologia actual',
-      pregunta: 'Que mejora el sintoma?',
-      tipo: _RespuestaTipo.multiple,
-      opciones: [
-        'Reposo',
-        'Dormir',
-        'Comer',
-        'Tomar agua',
-        'Calor local',
-        'Frio local',
-        'Medicamento',
-        'Respirar/relajarse',
-        'Nada claro',
-        'Otro',
-      ],
-      icono: Icons.trending_down_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Semiologia actual',
-      pregunta: 'Que otros sintomas acompanan?',
-      tipo: _RespuestaTipo.multiple,
-      opciones: [
-        'Dolor',
-        'Fatiga',
-        'Mareos',
-        'Ansiedad',
-        'Insomnio',
-        'Nauseas',
-        'Falta de aire',
-        'Palpitaciones',
-        'Hormigueos',
-        'Inflamacion',
-        'Debilidad',
-        'Fiebre',
-        'Ninguno',
-        'Otros',
-      ],
-      icono: Icons.checklist_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Semiologia actual',
-      pregunta: 'Que cree usted que le esta enfermando?',
-      tipo: _RespuestaTipo.multiple,
-      opciones: [
-        'Alimentacion',
-        'Estres',
-        'Trabajo',
-        'Familia',
-        'Infeccion',
-        'Clima/ambiente',
-        'Medicamentos',
-        'Emociones',
-        'No sabe',
-        'Otro',
-      ],
-      ayuda: 'Puede ser algo fisico, emocional, laboral, familiar o ambiental.',
-      icono: Icons.psychology_alt_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Exposicion laboral y ambiental',
-      pregunta: 'En sus trabajos estuvo expuesto a:',
-      tipo: _RespuestaTipo.multiple,
-      opciones: [
-        'Alzar mucho peso',
-        'Radiacion',
-        'Quimicos',
-        'Fumigacion',
-        'Frio extremo',
+        'Sedentarismo (pasar mucho tiempo sentado)',
+        'Cargar objetos pesados',
+        'Estrés excesivo',
         'Calor extremo',
-        'Cambios de temperatura',
-        'Ruidos continuos o intensos',
-        'Polvos',
-        'Humedad',
-        'Sedentarismo',
-        'Agua contaminada',
-        'Golpes',
-        'Ninguno',
+        'Frío extremo',
+        'Cambios bruscos de temperatura',
+        'Humos, polvos o vapores',
+        'Sustancias químicas',
+        'Riesgo de golpes o caídas',
+        'Ninguno de los anteriores',
       ],
       icono: Icons.factory_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Antecedentes medicos',
-      pregunta: 'De que le operaron?',
-      tipo: _RespuestaTipo.multiple,
-      opciones: [
-        'No me operaron',
-        'Apendice',
-        'Vesicula',
-        'Cesarea',
-        'Hernia',
-        'Amigdalas',
-        'Traumatologia',
-        'Otra',
-      ],
-      icono: Icons.local_hospital_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Antecedentes medicos',
-      pregunta: 'Que enfermedades le diagnosticaron antes?',
-      tipo: _RespuestaTipo.multiple,
-      opciones: [
-        'Presion alta',
-        'Diabetes',
-        'Trigliceridos o colesterol elevados',
-        'Sobrepeso u obesidad',
-        'Desnutricion',
-        'Tuberculosis',
-        'Neumonia',
-        'Gastritis',
-        'Hipotiroidismo',
-        'Asma',
-        'Enfermedad renal',
-        'Higado graso',
-        'Ansiedad o depresion',
-        'Ninguna',
-        'Otra',
-      ],
-      icono: Icons.assignment_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Antecedentes medicos',
-      pregunta: 'Que tratamiento realizo y por cuanto tiempo?',
-      tipo: _RespuestaTipo.texto,
-      icono: Icons.healing_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Antecedentes medicos',
-      pregunta: 'Que medicamentos toma actualmente?',
-      tipo: _RespuestaTipo.multiple,
-      opciones: [
-        'Ninguno',
-        'Presion',
-        'Diabetes',
-        'Dolor',
-        'Antibiotico',
-        'Antialergico',
-        'Anticonceptivo',
-        'Vitaminas/suplementos',
-        'Otro',
-      ],
-      icono: Icons.medication_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Antecedentes medicos',
-      pregunta: 'Recibio transfusion de sangre?',
+      id: 'Q19',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta: '¿En promedio, cuántas veces orina durante el día?',
       tipo: _RespuestaTipo.unica,
-      opciones: ['Si', 'No', 'No recuerdo'],
-      icono: Icons.bloodtype_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Antecedentes medicos',
-      pregunta: 'A que tiene alergias?',
-      tipo: _RespuestaTipo.multiple,
-      opciones: [
-        'Ninguna conocida',
-        'Medicamentos',
-        'Alimentos',
-        'Polvo',
-        'Polen',
-        'Animales',
-        'Latex',
-        'Otro',
-      ],
-      icono: Icons.warning_amber_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Fisiologia y homeostasis',
-      pregunta: 'Ayer, cuantas veces orino?',
-      tipo: _RespuestaTipo.unica,
-      opciones: ['Menos de 3', '3 a 5', '6 a 8', 'Mas de 8'],
+      opciones: ['Menos de 4 veces', 'De 4 a 7 veces', 'Más de 7 veces'],
       icono: Icons.water_drop_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Fisiologia y homeostasis',
-      pregunta: 'Evacuaciones',
+      id: 'Q20',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta: '¿Cuál es su frecuencia habitual de evacuación intestinal?',
       tipo: _RespuestaTipo.unica,
       opciones: [
-        'Menos de 1 vez por dia',
-        '1 vez por dia',
-        '2 a 4 veces por dia',
-        'Mas de 5 veces por dia',
+        'Más de 3 veces al día',
+        '1 a 2 veces al día',
+        'Día por medio (cada 48 horas)',
+        '2 veces por semana o menos',
       ],
       icono: Icons.monitor_heart_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Fisiologia y homeostasis',
-      pregunta: 'Ayer, aproximadamente cuanta agua tomo?',
+      id: 'Q21',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta: '¿Qué cantidad de agua pura consume al día?',
       tipo: _RespuestaTipo.unica,
       opciones: [
-        'Menos de 500 ml',
-        '500 ml a 1 litro',
-        '1 a 2 litros',
-        'Mas de 2 litros',
+        'Menos de 500 ml (menos de 2 vasos)',
+        'Entre 500 ml y 1 litro (2 a 4 vasos)',
+        'Entre 1 y 2 litros (4 a 8 vasos)',
+        'Más de 2 litros (más de 8 vasos)',
       ],
+      ayuda: 'No cuente mates, cafés, jugos ni refrescos.',
       icono: Icons.local_drink_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Fisiologia y homeostasis',
-      pregunta: 'A que hora duerme?',
-      tipo: _RespuestaTipo.unica,
-      opciones: [
-        'Antes de 21:00',
-        '21:00 a 22:00',
-        '22:00 a 23:00',
-        '23:00 a 00:00',
-        'Despues de medianoche',
-        'Variable',
-      ],
+      id: 'Q22',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta: 'Hora habitual en la que se acuesta a dormir',
+      tipo: _RespuestaTipo.hora,
       icono: Icons.bedtime_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Fisiologia y homeostasis',
-      pregunta: 'A que hora despierta?',
-      tipo: _RespuestaTipo.unica,
-      opciones: [
-        'Antes de 5:00',
-        '5:00 a 6:00',
-        '6:00 a 7:00',
-        '7:00 a 8:00',
-        'Despues de 8:00',
-        'Variable',
-      ],
+      id: 'Q23',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta: 'Hora habitual en la que se despierta',
+      tipo: _RespuestaTipo.hora,
       icono: Icons.wb_sunny_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Fisiologia y homeostasis',
-      pregunta: 'Se levanta frecuentemente por la noche?',
-      tipo: _RespuestaTipo.unica,
-      opciones: ['Nunca', '1 vez', '2 a 3 veces', 'Mas de 4 veces'],
+      id: 'Q24',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta: '¿Presenta alguna dificultad con su sueño?',
+      tipo: _RespuestaTipo.multiple,
+      opciones: [
+        'No, duermo bien y descanso',
+        'Dificultad para conciliar el sueño (insomnio)',
+        'Me despierto varias veces en la noche',
+        'Despertar muy temprano y no poder volver a dormir',
+        'Ronquidos fuertes o pausas respiratorias',
+        'Pesadillas o sudoración nocturna',
+      ],
       icono: Icons.nightlight_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Nutricion inteligente',
-      pregunta: 'Con que frecuencia consume alimentos inflamatorios?',
-      tipo: _RespuestaTipo.frecuencia,
-      icono: Icons.restaurant_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Nutricion inteligente',
-      pregunta: 'Con que frecuencia consume ultraprocesados?',
-      tipo: _RespuestaTipo.frecuencia,
-      icono: Icons.fastfood_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Nutricion inteligente',
-      pregunta: 'Con que frecuencia consume estimulantes?',
-      tipo: _RespuestaTipo.frecuencia,
-      ayuda: 'Cafe, energizantes u otros estimulantes.',
-      icono: Icons.coffee_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Nutricion inteligente',
-      pregunta: 'Con que frecuencia consume lacteos?',
-      tipo: _RespuestaTipo.frecuencia,
-      icono: Icons.icecream_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Nutricion inteligente',
-      pregunta: 'Con que frecuencia consume embutidos?',
-      tipo: _RespuestaTipo.frecuencia,
-      icono: Icons.set_meal_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Nutricion inteligente',
-      pregunta: 'Con que frecuencia consume alcohol?',
-      tipo: _RespuestaTipo.frecuencia,
-      icono: Icons.wine_bar_outlined,
-    ),
-    _PreguntaClinica(
-      modulo: 'Bloque espiritual y emocional',
-      pregunta: 'Lee la Biblia?',
+      id: 'Q25',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta:
+          '¿Con qué frecuencia realiza actividad física o ejercicio (mínimo 30 minutos)?',
       tipo: _RespuestaTipo.unica,
-      opciones: ['Nunca', 'Ocasionalmente', 'Frecuentemente', 'Diario'],
+      opciones: [
+        'Nunca / Sedentario',
+        'Rara vez (menos de 1 vez por semana)',
+        '1 a 2 veces por semana',
+        '3 o más veces por semana',
+      ],
+      icono: Icons.directions_run_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q26',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta:
+          '¿Con qué frecuencia toma baños de sol directos sobre la piel durante 10 a 15 minutos?',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Nunca o casi nunca',
+        '1 a 2 veces por semana',
+        '3 o más veces por semana',
+        'Todos los días',
+      ],
+      ayuda: 'Brazos o piernas, no solo la cara.',
+      icono: Icons.wb_sunny_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q27',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta:
+          '¿Con qué frecuencia pasa tiempo en espacios naturales abiertos?',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Nunca o casi nunca',
+        'Rara vez (una vez al mes)',
+        'Ocasionalmente (una vez por semana)',
+        'Frecuentemente (varias veces por semana o vive en el campo)',
+      ],
+      ayuda: 'Campo, parques grandes con árboles.',
+      icono: Icons.park_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q28',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta:
+          '¿Con qué frecuencia realiza prácticas espirituales, de oración o lectura meditativa?',
+      tipo: _RespuestaTipo.unica,
+      opciones: ['Diariamente', 'Varias veces por semana', 'Ocasionalmente', 'Nunca'],
       icono: Icons.menu_book_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Bloque espiritual y emocional',
-      pregunta: 'Habla directamente con Dios?',
+      id: 'Q29',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta: '¿Con qué frecuencia consume tabaco (fuma)?',
       tipo: _RespuestaTipo.unica,
-      opciones: ['Nunca', 'A veces', 'Frecuentemente', 'Diario'],
-      icono: Icons.volunteer_activism_outlined,
+      opciones: [
+        'Nunca (No consumo)',
+        'Consumía en el pasado pero ya no',
+        'Ocasionalmente (Eventos sociales)',
+        'Frecuentemente (Diario o varias veces por semana)',
+      ],
+      icono: Icons.smoking_rooms_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Bloque espiritual y emocional',
-      pregunta: 'Como describiria su nivel de estres?',
+      id: 'Q30',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta: '¿Con qué frecuencia ingiere bebidas alcohólicas?',
       tipo: _RespuestaTipo.unica,
-      opciones: ['Muy bajo', 'Bajo', 'Moderado', 'Alto', 'Muy alto'],
-      icono: Icons.self_improvement_outlined,
+      opciones: [
+        'Nunca (No consumo)',
+        'Consumía en el pasado pero ya no',
+        'Ocasionalmente (Eventos sociales)',
+        'Frecuentemente (Diario o varias veces por semana)',
+      ],
+      icono: Icons.wine_bar_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Bloque familiar',
-      pregunta: 'Familiares vivos y enfermedades importantes',
+      id: 'Q31',
+      modulo: 'Bloque 3: Estilo de vida y hábitos de salud',
+      pregunta:
+          '¿Con qué frecuencia consume otro tipo de sustancias o drogas no recetadas?',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Nunca (No consumo)',
+        'Consumía en el pasado pero ya no',
+        'Ocasionalmente',
+        'Frecuentemente',
+      ],
+      icono: Icons.medication_liquid_outlined,
+    ),
+
+    // BLOQUE 4: ALIMENTACION Y NUTRICION
+    _PreguntaClinica(
+      id: 'Q32',
+      modulo: 'Bloque 4: Alimentación y nutrición',
+      pregunta:
+          'Marque los alimentos o productos que consume con regularidad en su dieta semanal',
+      tipo: _RespuestaTipo.multiple,
+      opciones: [
+        'Té o té verde',
+        'Café',
+        'Chocolate / Cocoa / Toddy',
+        'Leche de vaca',
+        'Queso',
+        'Yogurt',
+        'Mantequilla',
+        'Embutidos (salchichas, mortadela, carnes frías)',
+        'Gaseosas o jugos envasados',
+        'Galletas, masitas o golosinas',
+        'Alimentos ultraprocesados / empaquetados',
+        'Menudencias (hígado, panza, etc.)',
+        'Ninguno de los anteriores',
+      ],
+      icono: Icons.restaurant_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q33',
+      modulo: 'Bloque 4: Alimentación y nutrición',
+      pregunta:
+          'Describa detalladamente los alimentos que incluyó en su último Desayuno',
       tipo: _RespuestaTipo.texto,
-      ayuda:
-          'Incluye enfermedades metabolicas, cancer, autoinmunes o neurologicas.',
+      multilinea: true,
+      icono: Icons.free_breakfast_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q34',
+      modulo: 'Bloque 4: Alimentación y nutrición',
+      pregunta:
+          'Describa detalladamente los alimentos que incluyó en su último Almuerzo',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      icono: Icons.lunch_dining_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q35',
+      modulo: 'Bloque 4: Alimentación y nutrición',
+      pregunta:
+          'Describa detalladamente los alimentos que incluyó en su última Cena',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      icono: Icons.dinner_dining_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q36',
+      modulo: 'Bloque 4: Alimentación y nutrición',
+      pregunta:
+          '¿Qué suele consumir a media mañana y/o media tarde (meriendas)?',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      icono: Icons.icecream_outlined,
+    ),
+
+    // BLOQUE 5: ANTECEDENTES FAMILIARES
+    _PreguntaClinica(
+      id: 'Q37',
+      modulo: 'Bloque 5: Antecedentes familiares',
+      pregunta:
+          'Seleccione si algún familiar directo (primer grado) ha fallecido o padece alguna enfermedad crónica relevante',
+      tipo: _RespuestaTipo.multiple,
+      opciones: ['Padre', 'Madre', 'Hermano(a)', 'Hijo(a)', 'Abuelos', 'Ninguno'],
       icono: Icons.family_restroom_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Bloque familiar',
-      pregunta: 'Familiares fallecidos: causa y edad aproximada',
+      id: 'Q38',
+      modulo: 'Bloque 5: Antecedentes familiares',
+      pregunta:
+          'Detalle las causas de fallecimiento o enfermedades de los familiares seleccionados',
       tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      ayuda:
+          'Especifique qué familiar y qué enfermedad padece o causó su deceso (ej. Diabetes, Hipertensión, Cáncer, etc.).',
       icono: Icons.history_edu_outlined,
+      dependeDeId: 'Q37',
+      mostrarSi: _noEsNinguno,
+    ),
+
+    // BLOQUE 6: ANTECEDENTES DE NACIMIENTO Y DESARROLLO
+    _PreguntaClinica(
+      id: 'Q39',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
+      pregunta: '¿Qué edad aproximada tenía su madre cuando usted nació?',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Menos de 20 años',
+        'Entre 20 y 25 años',
+        'Entre 26 y 35 años',
+        'Más de 35 años',
+        'No lo sé',
+      ],
+      icono: Icons.pregnant_woman_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Modulo perinatal',
+      id: 'Q40',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
       pregunta:
-          'Que sabe sobre su embarazo, nacimiento o primeros meses de vida?',
+          '¿Qué número de hijo es usted en el orden de nacimiento de su madre?',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Primer hijo',
+        'Segundo hijo',
+        'Tercer hijo',
+        'Cuarto hijo',
+        'Quinto hijo o más',
+      ],
+      icono: Icons.looks_one_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q41',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
+      pregunta: 'Diferencia de edad con el hermano nacido ANTES que usted',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'No tengo hermanos mayores',
+        'Menos de 2 años',
+        'Entre 2 y 4 años',
+        'Más de 4 años',
+      ],
+      icono: Icons.arrow_upward_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q42',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
+      pregunta: 'Diferencia de edad con el hermano nacido DESPUÉS que usted',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'No tengo hermanos menores',
+        'Menos de 2 años',
+        'Entre 2 y 4 años',
+        'Más de 4 años',
+      ],
+      icono: Icons.arrow_downward_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q43',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
+      pregunta: '¿Usted nació de un embarazo único o múltiple?',
+      tipo: _RespuestaTipo.unica,
+      opciones: ['Embarazo único', 'Mellizo(a)', 'Gemelo(a)', 'Otro'],
+      icono: Icons.child_friendly_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q44',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
+      pregunta: 'Vía de nacimiento',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Parto normal en hospital',
+        'Parto normal en casa u otro lugar',
+        'Cesárea',
+        'No lo sé',
+      ],
+      icono: Icons.pregnant_woman_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q45',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
+      pregunta: 'Tiempo de gestación al nacer',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'A tiempo (A término)',
+        'Prematuro (Antes de tiempo)',
+        'Postérmino (Después de tiempo)',
+        'No lo sé',
+      ],
+      icono: Icons.hourglass_bottom_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q46',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
+      pregunta:
+          '¿Durante sus primeros meses de vida, recibió leche de fórmula (de tarro)?',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'No, solo lactancia materna exclusiva',
+        'Sí, combinada con lactancia materna',
+        'Sí, exclusivamente fórmula',
+        'No lo sé',
+      ],
+      icono: Icons.baby_changing_station_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q47',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
+      pregunta:
+          'Describa si hizo algún tratamiento médico o padeció alguna enfermedad de importancia durante su infancia',
       tipo: _RespuestaTipo.texto,
-      ayuda:
-          'Prematuridad, bajo peso, complicaciones, estres materno o lactancia.',
+      multilinea: true,
       icono: Icons.child_care_outlined,
     ),
     _PreguntaClinica(
-      modulo: 'Modulo mujer',
-      pregunta: 'Si corresponde, marque antecedentes ginecologicos relevantes',
-      tipo: _RespuestaTipo.multiple,
-      opciones: [
-        'SOP',
-        'Infertilidad',
-        'Endometriosis',
-        'Menopausia',
-        'Anticonceptivos hormonales previos',
-        'Lactancia',
-        'No corresponde',
-      ],
+      id: 'Q48',
+      modulo: 'Bloque 6: Antecedentes de nacimiento y desarrollo',
+      pregunta:
+          '¿Cuando su mamá estuvo embarazada de usted, tuvo alguna enfermedad?',
+      tipo: _RespuestaTipo.texto,
+      multilinea: true,
+      ayuda: 'Especifique cuál si lo sabe.',
+      icono: Icons.pregnant_woman_outlined,
+    ),
+
+    // BLOQUE 7: SALUD GINECO-OBSTETRICA (oculto si el paciente es masculino)
+    _PreguntaClinica(
+      id: 'Q49',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: '¿A qué edad tuvo su primera menstruación (Menarquia)?',
+      tipo: _RespuestaTipo.numero,
       icono: Icons.female_outlined,
+      ocultarSiMasculino: true,
     ),
     _PreguntaClinica(
-      modulo: 'Modulo varon',
-      pregunta: 'Si corresponde, marque antecedentes masculinos relevantes',
+      id: 'Q50',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: '¿A qué edad tuvo su última menstruación?',
+      tipo: _RespuestaTipo.texto,
+      ayuda:
+          "Indique la edad o escriba 'No aplica' si aún continúa menstruando.",
+      icono: Icons.female_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q51',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Fecha de inicio de su última menstruación (FUM)',
+      tipo: _RespuestaTipo.fecha,
+      icono: Icons.event_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q52',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Frecuencia habitual de sus ciclos menstruales',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Regular (Cada 21 a 35 días)',
+        'Irregular (Menos de 20 días)',
+        'Irregular (Más de 35 días)',
+        'No aplica (Menopausia / Amenorrea)',
+      ],
+      icono: Icons.calendar_month_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q53',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Duración promedio del sangrado',
+      tipo: _RespuestaTipo.unica,
+      opciones: ['1 a 2 días', '3 a 7 días', 'Más de 7 días', 'No aplica'],
+      icono: Icons.water_drop_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q54',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'El dolor durante su menstruación habitualmente es',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'No presenta dolor o es leve',
+        'Doloroso (interfiere con sus actividades diarias)',
+        'No aplica',
+      ],
+      icono: Icons.sentiment_dissatisfied_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q55a',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Historial obstétrico: número de Embarazos totales',
+      tipo: _RespuestaTipo.numero,
+      ayuda: "Escriba '0' si no aplica.",
+      icono: Icons.pregnant_woman_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q55b',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Historial obstétrico: número de Partos vaginales',
+      tipo: _RespuestaTipo.numero,
+      ayuda: "Escriba '0' si no aplica.",
+      icono: Icons.pregnant_woman_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q55c',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Historial obstétrico: número de Cesáreas',
+      tipo: _RespuestaTipo.numero,
+      ayuda: "Escriba '0' si no aplica.",
+      icono: Icons.medical_services_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q55d',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta:
+          'Historial obstétrico: número de Abortos, pérdidas o fracasos gestacionales',
+      tipo: _RespuestaTipo.numero,
+      ayuda: "Escriba '0' si no aplica.",
+      icono: Icons.medical_services_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q56',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta:
+          '¿Qué métodos anticonceptivos utiliza actualmente o ha utilizado con frecuencia?',
       tipo: _RespuestaTipo.multiple,
       opciones: [
-        'Ereccion matutina disminuida',
-        'Disfuncion erectil',
-        'Fertilidad',
-        'Frecuencia urinaria nocturna',
-        'Libido baja',
-        'No corresponde',
+        'Ninguno',
+        'Preservativo (Condón masculino/femenino)',
+        'Pastillas anticonceptivas diarias',
+        'Anticonceptivo de emergencia (Pastilla del día después)',
+        'Inyectables, parches o implantes subcutáneos',
+        'Dispositivo intrauterino (T de cobre / Hormonal)',
+        'Ligadura de trompas / Vasectomía',
+        'Métodos naturales (Ritmo / Coito interrumpido)',
+      ],
+      icono: Icons.health_and_safety_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q57',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Fecha de su último Papanicolau (Citología)',
+      tipo: _RespuestaTipo.fecha,
+      ayuda:
+          'Si nunca se ha realizado uno, puede omitir esta pregunta o indicar una fecha aproximada.',
+      icono: Icons.fact_check_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q58',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Resultado del último Papanicolau',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Normal / Sin alteraciones',
+        'Alterado / Infección / Requiere seguimiento',
+        'No lo sé / Pendiente de resultado',
+        'Nunca me lo he realizado',
+      ],
+      icono: Icons.fact_check_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q59',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Fecha de su último control de mamas (Ecografía o Mamografía)',
+      tipo: _RespuestaTipo.fecha,
+      icono: Icons.medical_information_outlined,
+      ocultarSiMasculino: true,
+    ),
+    _PreguntaClinica(
+      id: 'Q60',
+      modulo: 'Bloque 7: Salud gineco-obstétrica',
+      pregunta: 'Resultado del control de mamas',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Normal / Sin alteraciones',
+        'Alterado / Requiere seguimiento u otra evaluación',
+        'No lo sé / Pendiente de resultado',
+        'Nunca me lo he realizado',
+      ],
+      icono: Icons.medical_information_outlined,
+      ocultarSiMasculino: true,
+    ),
+
+    // BLOQUE 8: SALUD UROLOGICA Y URINARIA
+    _PreguntaClinica(
+      id: 'Q61',
+      modulo: 'Bloque 8: Salud urológica y urinaria',
+      pregunta:
+          '¿Cómo describe la fuerza y forma del chorro de su orina actual en comparación con cuando tenía menos de 30 años?',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'Normal (Sin cambios, fuerte y continuo)',
+        'Ha disminuido la fuerza o el calibre del chorro',
+        'Chorro intermitente (se corta y vuelve a empezar)',
+        'Chorro disperso o bífido (se abre en dos direcciones)',
+      ],
+      icono: Icons.water_drop_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q62',
+      modulo: 'Bloque 8: Salud urológica y urinaria',
+      pregunta:
+          'Marque si presenta actualmente alguno de los siguientes síntomas urinarios',
+      tipo: _RespuestaTipo.multiple,
+      opciones: [
+        'Dolor o ardor al orinar',
+        'Goteo involuntario de orina justo después de terminar',
+        'Sensación de no vaciar por completo la vejiga (Tenesmo)',
+        'Ninguno de los anteriores',
+      ],
+      icono: Icons.report_problem_outlined,
+    ),
+    _PreguntaClinica(
+      id: 'Q63',
+      modulo: 'Bloque 8: Salud urológica y urinaria',
+      pregunta: '¿Presenta alguna dificultad para lograr o mantener una erección?',
+      tipo: _RespuestaTipo.unica,
+      opciones: [
+        'No presenta dificultades',
+        'Sí, ocasionalmente',
+        'Sí, frecuentemente',
+        'Prefiero no responder',
       ],
       icono: Icons.male_outlined,
+      soloMasculino: true,
     ),
   ];
 
@@ -522,12 +841,27 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarModoAudible();
       _cargarBorrador().then((_) {
         if (mounted) {
           context.read<ChatbotBloc>().add(const VerificarEstadoEvent());
         }
       });
     });
+  }
+
+  Future<void> _cargarModoAudible() async {
+    final prefs = await SharedPreferences.getInstance();
+    final valor = prefs.getBool(_modoAudibleKey) ?? true;
+    if (mounted) setState(() => _modoAudible = valor);
+  }
+
+  Future<void> _toggleModoAudible() async {
+    final nuevoValor = !_modoAudible;
+    setState(() => _modoAudible = nuevoValor);
+    if (!nuevoValor) await _detener();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_modoAudibleKey, nuevoValor);
   }
 
   @override
@@ -564,7 +898,7 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
   }
 
   void _leerPreguntaActual() {
-    if (!_enModoFormulario) return;
+    if (!_modoAudible || !_enModoFormulario) return;
     final texto = _preguntas[_preguntaActual].pregunta;
     _leer(texto);
   }
@@ -575,6 +909,8 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
     final pendientes = prefs.getStringList(_borradorPendientesKey) ?? [];
     if (resumen.isEmpty && pendientes.isEmpty) return;
     final preguntaGuardada = prefs.getInt(_borradorPreguntaKey) ?? 0;
+
+    final respuestasJson = prefs.getString(_borradorRespuestasKey);
 
     setState(() {
       _preguntaActual = preguntaGuardada
@@ -587,6 +923,12 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
       _respuestasAcumuladas
         ..clear()
         ..addAll(pendientes);
+      if (respuestasJson != null) {
+        final decoded = jsonDecode(respuestasJson) as Map<String, dynamic>;
+        _respuestasPorId
+          ..clear()
+          ..addAll(decoded.map((k, v) => MapEntry(k, v as String)));
+      }
       _borradorRestaurado = true;
     });
   }
@@ -597,6 +939,7 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
     await prefs.setBool(_borradorCompletadoKey, _flujoCompletado);
     await prefs.setStringList(_borradorPendientesKey, _respuestasAcumuladas);
     await prefs.setStringList(_borradorResumenKey, _resumenRespuestas);
+    await prefs.setString(_borradorRespuestasKey, jsonEncode(_respuestasPorId));
   }
 
   Future<void> _limpiarBorrador() async {
@@ -605,6 +948,7 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
     await prefs.remove(_borradorCompletadoKey);
     await prefs.remove(_borradorPendientesKey);
     await prefs.remove(_borradorResumenKey);
+    await prefs.remove(_borradorRespuestasKey);
   }
 
   bool get _enModoFormulario {
@@ -613,11 +957,25 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
     return _mostrarFormulario && !_flujoCompletado;
   }
 
-  // Avanza al siguiente índice no saltado; si no hay más, completa el flujo
+  // Determina si una pregunta debe ocultarse: ya viene del perfil, no aplica
+  // por genero, o depende de una respuesta previa que no habilita mostrarla.
+  bool _debeSaltarse(_PreguntaClinica p) {
+    if (_idsAutoCompletados.contains(p.id)) return true;
+    if (p.ocultarSiMasculino && _generoPaciente == 'M') return true;
+    if (p.soloMasculino && _generoPaciente != 'M') return true;
+    if (p.dependeDeId != null) {
+      final respuesta = _respuestasPorId[p.dependeDeId];
+      if (respuesta == null || p.mostrarSi == null) return true;
+      if (!p.mostrarSi!(respuesta)) return true;
+    }
+    return false;
+  }
+
+  // Avanza a la siguiente pregunta visible; si no hay más, completa el flujo
   void _avanzarPregunta() {
     int siguiente = _preguntaActual + 1;
     while (siguiente < _preguntas.length &&
-        _indicesSaltados.contains(siguiente)) {
+        _debeSaltarse(_preguntas[siguiente])) {
       siguiente++;
     }
     if (siguiente < _preguntas.length) {
@@ -626,14 +984,6 @@ class _AsistenteChatPageState extends State<AsistenteChatPage> {
       _flujoCompletado = true;
       _mostrarFormulario = false;
     }
-  }
-
-  static String _edadAOpcion(int edad) {
-    if (edad < 18) return 'Menos de 18';
-    if (edad <= 29) return '18 a 29';
-    if (edad <= 44) return '30 a 44';
-    if (edad <= 59) return '45 a 59';
-    return '60 o mas';
   }
 
   void _enviarBatch() {
@@ -668,11 +1018,13 @@ Respuesta: $respuesta
 '''
             .trim();
 
+    _respuestasPorId[pregunta.id] = respuesta;
     _respuestasAcumuladas.add(texto);
     _resumenRespuestas.add(texto);
     _respuestaController.clear();
     _seleccionMultiple.clear();
-    _valorEscala = 5;
+    _fechaSeleccionada = null;
+    _horaSeleccionada = null;
 
     setState(() => _avanzarPregunta());
     _guardarBorrador();
@@ -694,6 +1046,7 @@ Respuesta: $respuesta
     return normalizada == 'ninguno' ||
         normalizada == 'ninguna' ||
         normalizada == 'ninguna conocida' ||
+        normalizada == 'ninguno de los anteriores' ||
         normalizada == 'no corresponde' ||
         normalizada == 'no me operaron' ||
         normalizada == 'no sabe' ||
@@ -723,38 +1076,38 @@ Respuesta: $respuesta
         if (state is EstadoCargado) {
           final p = state.perfil;
           final partes = <String>[];
-          final saltados = <int>{};
+          final autoCompletados = <String>{};
 
           if (p.nombreCompleto != null && p.nombreCompleto!.isNotEmpty) {
             partes.add('- Nombre completo: ${p.nombreCompleto}');
-            saltados.add(0);
+            autoCompletados.add('Q1');
           }
           if (p.edad != null) {
-            partes.add('- Edad: ${p.edad} años (${_edadAOpcion(p.edad!)})');
-            saltados.add(1);
+            partes.add('- Edad: ${p.edad} años');
+            autoCompletados.add('Q2');
           }
           if (p.fechaNacimiento != null) {
             final fn = p.fechaNacimiento!;
             partes.add(
               '- Fecha de nacimiento: ${fn.day.toString().padLeft(2, '0')}/${fn.month.toString().padLeft(2, '0')}/${fn.year}',
             );
-            saltados.add(2);
+            autoCompletados.add('Q3');
           }
           if (p.telefono != null && p.telefono!.isNotEmpty) {
             partes.add('- Teléfono: ${p.telefono}');
-            saltados.add(5);
-          }
-
-          // Primera pregunta que no está saltada
-          int primero = 0;
-          while (primero < _preguntas.length && saltados.contains(primero)) {
-            primero++;
+            autoCompletados.add('Q7');
           }
 
           setState(() {
             _esNuevo = state.esNuevo;
-            _indicesSaltados.addAll(saltados);
+            _generoPaciente = p.genero;
+            _idsAutoCompletados.addAll(autoCompletados);
             if (!_borradorRestaurado) {
+              int primero = 0;
+              while (primero < _preguntas.length &&
+                  _debeSaltarse(_preguntas[primero])) {
+                primero++;
+              }
               _preguntaActual = primero;
             }
           });
@@ -793,7 +1146,7 @@ Respuesta: $respuesta
           _debeScrollChat = false;
           // Auto-reproducir respuesta visible de la IA
           final ultimo = state.mensajes.isNotEmpty ? state.mensajes.last : null;
-          if (ultimo != null && !ultimo.esUsuario) {
+          if (_modoAudible && ultimo != null && !ultimo.esUsuario) {
             _leer(ultimo.contenido);
           }
         }
@@ -846,6 +1199,17 @@ Respuesta: $respuesta
             title: const Text('Asistente medico'),
             backgroundColor: Theme.of(context).colorScheme.surface,
             actions: [
+              IconButton(
+                icon: Icon(
+                  _modoAudible
+                      ? Icons.volume_up_outlined
+                      : Icons.volume_off_outlined,
+                ),
+                tooltip: _modoAudible
+                    ? 'Desactivar modo audible'
+                    : 'Activar modo audible',
+                onPressed: _toggleModoAudible,
+              ),
               if (!_esNuevo!)
                 IconButton(
                   icon: Icon(
@@ -1136,21 +1500,21 @@ Respuesta: $respuesta
   Widget _buildControlRespuesta(_PreguntaClinica pregunta, bool disabled) {
     switch (pregunta.tipo) {
       case _RespuestaTipo.texto:
-        return _buildRespuestaTexto(disabled);
+        return _buildRespuestaTexto(disabled, multilinea: pregunta.multilinea);
+      case _RespuestaTipo.numero:
+        return _buildRespuestaNumero(disabled);
+      case _RespuestaTipo.fecha:
+        return _buildRespuestaFecha(disabled);
+      case _RespuestaTipo.hora:
+        return _buildRespuestaHora(disabled);
       case _RespuestaTipo.multiple:
         return _buildSeleccionMultiple(pregunta.opciones, disabled);
       case _RespuestaTipo.unica:
         return _buildSeleccionUnica(pregunta.opciones, disabled);
-      case _RespuestaTipo.escala:
-        return _buildEscala(disabled);
-      case _RespuestaTipo.frecuencia:
-        return _buildSeleccionUnica(_frecuencias, disabled);
-      case _RespuestaTipo.zonaCuerpo:
-        return _buildZonasCuerpo(disabled);
     }
   }
 
-  Widget _buildRespuestaTexto(bool disabled) {
+  Widget _buildRespuestaTexto(bool disabled, {bool multilinea = false}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -1159,7 +1523,7 @@ Respuesta: $respuesta
             controller: _respuestaController,
             enabled: !disabled,
             minLines: 1,
-            maxLines: 4,
+            maxLines: multilinea ? 6 : 2,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
               hintText: 'Escribe tu respuesta',
@@ -1182,6 +1546,122 @@ Respuesta: $respuesta
                 },
           icon: const Icon(Icons.arrow_forward),
           label: const Text('Enviar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRespuestaNumero(bool disabled) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _respuestaController,
+            enabled: !disabled,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              hintText: 'Escribe un número',
+              filled: true,
+              fillColor: const Color(0xFFF4F8F8),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          onPressed: disabled
+              ? null
+              : () {
+                  final valor = int.tryParse(_respuestaController.text.trim());
+                  if (valor != null && valor >= 0) {
+                    _enviarRespuestaGuiada(valor.toString());
+                  }
+                },
+          icon: const Icon(Icons.arrow_forward),
+          label: const Text('Enviar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRespuestaFecha(bool disabled) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: disabled
+              ? null
+              : () async {
+                  final ahora = DateTime.now();
+                  final seleccionada = await showDatePicker(
+                    context: context,
+                    initialDate: _fechaSeleccionada ?? DateTime(ahora.year - 20),
+                    firstDate: DateTime(1900),
+                    lastDate: ahora,
+                  );
+                  if (seleccionada != null) {
+                    setState(() => _fechaSeleccionada = seleccionada);
+                  }
+                },
+          icon: const Icon(Icons.calendar_today_outlined),
+          label: Text(
+            _fechaSeleccionada == null
+                ? 'Seleccionar fecha'
+                : DateFormat('dd/MM/yyyy').format(_fechaSeleccionada!),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: disabled || _fechaSeleccionada == null
+              ? null
+              : () => _enviarRespuestaGuiada(
+                  DateFormat('dd/MM/yyyy').format(_fechaSeleccionada!),
+                ),
+          icon: const Icon(Icons.check),
+          label: const Text('Confirmar fecha'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRespuestaHora(bool disabled) {
+    String formatear(TimeOfDay t) =>
+        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: disabled
+              ? null
+              : () async {
+                  final seleccionada = await showTimePicker(
+                    context: context,
+                    initialTime: _horaSeleccionada ?? TimeOfDay.now(),
+                  );
+                  if (seleccionada != null) {
+                    setState(() => _horaSeleccionada = seleccionada);
+                  }
+                },
+          icon: const Icon(Icons.access_time_outlined),
+          label: Text(
+            _horaSeleccionada == null
+                ? 'Seleccionar hora'
+                : formatear(_horaSeleccionada!),
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: disabled || _horaSeleccionada == null
+              ? null
+              : () => _enviarRespuestaGuiada(formatear(_horaSeleccionada!)),
+          icon: const Icon(Icons.check),
+          label: const Text('Confirmar hora'),
         ),
       ],
     );
@@ -1271,76 +1751,6 @@ Respuesta: $respuesta
             label: Text(opcion),
             selected: false,
             onSelected: disabled ? null : (_) => _enviarRespuestaGuiada(opcion),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildEscala(bool disabled) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.sentiment_satisfied_alt_outlined),
-            Expanded(
-              child: Slider(
-                value: _valorEscala,
-                min: 0,
-                max: 10,
-                divisions: 10,
-                label: _valorEscala.round().toString(),
-                onChanged: disabled
-                    ? null
-                    : (value) => setState(() => _valorEscala = value),
-              ),
-            ),
-            const Icon(Icons.sentiment_very_dissatisfied_outlined),
-          ],
-        ),
-        Center(
-          child: Text(
-            _valorEscala.round().toString(),
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
-          ),
-        ),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-          onPressed: disabled
-              ? null
-              : () => _enviarRespuestaGuiada(_valorEscala.round().toString()),
-          icon: const Icon(Icons.check),
-          label: const Text('Confirmar intensidad'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildZonasCuerpo(bool disabled) {
-    final iconos = {
-      'Cabeza': Icons.face_outlined,
-      'Pecho': Icons.favorite_border,
-      'Abdomen': Icons.radio_button_unchecked,
-      'Espalda': Icons.accessibility_new_outlined,
-      'Pelvis': Icons.airline_seat_legroom_normal_outlined,
-      'Brazo/mano': Icons.back_hand_outlined,
-      'Pierna/pie': Icons.directions_walk_outlined,
-      'Todo el cuerpo': Icons.accessibility_outlined,
-    };
-
-    return GridView.count(
-      crossAxisCount: MediaQuery.of(context).size.width > 520 ? 4 : 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      childAspectRatio: 2.8,
-      children: [
-        for (final zona in _zonasCuerpo)
-          OutlinedButton.icon(
-            onPressed: disabled ? null : () => _enviarRespuestaGuiada(zona),
-            icon: Icon(iconos[zona] ?? Icons.location_on_outlined),
-            label: Text(zona, overflow: TextOverflow.ellipsis),
           ),
       ],
     );

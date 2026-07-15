@@ -1,5 +1,6 @@
 import 'package:ciemsi_app/core/network/api_client.dart';
 import '../models/resumen_cuenta_model.dart';
+import '../models/resumen_mensual_cuenta_model.dart';
 import '../models/historial_movimiento_model.dart';
 
 class CuentaRemoteDatasource {
@@ -10,6 +11,19 @@ class CuentaRemoteDatasource {
     final params = ciudadId != null ? {'ciudadId': ciudadId} : null;
     final res = await _client.dio.get('/cuentas/resumen', queryParameters: params);
     return (res.data as List).map((e) => ResumenCuentaModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<ResumenMensualCuentaModel> obtenerResumenMensual({
+    required int ciudadId,
+    required int anio,
+    required int mes,
+  }) async {
+    final res = await _client.dio.get('/cuentas/resumen-mensual', queryParameters: {
+      'ciudadId': ciudadId,
+      'anio': anio,
+      'mes': mes,
+    });
+    return ResumenMensualCuentaModel.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<List<HistorialMovimientoModel>> obtenerHistorial({

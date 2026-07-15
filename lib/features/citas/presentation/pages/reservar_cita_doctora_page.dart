@@ -496,10 +496,6 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
                   emptySelectionAllowed: true,
                   onSelectionChanged: (selection) {
                     if (selection.isNotEmpty) {
-                      setState(() {
-                        _horasDisponibles = [];
-                        _horaSeleccionada = null;
-                      });
                       _seleccionarRolAgenda(selection.first);
                     }
                   },
