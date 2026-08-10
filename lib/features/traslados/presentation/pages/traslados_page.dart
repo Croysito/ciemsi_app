@@ -49,7 +49,8 @@ class _TrasladosPageState extends State<TrasladosPage>
 
   bool _puedeConfirmar(Traslado t) {
     if (_esAdminODoctora) return true;
-    return widget.usuario.rol == 'Asistente' &&
+    if (widget.usuario.rol != 'Asistente') return false;
+    return widget.usuario.veTodasCiudades ||
         widget.usuario.ciudad?.id == t.ciudadDestinoId;
   }
 
@@ -60,15 +61,15 @@ class _TrasladosPageState extends State<TrasladosPage>
       appBar: AppBar(
         title: Text(
           'Traslados — ${widget.ciudadNombre}',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: const Color(0xFF00B5C8),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _cargar,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -77,7 +78,7 @@ class _TrasladosPageState extends State<TrasladosPage>
           unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.hourglass_top_outlined), text: 'Pendientes'),
-            Tab(icon: Icon(Icons.history),                text: 'Historial'),
+            Tab(icon: Icon(Icons.history), text: 'Historial'),
           ],
         ),
       ),
@@ -86,8 +87,10 @@ class _TrasladosPageState extends State<TrasladosPage>
               backgroundColor: const Color(0xFF00B5C8),
               onPressed: _abrirCrear,
               icon: const Icon(Icons.swap_horiz, color: Colors.white),
-              label: const Text('Nuevo Traslado',
-                  style: TextStyle(color: Colors.white)),
+              label: const Text(
+                'Nuevo Traslado',
+                style: TextStyle(color: Colors.white),
+              ),
             )
           : null,
       body: BlocConsumer<TrasladoBloc, TrasladoState>(
@@ -95,7 +98,10 @@ class _TrasladosPageState extends State<TrasladosPage>
           if (state is TrasladoOperacionExitosa) _cargar();
           if (state is TrasladoError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.mensaje), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(state.mensaje),
+                backgroundColor: Colors.red,
+              ),
             );
           }
         },
@@ -110,16 +116,26 @@ class _TrasladosPageState extends State<TrasladosPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(state.mensaje, style: const TextStyle(color: Colors.grey)),
+                  Text(
+                    state.mensaje,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                   const SizedBox(height: 12),
-                  FilledButton(onPressed: _cargar, child: const Text('Reintentar')),
+                  FilledButton(
+                    onPressed: _cargar,
+                    child: const Text('Reintentar'),
+                  ),
                 ],
               ),
             );
           }
           if (state is TrasladosListados) {
-            final pendientes = state.traslados.where((t) => t.isPendiente).toList();
-            final historial  = state.traslados.where((t) => !t.isPendiente).toList();
+            final pendientes = state.traslados
+                .where((t) => t.isPendiente)
+                .toList();
+            final historial = state.traslados
+                .where((t) => !t.isPendiente)
+                .toList();
             return TabBarView(
               controller: _tabController,
               children: [
@@ -128,7 +144,8 @@ class _TrasladosPageState extends State<TrasladosPage>
                   emptyMsg: 'Sin traslados pendientes',
                   onConfirmar: (t) => _puedeConfirmar(t)
                       ? context.read<TrasladoBloc>().add(
-                            ConfirmarTrasladoEvent(t.id, widget.ciudadId))
+                          ConfirmarTrasladoEvent(t.id, widget.ciudadId),
+                        )
                       : null,
                   onDevolver: null,
                   ciudadId: widget.ciudadId,
@@ -139,7 +156,8 @@ class _TrasladosPageState extends State<TrasladosPage>
                   onConfirmar: null,
                   onDevolver: (t) => t.isCompletado
                       ? context.read<TrasladoBloc>().add(
-                            DevolverTrasladoEvent(t.id, widget.ciudadId))
+                          DevolverTrasladoEvent(t.id, widget.ciudadId),
+                        )
                       : null,
                   ciudadId: widget.ciudadId,
                 ),
@@ -159,7 +177,7 @@ class _TrasladosPageState extends State<TrasladosPage>
         builder: (_) => BlocProvider.value(
           value: context.read<TrasladoBloc>(),
           child: CrearTrasladoPage(
-            ciudadOrigenId:     widget.ciudadId,
+            ciudadOrigenId: widget.ciudadId,
             ciudadOrigenNombre: widget.ciudadNombre,
           ),
         ),
@@ -189,7 +207,9 @@ class _ListaTraslados extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (traslados.isEmpty) {
-      return Center(child: Text(emptyMsg, style: const TextStyle(color: Colors.grey)));
+      return Center(
+        child: Text(emptyMsg, style: const TextStyle(color: Colors.grey)),
+      );
     }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
@@ -197,8 +217,10 @@ class _ListaTraslados extends StatelessWidget {
       itemBuilder: (_, i) => _TrasladoCard(
         traslado: traslados[i],
         ciudadId: ciudadId,
-        onConfirmar: onConfirmar != null ? () => onConfirmar!(traslados[i]) : null,
-        onDevolver:  onDevolver  != null && traslados[i].isCompletado
+        onConfirmar: onConfirmar != null
+            ? () => onConfirmar!(traslados[i])
+            : null,
+        onDevolver: onDevolver != null && traslados[i].isCompletado
             ? () => onDevolver!(traslados[i])
             : null,
       ),
@@ -223,17 +245,17 @@ class _TrasladoCard extends StatelessWidget {
 
   Color get _estadoColor {
     return switch (traslado.estado) {
-      'PENDIENTE'  => Colors.orange,
+      'PENDIENTE' => Colors.orange,
       'COMPLETADO' => const Color(0xFF8DC63F),
-      _            => Colors.grey,
+      _ => Colors.grey,
     };
   }
 
   String get _estadoLabel {
     return switch (traslado.estado) {
-      'PENDIENTE'  => 'Pendiente',
+      'PENDIENTE' => 'Pendiente',
       'COMPLETADO' => 'Completado',
-      _            => 'Devuelto',
+      _ => 'Devuelto',
     };
   }
 
@@ -261,18 +283,28 @@ class _TrasladoCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     traslado.nombreItem,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: _estadoColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     _estadoLabel,
-                    style: TextStyle(color: _estadoColor, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: _estadoColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -314,12 +346,16 @@ class _TrasladoCard extends StatelessWidget {
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF8DC63F),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   onPressed: onConfirmar,
                   icon: const Icon(Icons.check, color: Colors.white, size: 18),
-                  label: const Text('Confirmar recepción',
-                      style: TextStyle(color: Colors.white)),
+                  label: const Text(
+                    'Confirmar recepción',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
             ],
@@ -331,7 +367,9 @@ class _TrasladoCard extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.orange,
                     side: const BorderSide(color: Colors.orange),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   onPressed: () => _confirmarDevolucion(context),
                   icon: const Icon(Icons.undo, size: 18),

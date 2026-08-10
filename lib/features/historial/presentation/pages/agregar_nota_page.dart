@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import '../../domain/utils/comandos_voz_puntuacion.dart';
 import '../bloc/historial_bloc.dart';
 import '../bloc/historial_event.dart';
 import '../bloc/historial_state.dart';
+import '../controllers/nota_borrador_controller.dart';
 
 class AgregarNotaPage extends StatefulWidget {
   final int pacienteId;
@@ -13,18 +15,63 @@ class AgregarNotaPage extends StatefulWidget {
   State<AgregarNotaPage> createState() => _AgregarNotaPageState();
 }
 
-class _AgregarNotaPageState extends State<AgregarNotaPage> {
+class _AgregarNotaPageState extends State<AgregarNotaPage>
+    with WidgetsBindingObserver {
   final _detalleController = TextEditingController();
   final SpeechToText _speechToText = SpeechToText();
+  late final NotaBorradorController _borrador;
 
   bool _speechEnabled = false;
   bool _isListening = false;
-  String _lastWords = '';
+  String _textoBaseSesion = '';
 
   @override
   void initState() {
     super.initState();
+    _borrador = NotaBorradorController(pacienteId: widget.pacienteId)
+      ..addListener(_onBorradorChanged);
+    WidgetsBinding.instance.addObserver(this);
     _initSpeech();
+    _cargarBorrador();
+  }
+
+  void _onBorradorChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _cargarBorrador() async {
+    final borrador = await _borrador.cargar();
+    if (borrador == null || !mounted) return;
+    setState(() {
+      _detalleController.text = borrador;
+      _detalleController.selection = TextSelection.fromPosition(
+        TextPosition(offset: borrador.length),
+      );
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _borrador.programarAutoguardado(_detalleController.text, inmediato: true);
+    }
+  }
+
+  void _deshacer() {
+    final anterior = _borrador.deshacer();
+    if (anterior == null) return;
+    setState(() {
+      _detalleController.text = anterior;
+      _detalleController.selection = TextSelection.fromPosition(
+        TextPosition(offset: anterior.length),
+      );
+    });
+  }
+
+  void _descartarBorrador() {
+    _borrador.descartar();
+    setState(() => _detalleController.clear());
   }
 
   Future<void> _initSpeech() async {
@@ -49,23 +96,32 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
   }
 
   Future<void> _startListening() async {
+    // Checkpoint inmediato: permite deshacer toda la sesión de dictado.
+    _borrador.programarAutoguardado(_detalleController.text, inmediato: true);
+    // Texto base sobre el que se reconstruye cada actualización de esta
+    // sesión: el paquete reporta resultados parciales acumulados (no
+    // incrementales), así que hay que REEMPLAZAR, no concatenar en cada
+    // callback, o el texto termina duplicado/triplicado.
+    _textoBaseSesion = _detalleController.text;
     await _speechToText.listen(
       onResult: (result) {
         if (!mounted) return;
+        final reconocido = ComandosVozPuntuacion.aplicar(
+          result.recognizedWords,
+        );
+        final nuevoTexto = _textoBaseSesion.isEmpty
+            ? reconocido
+            : (reconocido.isEmpty
+                  ? _textoBaseSesion
+                  : '$_textoBaseSesion $reconocido');
         setState(() {
-          _lastWords = result.recognizedWords;
-          // Agrega el texto dictado al campo existente
-          final textoActual = _detalleController.text;
-          if (textoActual.isEmpty) {
-            _detalleController.text = _lastWords;
-          } else {
-            _detalleController.text = '$textoActual $_lastWords';
-          }
+          _detalleController.text = nuevoTexto;
           // Mueve el cursor al final
           _detalleController.selection = TextSelection.fromPosition(
             TextPosition(offset: _detalleController.text.length),
           );
         });
+        _borrador.programarAutoguardado(nuevoTexto);
       },
       localeId: 'es_ES', // Español
       pauseFor: const Duration(seconds: 3),
@@ -78,10 +134,15 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
     await _speechToText.stop();
     if (!mounted) return;
     setState(() => _isListening = false);
+    _borrador.programarAutoguardado(_detalleController.text, inmediato: true);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _borrador.programarAutoguardado(_detalleController.text, inmediato: true);
+    _borrador.removeListener(_onBorradorChanged);
+    _borrador.dispose();
     _detalleController.dispose();
     _speechToText.stop();
     super.dispose();
@@ -98,10 +159,21 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
         ),
         backgroundColor: const Color(0xFF00B5C8),
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            onPressed: _borrador.puedeDeshacer ? _deshacer : null,
+            icon: const Icon(Icons.undo),
+            tooltip: 'Deshacer',
+            color: _borrador.puedeDeshacer
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.4),
+          ),
+        ],
       ),
       body: BlocListener<HistorialBloc, HistorialState>(
         listener: (context, state) {
           if (state is NotaAgregada) {
+            _borrador.limpiarTrasGuardar();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Nota agregada correctamente'),
@@ -123,6 +195,45 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
+              // Aviso de borrador restaurado
+              if (_borrador.hayBorradorRestaurado)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        color: Colors.amber,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Se restauró una nota sin guardar',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _descartarBorrador,
+                        child: const Text('Descartar'),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Indicador de escucha
               if (_isListening)
                 Container(
@@ -161,6 +272,8 @@ class _AgregarNotaPageState extends State<AgregarNotaPage> {
                       maxLines: null,
                       expands: true,
                       textAlignVertical: TextAlignVertical.top,
+                      onChanged: (texto) =>
+                          _borrador.programarAutoguardado(texto),
                       decoration: InputDecoration(
                         hintText: 'Escribe o dicta la nota de evolución...',
                         border: OutlineInputBorder(

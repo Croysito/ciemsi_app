@@ -10,6 +10,7 @@ class AsistenteModel extends Asistente {
     required super.email,
     required super.estado,
     super.ciudad,
+    super.veTodasCiudades,
   });
 
   factory AsistenteModel.fromJson(Map<String, dynamic> json) {
@@ -25,6 +26,7 @@ class AsistenteModel extends Asistente {
       email: json['email'],
       estado: json['estado'] ?? true,
       ciudad: ciudad,
+      veTodasCiudades: json['veTodasCiudades'] == true,
     );
   }
 }

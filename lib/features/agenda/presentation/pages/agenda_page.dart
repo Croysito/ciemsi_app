@@ -276,15 +276,17 @@ class _AgendaPageState extends State<AgendaPage> {
     DateTime day, {
     required bool esDoctora,
     required bool esAmbas,
+    bool esHoy = false,
   }) {
     if (esAmbas) {
       return Container(
         margin: const EdgeInsets.all(4),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
             colors: [Color(0xFF00B5C8), Color(0xFF8DC63F)],
           ),
           shape: BoxShape.circle,
+          border: esHoy ? Border.all(color: Colors.white, width: 2) : null,
         ),
         child: Center(
           child: Text(
@@ -302,15 +304,38 @@ class _AgendaPageState extends State<AgendaPage> {
     return Container(
       margin: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
+        color: esHoy ? color : color.withValues(alpha: 0.18),
         shape: BoxShape.circle,
-        border: Border.all(color: color, width: 1.5),
+        border: Border.all(color: color, width: esHoy ? 2.5 : 1.5),
       ),
       child: Center(
         child: Text(
           '${day.day}',
           style: TextStyle(
-            color: color,
+            color: esHoy ? Colors.white : color,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Círculo "hoy" plano, para cuando no hay agenda configurada ese día
+  /// (mismo aspecto que `calendarStyle.todayDecoration`, pero como
+  /// `todayBuilder` reemplaza por completo ese estilo, hay que replicarlo).
+  Widget _buildHoySinAgenda(DateTime day) {
+    return Container(
+      margin: const EdgeInsets.all(4),
+      decoration: const BoxDecoration(
+        color: Color(0xFF00B5C8),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          '${day.day}',
+          style: const TextStyle(
+            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 13,
           ),
@@ -433,6 +458,25 @@ class _AgendaPageState extends State<AgendaPage> {
                           day,
                           esDoctora: esDoctora,
                           esAmbas: esDoctora && esAsistente,
+                        );
+                      },
+                      // table_calendar NO pasa por defaultBuilder para "hoy":
+                      // usa todayBuilder (o calendarStyle.todayDecoration si
+                      // no se define). Sin esto, el día de hoy nunca muestra
+                      // el marcador de color de la agenda, aunque sí exista.
+                      todayBuilder: (context, day, focusedDay) {
+                        final normalDay =
+                            DateTime(day.year, day.month, day.day);
+                        final esDoctora = _diasDoctora.contains(normalDay);
+                        final esAsistente = _diasAsistente.contains(normalDay);
+                        if (!esDoctora && !esAsistente) {
+                          return _buildHoySinAgenda(day);
+                        }
+                        return _buildDayMarker(
+                          day,
+                          esDoctora: esDoctora,
+                          esAmbas: esDoctora && esAsistente,
+                          esHoy: true,
                         );
                       },
                     ),

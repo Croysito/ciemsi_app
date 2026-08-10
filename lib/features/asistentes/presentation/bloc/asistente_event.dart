@@ -34,6 +34,7 @@ class ModificarAsistenteEvent extends AsistenteEvent {
   final String apellido;
   final String email;
   final int ciudadId;
+  final bool veTodasCiudades;
 
   ModificarAsistenteEvent({
     required this.id,
@@ -41,10 +42,18 @@ class ModificarAsistenteEvent extends AsistenteEvent {
     required this.apellido,
     required this.email,
     required this.ciudadId,
+    required this.veTodasCiudades,
   });
 
   @override
-  List<Object?> get props => [id, nombre, apellido, email, ciudadId];
+  List<Object?> get props => [
+    id,
+    nombre,
+    apellido,
+    email,
+    ciudadId,
+    veTodasCiudades,
+  ];
 }
 
 class CambiarEstadoAsistenteEvent extends AsistenteEvent {

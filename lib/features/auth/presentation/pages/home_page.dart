@@ -41,6 +41,12 @@ class _HomePageState extends State<HomePage> {
   int? _ciudadIdInventario;
   String? _ciudadNombreInventario;
 
+  // La ciudad de Inventario solo queda "fija" (no reseteable) para un
+  // Asistente normal; uno con veTodasCiudades elige ciudad libremente,
+  // igual que la Doctora.
+  bool get _ciudadInventarioReseteable =>
+      widget.usuario.rol != 'Asistente' || widget.usuario.veTodasCiudades;
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +57,9 @@ class _HomePageState extends State<HomePage> {
     _dashboardBloc = AppDependencies.createDashboardBloc();
     _pagoBloc = AppDependencies.createPagoBloc();
 
-    if (widget.usuario.rol == 'Asistente' && widget.usuario.ciudad != null) {
+    if (widget.usuario.rol == 'Asistente' &&
+        !widget.usuario.veTodasCiudades &&
+        widget.usuario.ciudad != null) {
       _ciudadIdInventario = widget.usuario.ciudad!.id;
       _ciudadNombreInventario = widget.usuario.ciudad!.nombreCiudad;
     }
@@ -72,7 +80,7 @@ class _HomePageState extends State<HomePage> {
 
   void _onBottomNavTap(int i) {
     setState(() {
-      if (_currentIndex == 4 && i != 4 && widget.usuario.rol != 'Asistente') {
+      if (_currentIndex == 4 && i != 4 && _ciudadInventarioReseteable) {
         _ciudadIdInventario = null;
         _ciudadNombreInventario = null;
       }
@@ -107,7 +115,7 @@ class _HomePageState extends State<HomePage> {
             if (didPop) return;
             if (_currentIndex == 4 &&
                 _ciudadIdInventario != null &&
-                widget.usuario.rol != 'Asistente') {
+                _ciudadInventarioReseteable) {
               setState(() {
                 _ciudadIdInventario = null;
                 _ciudadNombreInventario = null;

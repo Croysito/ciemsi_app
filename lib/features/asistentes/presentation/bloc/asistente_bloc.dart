@@ -98,6 +98,7 @@ class AsistenteBloc extends Bloc<AsistenteEvent, AsistenteState> {
         apellido: event.apellido,
         email: event.email,
         ciudadId: event.ciudadId,
+        veTodasCiudades: event.veTodasCiudades,
       );
       emit(AsistenteModificado());
     } catch (e) {

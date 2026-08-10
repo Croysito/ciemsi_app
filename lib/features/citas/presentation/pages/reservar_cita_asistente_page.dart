@@ -7,6 +7,7 @@ import 'package:ciemsi_app/features/agenda/data/models/agenda_model.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_event.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
+import 'package:ciemsi_app/features/citas/domain/utils/horas_disponibles_utils.dart';
 import 'package:ciemsi_app/features/servicios/data/models/servicio_model.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
@@ -26,8 +27,7 @@ class ReservarCitaAsistentePage extends StatefulWidget {
       _ReservarCitaAsistentePageState();
 }
 
-class _ReservarCitaAsistentePageState
-    extends State<ReservarCitaAsistentePage> {
+class _ReservarCitaAsistentePageState extends State<ReservarCitaAsistentePage> {
   List<dynamic> _pacientes = [];
   dynamic _pacienteSeleccionado;
 
@@ -46,7 +46,15 @@ class _ReservarCitaAsistentePageState
   Servicio? _servicioSeleccionado;
   bool _cargandoServicios = false;
 
-  DateTime _focusedDay = DateTime.now().add(const Duration(days: 1));
+  // Normalizado a medianoche: si llevara la hora actual, table_calendar
+  // compara DateTime completos y "hoy a las 00:00" queda técnicamente
+  // antes de firstDay (la hora que sea ahora) → lo deshabilita.
+  static DateTime get _hoy {
+    final ahora = DateTime.now();
+    return DateTime(ahora.year, ahora.month, ahora.day);
+  }
+
+  DateTime _focusedDay = _hoy;
   DateTime? _fechaSeleccionada;
   String? _horaSeleccionada;
   List<String> _horasDisponibles = [];
@@ -85,9 +93,7 @@ class _ReservarCitaAsistentePageState
       if (!mounted) return;
       setState(() {
         _pacientes = (response.data as List)
-            .where(
-              (p) => p['usuario']['ciudad']?['id'] == widget.ciudadId,
-            )
+            .where((p) => p['usuario']['ciudad']?['id'] == widget.ciudadId)
             .toList();
         _cargandoPacientes = false;
       });
@@ -106,8 +112,10 @@ class _ReservarCitaAsistentePageState
           'fecha': DateFormat('yyyy-MM-dd').format(dia),
         },
       );
-      final horas =
-          List<String>.from(response.data['horasDisponibles'] ?? []);
+      final horas = HorasDisponiblesUtils.filtrarPasadas(
+        List<String>.from(response.data['horasDisponibles'] ?? []),
+        DateFormat('yyyy-MM-dd').format(dia),
+      );
       if (horas.isNotEmpty) return DateTime(dia.year, dia.month, dia.day);
     } catch (_) {}
     return null;
@@ -139,7 +147,7 @@ class _ReservarCitaAsistentePageState
       );
       final diasFutures = List.generate(
         60,
-        (i) => _verificarDia(ahora.add(Duration(days: i + 1))),
+        (i) => _verificarDia(ahora.add(Duration(days: i))),
       );
       final diasRequest = Future.wait(diasFutures);
 
@@ -159,14 +167,23 @@ class _ReservarCitaAsistentePageState
       final disponibles = diasResults.whereType<DateTime>().toSet();
       final diasDoctora = <DateTime>{};
       final diasAsistente = <DateTime>{};
-      const nombresDias = ['DOMINGO','LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO'];
+      const nombresDias = [
+        'DOMINGO',
+        'LUNES',
+        'MARTES',
+        'MIERCOLES',
+        'JUEVES',
+        'VIERNES',
+        'SABADO',
+      ];
       for (final dia in disponibles) {
         for (final agenda in agendas) {
           bool aplica = false;
           if (agenda.diasSemana != null && agenda.diasSemana!.isNotEmpty) {
             aplica = agenda.diasSemana!.contains(nombresDias[dia.weekday % 7]);
           } else if (agenda.fecha != null) {
-            aplica = agenda.fecha!.year == dia.year &&
+            aplica =
+                agenda.fecha!.year == dia.year &&
                 agenda.fecha!.month == dia.month &&
                 agenda.fecha!.day == dia.day;
           }
@@ -188,6 +205,12 @@ class _ReservarCitaAsistentePageState
         _sinAgendasEnCiudad = agendas.isEmpty;
         _cargandoCalendario = false;
       });
+
+      // Si hoy tiene disponibilidad, seleccionarlo automáticamente para no
+      // obligar a un tap extra en el calendario.
+      if (disponibles.contains(_hoy)) {
+        _seleccionarFecha(_hoy);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _cargandoCalendario = false);
@@ -213,7 +236,8 @@ class _ReservarCitaAsistentePageState
       if (agenda.diasSemana != null && agenda.diasSemana!.isNotEmpty) {
         aplica = agenda.diasSemana!.contains(nombresDias[dia.weekday % 7]);
       } else if (agenda.fecha != null) {
-        aplica = agenda.fecha!.year == dia.year &&
+        aplica =
+            agenda.fecha!.year == dia.year &&
             agenda.fecha!.month == dia.month &&
             agenda.fecha!.day == dia.day;
       }
@@ -242,6 +266,28 @@ class _ReservarCitaAsistentePageState
     }
   }
 
+  /// Selecciona [dia] en el calendario (por tap o automáticamente cuando
+  /// hoy tiene disponibilidad) y dispara la carga de tipo de agenda + horas.
+  void _seleccionarFecha(DateTime dia) {
+    setState(() {
+      _fechaSeleccionada = dia;
+      _focusedDay = dia;
+      _horaSeleccionada = null;
+      _horasDisponibles = [];
+      _cargandoHoras = true;
+      _rolCreadorSeleccionado = null;
+      _servicios = [];
+      _servicioSeleccionado = null;
+    });
+    _detectarTiposAgendaParaDia(dia);
+    context.read<CitaBloc>().add(
+      CargarDisponibilidadEvent(
+        ciudadId: widget.ciudadId,
+        fecha: DateFormat('yyyy-MM-dd').format(dia),
+      ),
+    );
+  }
+
   void _seleccionarRolAgenda(String rol) {
     final agenda = _fechaSeleccionada != null
         ? _encontrarAgendaParaDia(_fechaSeleccionada!, rol)
@@ -254,14 +300,23 @@ class _ReservarCitaAsistentePageState
   }
 
   AgendaModel? _encontrarAgendaParaDia(DateTime dia, String rol) {
-    const nombresDias = ['DOMINGO','LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO'];
+    const nombresDias = [
+      'DOMINGO',
+      'LUNES',
+      'MARTES',
+      'MIERCOLES',
+      'JUEVES',
+      'VIERNES',
+      'SABADO',
+    ];
     for (final agenda in _agendasCiudad) {
       if (agenda.rolCreador != rol) continue;
       bool aplica = false;
       if (agenda.diasSemana != null && agenda.diasSemana!.isNotEmpty) {
         aplica = agenda.diasSemana!.contains(nombresDias[dia.weekday % 7]);
       } else if (agenda.fecha != null) {
-        aplica = agenda.fecha!.year == dia.year &&
+        aplica =
+            agenda.fecha!.year == dia.year &&
             agenda.fecha!.month == dia.month &&
             agenda.fecha!.day == dia.day;
       }
@@ -355,242 +410,242 @@ class _ReservarCitaAsistentePageState
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.all(20),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Ciudad fija ──────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00B5C8).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: const Color(0xFF00B5C8).withValues(alpha: 0.3),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Ciudad fija ──────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00B5C8).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFF00B5C8).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.location_city_outlined,
+                        color: Color(0xFF00B5C8),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Tu ciudad',
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                          Text(
+                            widget.ciudadNombre,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF00B5C8),
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.location_city_outlined,
-                      color: Color(0xFF00B5C8),
+                const SizedBox(height: 16),
+
+                // ── Paciente ─────────────────────────────────────
+                _buildLabel('Paciente'),
+                const SizedBox(height: 8),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(
+                      value: false,
+                      icon: Icon(Icons.person_search_outlined),
+                      label: Text('Existente'),
                     ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Tu ciudad',
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                        Text(
-                          widget.ciudadNombre,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF00B5C8),
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
+                    ButtonSegment(
+                      value: true,
+                      icon: Icon(Icons.person_add_alt_1_outlined),
+                      label: Text('Nuevo'),
                     ),
                   ],
+                  selected: {_usarPacienteNuevo},
+                  onSelectionChanged: (selection) {
+                    setState(() {
+                      _usarPacienteNuevo = selection.first;
+                      _pacienteSeleccionado = null;
+                      _pacienteController.clear();
+                    });
+                  },
+                  style: _segmentedStyle(),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                _cargandoPacientes
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF00B5C8),
+                        ),
+                      )
+                    : _usarPacienteNuevo
+                    ? _buildPacienteNuevoForm()
+                    : _buildTypeAheadPaciente(),
+                const SizedBox(height: 16),
 
-              // ── Paciente ─────────────────────────────────────
-              _buildLabel('Paciente'),
-              const SizedBox(height: 8),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(
-                    value: false,
-                    icon: Icon(Icons.person_search_outlined),
-                    label: Text('Existente'),
-                  ),
-                  ButtonSegment(
-                    value: true,
-                    icon: Icon(Icons.person_add_alt_1_outlined),
-                    label: Text('Nuevo'),
-                  ),
+                // ── Calendario ───────────────────────────────────
+                _buildLabel('Fecha disponible'),
+                const SizedBox(height: 8),
+                if (_cargandoCalendario)
+                  _buildLoadingState('Cargando disponibilidad...')
+                else if (_sinAgendasEnCiudad)
+                  _buildInfoBanner(
+                    'No hay agendas configuradas para ${widget.ciudadNombre}',
+                    Icons.event_busy_outlined,
+                    isWarning: true,
+                  )
+                else if (_diasDisponibles.isEmpty)
+                  _buildInfoBanner(
+                    'No hay fechas disponibles en ${widget.ciudadNombre}',
+                    Icons.calendar_today_outlined,
+                    isWarning: true,
+                  )
+                else
+                  _buildCalendario(),
+                const SizedBox(height: 16),
+
+                // ── Horas ────────────────────────────────────────
+                if (_fechaSeleccionada != null) ...[
+                  _buildHoras(),
+                  const SizedBox(height: 16),
                 ],
-                selected: {_usarPacienteNuevo},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _usarPacienteNuevo = selection.first;
-                    _pacienteSeleccionado = null;
-                    _pacienteController.clear();
-                  });
-                },
-                style: _segmentedStyle(),
-              ),
-              const SizedBox(height: 12),
-              _cargandoPacientes
-                  ? const Center(
+
+                // ── Selector tipo de agenda (solo si hay ambos) ──
+                if (_fechaSeleccionada != null &&
+                    _tieneAgendaDoctora &&
+                    _tieneAgendaAsistente) ...[
+                  _buildLabel('Tipo de agenda'),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'Doctora',
+                        icon: Icon(Icons.medical_services_outlined),
+                        label: Text('Doctora'),
+                      ),
+                      ButtonSegment(
+                        value: 'Asistente',
+                        icon: Icon(Icons.support_agent_outlined),
+                        label: Text('Asistente'),
+                      ),
+                    ],
+                    selected: _rolCreadorSeleccionado != null
+                        ? {_rolCreadorSeleccionado!}
+                        : {},
+                    emptySelectionAllowed: true,
+                    onSelectionChanged: (selection) {
+                      if (selection.isNotEmpty) {
+                        _seleccionarRolAgenda(selection.first);
+                      }
+                    },
+                    style: _segmentedStyle(),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // ── Servicios (dinámicos según agenda) ───────────
+                if (_rolCreadorSeleccionado != null) ...[
+                  _buildLabel('Servicio'),
+                  const SizedBox(height: 8),
+                  if (_cargandoServicios)
+                    const Center(
                       child: CircularProgressIndicator(
                         color: Color(0xFF00B5C8),
                       ),
                     )
-                  : _usarPacienteNuevo
-                  ? _buildPacienteNuevoForm()
-                  : _buildTypeAheadPaciente(),
-              const SizedBox(height: 16),
-
-              // ── Calendario ───────────────────────────────────
-              _buildLabel('Fecha disponible'),
-              const SizedBox(height: 8),
-              if (_cargandoCalendario)
-                _buildLoadingState('Cargando disponibilidad...')
-              else if (_sinAgendasEnCiudad)
-                _buildInfoBanner(
-                  'No hay agendas configuradas para ${widget.ciudadNombre}',
-                  Icons.event_busy_outlined,
-                  isWarning: true,
-                )
-              else if (_diasDisponibles.isEmpty)
-                _buildInfoBanner(
-                  'No hay fechas disponibles en ${widget.ciudadNombre}',
-                  Icons.calendar_today_outlined,
-                  isWarning: true,
-                )
-              else
-                _buildCalendario(),
-              const SizedBox(height: 16),
-
-              // ── Horas ────────────────────────────────────────
-              if (_fechaSeleccionada != null) ...[
-                _buildHoras(),
-                const SizedBox(height: 16),
-              ],
-
-              // ── Selector tipo de agenda (solo si hay ambos) ──
-              if (_fechaSeleccionada != null &&
-                  _tieneAgendaDoctora &&
-                  _tieneAgendaAsistente) ...[
-                _buildLabel('Tipo de agenda'),
-                const SizedBox(height: 8),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: 'Doctora',
-                      icon: Icon(Icons.medical_services_outlined),
-                      label: Text('Doctora'),
-                    ),
-                    ButtonSegment(
-                      value: 'Asistente',
-                      icon: Icon(Icons.support_agent_outlined),
-                      label: Text('Asistente'),
-                    ),
-                  ],
-                  selected: _rolCreadorSeleccionado != null
-                      ? {_rolCreadorSeleccionado!}
-                      : {},
-                  emptySelectionAllowed: true,
-                  onSelectionChanged: (selection) {
-                    if (selection.isNotEmpty) {
-                      _seleccionarRolAgenda(selection.first);
-                    }
-                  },
-                  style: _segmentedStyle(),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // ── Servicios (dinámicos según agenda) ───────────
-              if (_rolCreadorSeleccionado != null) ...[
-                _buildLabel('Servicio'),
-                const SizedBox(height: 8),
-                if (_cargandoServicios)
-                  const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF00B5C8),
-                    ),
-                  )
-                else if (_servicios.isEmpty)
-                  _buildInfoBanner(
-                    'No hay servicios disponibles para esta agenda',
-                    Icons.info_outline,
-                    isWarning: true,
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<Servicio>(
-                        isExpanded: true,
-                        hint: const Text('Seleccionar servicio'),
-                        value: _servicioSeleccionado,
-                        items: _servicios
-                            .map(
-                              (s) => DropdownMenuItem(
-                                value: s,
-                                child: Text(
-                                  '${s.nombreServicio} (${s.tiempoMin} min)',
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) =>
-                            setState(() => _servicioSeleccionado = value),
+                  else if (_servicios.isEmpty)
+                    _buildInfoBanner(
+                      'No hay servicios disponibles para esta agenda',
+                      Icons.info_outline,
+                      isWarning: true,
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.grey.shade300),
                       ),
-                    ),
-                  ),
-                const SizedBox(height: 16),
-              ],
-
-              // ── Notas ────────────────────────────────────────
-              _buildLabel('Notas (opcional)'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _notasController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Escribe alguna nota...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // ── Botón ────────────────────────────────────────
-              BlocBuilder<CitaBloc, CitaState>(
-                builder: (context, state) {
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: state is CitaLoading || _creandoPaciente
-                          ? null
-                          : _onReservar,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8DC63F),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<Servicio>(
+                          isExpanded: true,
+                          hint: const Text('Seleccionar servicio'),
+                          value: _servicioSeleccionado,
+                          items: _servicios
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(
+                                    '${s.nombreServicio} (${s.tiempoMin} min)',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) =>
+                              setState(() => _servicioSeleccionado = value),
                         ),
                       ),
-                      child: state is CitaLoading || _creandoPaciente
-                          ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
-                          : const Text(
-                              'Reservar Cita',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                     ),
-                  );
-                },
-              ),
-            ],
+                  const SizedBox(height: 16),
+                ],
+
+                // ── Notas ────────────────────────────────────────
+                _buildLabel('Notas (opcional)'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _notasController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Escribe alguna nota...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // ── Botón ────────────────────────────────────────
+                BlocBuilder<CitaBloc, CitaState>(
+                  builder: (context, state) {
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: state is CitaLoading || _creandoPaciente
+                            ? null
+                            : _onReservar,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8DC63F),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: state is CitaLoading || _creandoPaciente
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : const Text(
+                                'Reservar Cita',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ),
@@ -651,7 +706,9 @@ class _ReservarCitaAsistentePageState
         children: [
           Icon(icon, color: color),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: TextStyle(color: color))),
+          Expanded(
+            child: Text(text, style: TextStyle(color: color)),
+          ),
         ],
       ),
     );
@@ -694,15 +751,10 @@ class _ReservarCitaAsistentePageState
             suffixIcon: _pacienteSeleccionado != null
                 ? const Icon(Icons.check_circle, color: Color(0xFF8DC63F))
                 : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: Color(0xFF00B5C8),
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: Color(0xFF00B5C8), width: 2),
             ),
             filled: true,
             fillColor: Colors.white,
@@ -769,33 +821,15 @@ class _ReservarCitaAsistentePageState
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: TableCalendar(
         locale: 'es_ES',
-        firstDay: DateTime.now().add(const Duration(days: 1)),
-        lastDay: DateTime.now().add(const Duration(days: 60)),
+        firstDay: _hoy,
+        lastDay: _hoy.add(const Duration(days: 60)),
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_fechaSeleccionada, day),
         enabledDayPredicate: (day) {
           final normalDay = DateTime(day.year, day.month, day.day);
           return _diasDisponibles.contains(normalDay);
         },
-        onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            _fechaSeleccionada = selectedDay;
-            _focusedDay = focusedDay;
-            _horaSeleccionada = null;
-            _horasDisponibles = [];
-            _cargandoHoras = true;
-            _rolCreadorSeleccionado = null;
-            _servicios = [];
-            _servicioSeleccionado = null;
-          });
-          _detectarTiposAgendaParaDia(selectedDay);
-          context.read<CitaBloc>().add(
-            CargarDisponibilidadEvent(
-              ciudadId: widget.ciudadId,
-              fecha: DateFormat('yyyy-MM-dd').format(selectedDay),
-            ),
-          );
-        },
+        onDaySelected: (selectedDay, focusedDay) => _seleccionarFecha(selectedDay),
         onPageChanged: (focusedDay) => _focusedDay = focusedDay,
         calendarBuilders: CalendarBuilders(
           defaultBuilder: (context, day, focusedDay) {
@@ -825,6 +859,39 @@ class _ReservarCitaAsistentePageState
             }
             return null;
           },
+          // table_calendar NO pasa por defaultBuilder para "hoy": usa
+          // todayBuilder (o calendarStyle.todayDecoration si no se define).
+          // Sin esto, hoy nunca muestra el color de la agenda del día.
+          todayBuilder: (context, day, focusedDay) {
+            final normalDay = DateTime(day.year, day.month, day.day);
+            final esDoctora = _diasDoctora.contains(normalDay);
+            final esAsistente = _diasAsistente.contains(normalDay);
+            final tieneAgenda = esDoctora || esAsistente;
+            final color = !tieneAgenda
+                ? const Color(0xFF00B5C8)
+                : (esDoctora && esAsistente)
+                ? const Color(0xFF7B5EA7)
+                : esDoctora
+                ? const Color(0xFF00B5C8)
+                : const Color(0xFF8DC63F);
+            return Container(
+              margin: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: tieneAgenda ? color : Colors.transparent,
+                shape: BoxShape.circle,
+                border: Border.all(color: color, width: 2),
+              ),
+              child: Center(
+                child: Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    color: tieneAgenda ? Colors.white : color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
         calendarStyle: const CalendarStyle(
           selectedDecoration: BoxDecoration(
@@ -845,10 +912,7 @@ class _ReservarCitaAsistentePageState
             fontWeight: FontWeight.bold,
           ),
           leftChevronIcon: Icon(Icons.chevron_left, color: Color(0xFF00B5C8)),
-          rightChevronIcon: Icon(
-            Icons.chevron_right,
-            color: Color(0xFF00B5C8),
-          ),
+          rightChevronIcon: Icon(Icons.chevron_right, color: Color(0xFF00B5C8)),
         ),
       ),
     );
@@ -922,15 +986,10 @@ class _ReservarCitaAsistentePageState
               Icons.person_add_alt_1_outlined,
               color: Color(0xFF00B5C8),
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: Color(0xFF00B5C8),
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: Color(0xFF00B5C8), width: 2),
             ),
             filled: true,
             fillColor: Colors.white,
@@ -947,15 +1006,10 @@ class _ReservarCitaAsistentePageState
               Icons.phone_outlined,
               color: Color(0xFF00B5C8),
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: Color(0xFF00B5C8),
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: Color(0xFF00B5C8), width: 2),
             ),
             filled: true,
             fillColor: Colors.white,

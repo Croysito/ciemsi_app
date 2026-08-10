@@ -11,6 +11,7 @@ class UsuarioModel extends Usuario {
     required super.rol,
     super.ciudad,
     super.permisos,
+    super.veTodasCiudades,
   });
 
   factory UsuarioModel.fromJson(Map<String, dynamic> json) {
@@ -41,6 +42,7 @@ class UsuarioModel extends Usuario {
       rol: rolNombre,
       ciudad: ciudad,
       permisos: permisos,
+      veTodasCiudades: json['veTodasCiudades'] == true,
     );
   }
 
@@ -54,5 +56,6 @@ class UsuarioModel extends Usuario {
         ? {'id': ciudad!.id, 'nombreCiudad': ciudad!.nombreCiudad}
         : null,
     'permisos': permisos,
+    'veTodasCiudades': veTodasCiudades,
   };
 }

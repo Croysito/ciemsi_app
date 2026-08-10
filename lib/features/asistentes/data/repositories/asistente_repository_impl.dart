@@ -45,12 +45,14 @@ class AsistenteRepositoryImpl implements AsistenteRepository {
     required String apellido,
     required String email,
     required int ciudadId,
+    required bool veTodasCiudades,
   }) => remoteDatasource.modificarAsistente(
     id: id,
     nombre: nombre,
     apellido: apellido,
     email: email,
     ciudadId: ciudadId,
+    veTodasCiudades: veTodasCiudades,
   );
 
   @override

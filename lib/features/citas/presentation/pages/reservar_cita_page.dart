@@ -18,6 +18,13 @@ class ReservarCitaPage extends StatelessWidget {
           value: context.read<CitaBloc>(),
           child: const ReservarCitaDoctoraPage(),
         );
+      case 'Asistente' when usuario.veTodasCiudades:
+        // Asistente habilitado para todas las ciudades: mismo flujo
+        // multi-ciudad que usa la Doctora (elige ciudad con un dropdown).
+        return BlocProvider.value(
+          value: context.read<CitaBloc>(),
+          child: const ReservarCitaDoctoraPage(),
+        );
       case 'Asistente':
         final ciudad = usuario.ciudad;
         if (ciudad == null) {

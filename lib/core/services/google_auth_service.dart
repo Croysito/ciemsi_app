@@ -4,7 +4,7 @@ import 'dart:convert';
 class GoogleAuthService {
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId:
-        '1032953486615-k99d99l04jd64j7s6icussfkpkc2fb6n.apps.googleusercontent.com',
+        '369719553016-v37hjsk0jlv1j971bbupr2dmv095i58h.apps.googleusercontent.com',
     scopes: ['email', 'https://www.googleapis.com/auth/drive.file'],
   );
 

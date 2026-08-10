@@ -21,6 +21,7 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
   final _emailController = TextEditingController();
   Ciudad? _ciudadSeleccionada;
   List<Ciudad> _ciudades = [];
+  late bool _veTodasCiudades;
   Map<String, bool> _permisos = {
     for (final modulo in ModuloAsistente.todos) modulo.clave: false,
   };
@@ -31,6 +32,7 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
     _nombreController.text = widget.asistente.nombre;
     _apellidoController.text = widget.asistente.apellido;
     _emailController.text = widget.asistente.email;
+    _veTodasCiudades = widget.asistente.veTodasCiudades;
     context.read<AsistenteBloc>().add(CargarCiudadesAsistenteEvent());
     context.read<AsistenteBloc>().add(
       CargarPermisosAsistenteEvent(id: widget.asistente.id),
@@ -140,6 +142,29 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+
+              // Ve todas las ciudades (caso especial, ej. la mano derecha
+              // de la Doctora): igual alcance que Doctora, pero conserva
+              // una ciudad propia asignada.
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: SwitchListTile(
+                  title: const Text('Ve todas las ciudades'),
+                  subtitle: const Text(
+                    'Igual alcance que la Doctora en pacientes, citas, '
+                    'inventario, agenda y traslados',
+                  ),
+                  value: _veTodasCiudades,
+                  activeThumbColor: const Color(0xFF00B5C8),
+                  onChanged: (value) =>
+                      setState(() => _veTodasCiudades = value),
+                ),
+              ),
               const SizedBox(height: 24),
 
               Align(
@@ -205,6 +230,7 @@ class _ModificarAsistentePageState extends State<ModificarAsistentePage> {
                                   apellido: _apellidoController.text.trim(),
                                   email: _emailController.text.trim(),
                                   ciudadId: _ciudadSeleccionada!.id,
+                                  veTodasCiudades: _veTodasCiudades,
                                 ),
                               );
                               context.read<AsistenteBloc>().add(

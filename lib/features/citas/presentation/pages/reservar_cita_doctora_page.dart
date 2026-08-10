@@ -7,6 +7,7 @@ import 'package:ciemsi_app/features/agenda/data/models/agenda_model.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_event.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
+import 'package:ciemsi_app/features/citas/domain/utils/horas_disponibles_utils.dart';
 import 'package:ciemsi_app/features/servicios/data/models/servicio_model.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
@@ -41,7 +42,15 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
   Set<DateTime> _diasAsistente = {};
   bool _cargandoCalendario = false;
   bool _sinAgendasEnCiudad = false;
-  DateTime _focusedDay = DateTime.now().add(const Duration(days: 1));
+  // Normalizado a medianoche: si llevara la hora actual, table_calendar
+  // compara DateTime completos y "hoy a las 00:00" queda técnicamente
+  // antes de firstDay (la hora que sea ahora) → lo deshabilita.
+  static DateTime get _hoy {
+    final ahora = DateTime.now();
+    return DateTime(ahora.year, ahora.month, ahora.day);
+  }
+
+  DateTime _focusedDay = _hoy;
   DateTime? _fechaSeleccionada;
 
   // ── Paso 4: Tipo de agenda + Servicios ───────────────────────
@@ -91,10 +100,10 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
   Future<void> _cargarPacientesYCiudades() async {
     setState(() => _cargandoPacientes = true);
     try {
-      final resPacientes =
-          await ApiClientProvider.instance.dio.get('/pacientes');
-      final resCiudades =
-          await ApiClientProvider.instance.dio.get('/ciudades');
+      final resPacientes = await ApiClientProvider.instance.dio.get(
+        '/pacientes',
+      );
+      final resCiudades = await ApiClientProvider.instance.dio.get('/ciudades');
       setState(() {
         _pacientes = resPacientes.data;
         _ciudades = resCiudades.data;
@@ -114,8 +123,10 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
           'fecha': DateFormat('yyyy-MM-dd').format(dia),
         },
       );
-      final horas =
-          List<String>.from(response.data['horasDisponibles'] ?? []);
+      final horas = HorasDisponiblesUtils.filtrarPasadas(
+        List<String>.from(response.data['horasDisponibles'] ?? []),
+        DateFormat('yyyy-MM-dd').format(dia),
+      );
       if (horas.isNotEmpty) return DateTime(dia.year, dia.month, dia.day);
     } catch (_) {}
     return null;
@@ -147,7 +158,7 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
       );
       final diasFutures = List.generate(
         60,
-        (i) => _verificarDia(ciudadId, ahora.add(Duration(days: i + 1))),
+        (i) => _verificarDia(ciudadId, ahora.add(Duration(days: i))),
       );
       final diasRequest = Future.wait(diasFutures);
 
@@ -169,14 +180,23 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
       final disponibles = diasResults.whereType<DateTime>().toSet();
       final diasDoctora = <DateTime>{};
       final diasAsistente = <DateTime>{};
-      const nombresDias = ['DOMINGO','LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO'];
+      const nombresDias = [
+        'DOMINGO',
+        'LUNES',
+        'MARTES',
+        'MIERCOLES',
+        'JUEVES',
+        'VIERNES',
+        'SABADO',
+      ];
       for (final dia in disponibles) {
         for (final agenda in agendas) {
           bool aplica = false;
           if (agenda.diasSemana != null && agenda.diasSemana!.isNotEmpty) {
             aplica = agenda.diasSemana!.contains(nombresDias[dia.weekday % 7]);
           } else if (agenda.fecha != null) {
-            aplica = agenda.fecha!.year == dia.year &&
+            aplica =
+                agenda.fecha!.year == dia.year &&
                 agenda.fecha!.month == dia.month &&
                 agenda.fecha!.day == dia.day;
           }
@@ -198,9 +218,37 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
         _sinAgendasEnCiudad = agendas.isEmpty;
         _cargandoCalendario = false;
       });
+
+      // Si hoy tiene disponibilidad en la ciudad elegida, seleccionarlo
+      // automáticamente para no obligar a un tap extra en el calendario.
+      if (disponibles.contains(_hoy)) {
+        _seleccionarFecha(_hoy);
+      }
     } catch (e) {
       setState(() => _cargandoCalendario = false);
     }
+  }
+
+  /// Selecciona [dia] en el calendario (por tap o automáticamente cuando
+  /// hoy tiene disponibilidad) y dispara la carga de tipo de agenda + horas.
+  void _seleccionarFecha(DateTime dia) {
+    setState(() {
+      _fechaSeleccionada = dia;
+      _focusedDay = dia;
+      _horaSeleccionada = null;
+      _horasDisponibles = [];
+      _cargandoHoras = true;
+      _rolCreadorSeleccionado = null;
+      _servicios = [];
+      _servicioSeleccionado = null;
+    });
+    _detectarTiposAgendaParaDia(dia);
+    context.read<CitaBloc>().add(
+      CargarDisponibilidadEvent(
+        ciudadId: _ciudadSeleccionada['id'],
+        fecha: DateFormat('yyyy-MM-dd').format(dia),
+      ),
+    );
   }
 
   // Detecta qué tipos de agenda existen para el día y auto-selecciona si es uno solo
@@ -222,7 +270,8 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
       if (agenda.diasSemana != null && agenda.diasSemana!.isNotEmpty) {
         aplica = agenda.diasSemana!.contains(nombresDias[dia.weekday % 7]);
       } else if (agenda.fecha != null) {
-        aplica = agenda.fecha!.year == dia.year &&
+        aplica =
+            agenda.fecha!.year == dia.year &&
             agenda.fecha!.month == dia.month &&
             agenda.fecha!.day == dia.day;
       }
@@ -265,7 +314,15 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
   }
 
   AgendaModel? _encontrarAgendaParaDia(DateTime dia, String rol) {
-    const nombresDias = ['DOMINGO','LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO'];
+    const nombresDias = [
+      'DOMINGO',
+      'LUNES',
+      'MARTES',
+      'MIERCOLES',
+      'JUEVES',
+      'VIERNES',
+      'SABADO',
+    ];
     for (final agenda in _agendasCiudad) {
       // Misma lógica que _detectarTiposAgendaParaDia: cualquier rol != 'Doctora' es Asistente
       if (agenda.rolCreador != rol) continue;
@@ -273,7 +330,8 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
       if (agenda.diasSemana != null && agenda.diasSemana!.isNotEmpty) {
         aplica = agenda.diasSemana!.contains(nombresDias[dia.weekday % 7]);
       } else if (agenda.fecha != null) {
-        aplica = agenda.fecha!.year == dia.year &&
+        aplica =
+            agenda.fecha!.year == dia.year &&
             agenda.fecha!.month == dia.month &&
             agenda.fecha!.day == dia.day;
       }
@@ -363,384 +421,390 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
           behavior: HitTestBehavior.opaque,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-
-              // ── PASO 1: Paciente ────────────────────────────────
-              _buildStepHeader('1', 'Paciente', activo: true),
-              const SizedBox(height: 8),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(
-                    value: false,
-                    icon: Icon(Icons.person_search_outlined),
-                    label: Text('Existente'),
-                  ),
-                  ButtonSegment(
-                    value: true,
-                    icon: Icon(Icons.person_add_alt_1_outlined),
-                    label: Text('Nuevo'),
-                  ),
-                ],
-                selected: {_usarPacienteNuevo},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _usarPacienteNuevo = selection.first;
-                    _pacienteSeleccionado = null;
-                    _pacienteController.clear();
-                    // Resetear pasos siguientes
-                    if (!_usarPacienteNuevo) _resetDesdeCiudad();
-                  });
-                },
-                style: _segmentedStyle(),
-              ),
-              const SizedBox(height: 12),
-              _cargandoPacientes
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF00B5C8),
-                      ),
-                    )
-                  : _usarPacienteNuevo
-                  ? _buildPacienteNuevoForm()
-                  : _buildTypeAheadPaciente(),
-
-              const SizedBox(height: 24),
-
-              // ── PASO 2: Ciudad (habilitado solo cuando hay paciente) ──
-              _buildStepHeader(
-                '2',
-                'Ciudad',
-                activo: _pacienteStepCompleto,
-              ),
-              const SizedBox(height: 8),
-              AbsorbPointer(
-                absorbing: !_pacienteStepCompleto,
-                child: Opacity(
-                  opacity: _pacienteStepCompleto ? 1.0 : 0.4,
-                  child: _buildDropdown(
-                    hint: 'Seleccionar ciudad',
-                    value: _ciudadSeleccionada,
-                    items: _ciudades,
-                    label: (c) => c['nombreCiudad'],
-                    onChanged: (value) {
-                      setState(() {
-                        _ciudadSeleccionada = value;
-                        _resetDesdeFecha();
-                      });
-                      _cargarDiasDisponibles();
-                    },
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── PASO 3: Fecha (habilitado solo cuando hay ciudad) ─────
-              _buildStepHeader(
-                '3',
-                'Fecha disponible',
-                activo: _ciudadStepCompleto,
-              ),
-              const SizedBox(height: 8),
-              if (!_ciudadStepCompleto)
-                _buildInfoBanner(
-                  'Selecciona una ciudad primero',
-                  Icons.info_outline,
-                )
-              else if (_cargandoCalendario)
-                _buildLoadingState('Cargando disponibilidad...')
-              else if (_sinAgendasEnCiudad)
-                _buildInfoBanner(
-                  'No hay agendas configuradas para esta ciudad',
-                  Icons.event_busy_outlined,
-                  isWarning: true,
-                )
-              else if (_diasDisponibles.isEmpty)
-                _buildInfoBanner(
-                  'No hay fechas disponibles en esta ciudad',
-                  Icons.calendar_today_outlined,
-                  isWarning: true,
-                )
-              else
-                _buildCalendario(),
-
-              const SizedBox(height: 24),
-
-              // ── PASO 4: Tipo de agenda + Servicios ────────────────────
-              // Selector tipo (solo si hay ambas agendas en el día elegido)
-              if (_fechaStepCompleto &&
-                  _tieneAgendaDoctora &&
-                  _tieneAgendaAsistente) ...[
-                _buildStepHeader('4', 'Tipo de agenda', activo: true),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── PASO 1: Paciente ────────────────────────────────
+                _buildStepHeader('1', 'Paciente', activo: true),
                 const SizedBox(height: 8),
-                SegmentedButton<String>(
+                SegmentedButton<bool>(
                   segments: const [
                     ButtonSegment(
-                      value: 'Doctora',
-                      icon: Icon(Icons.medical_services_outlined),
-                      label: Text('Doctora'),
+                      value: false,
+                      icon: Icon(Icons.person_search_outlined),
+                      label: Text('Existente'),
                     ),
                     ButtonSegment(
-                      value: 'Asistente',
-                      icon: Icon(Icons.support_agent_outlined),
-                      label: Text('Asistente'),
+                      value: true,
+                      icon: Icon(Icons.person_add_alt_1_outlined),
+                      label: Text('Nuevo'),
                     ),
                   ],
-                  selected: _rolCreadorSeleccionado != null
-                      ? {_rolCreadorSeleccionado!}
-                      : {},
-                  emptySelectionAllowed: true,
+                  selected: {_usarPacienteNuevo},
                   onSelectionChanged: (selection) {
-                    if (selection.isNotEmpty) {
-                      _seleccionarRolAgenda(selection.first);
-                    }
+                    setState(() {
+                      _usarPacienteNuevo = selection.first;
+                      _pacienteSeleccionado = null;
+                      _pacienteController.clear();
+                      // Resetear pasos siguientes
+                      if (!_usarPacienteNuevo) _resetDesdeCiudad();
+                    });
                   },
                   style: _segmentedStyle(),
                 ),
-                const SizedBox(height: 24),
-              ],
-
-              // Servicios
-              _buildStepHeader(
-                _tieneAgendaDoctora && _tieneAgendaAsistente ? '5' : '4',
-                'Servicio',
-                activo: _fechaStepCompleto && _agendaStepCompleto,
-              ),
-              const SizedBox(height: 8),
-              if (!_fechaStepCompleto)
-                _buildInfoBanner(
-                  'Selecciona una fecha primero',
-                  Icons.info_outline,
-                )
-              else if (!_agendaStepCompleto)
-                _buildInfoBanner(
-                  'Selecciona el tipo de agenda primero',
-                  Icons.info_outline,
-                )
-              else if (_cargandoServicios)
-                _buildLoadingState('Cargando servicios...')
-              else if (_servicios.isEmpty)
-                _buildInfoBanner(
-                  'No hay servicios disponibles para esta agenda',
-                  Icons.info_outline,
-                  isWarning: true,
-                )
-              else
-                AbsorbPointer(
-                  absorbing: false,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<Servicio>(
-                        isExpanded: true,
-                        hint: const Text('Seleccionar servicio'),
-                        value: _servicioSeleccionado,
-                        items: _servicios
-                            .map(
-                              (s) => DropdownMenuItem(
-                                value: s,
-                                child: Text(
-                                  '${s.nombreServicio} (${s.tiempoMin} min)',
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) =>
-                            setState(() => _servicioSeleccionado = value),
-                      ),
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 24),
-
-              // ── PASO 5/6: Hora ────────────────────────────────────────
-              _buildStepHeader(
-                _tieneAgendaDoctora && _tieneAgendaAsistente ? '6' : '5',
-                'Hora disponible',
-                activo: _agendaStepCompleto,
-              ),
-              const SizedBox(height: 8),
-              if (!_agendaStepCompleto)
-                _buildInfoBanner(
-                  'Selecciona el servicio primero',
-                  Icons.info_outline,
-                )
-              else if (_cargandoHoras)
-                const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF00B5C8)),
-                )
-              else if (_horasDisponibles.isEmpty)
-                _buildInfoBanner(
-                  'No hay horas disponibles para este día',
-                  Icons.access_time_outlined,
-                  isWarning: true,
-                )
-              else
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _horasDisponibles.map((hora) {
-                    final seleccionada = _horaSeleccionada == hora;
-                    return GestureDetector(
-                      onTap: () => setState(() => _horaSeleccionada = hora),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: seleccionada
-                              ? const Color(0xFF00B5C8)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: seleccionada
-                                ? const Color(0xFF00B5C8)
-                                : Colors.grey.shade300,
-                          ),
-                        ),
-                        child: Text(
-                          hora,
-                          style: TextStyle(
-                            color: seleccionada ? Colors.white : Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-
-              const SizedBox(height: 24),
-
-              // ── Notas ────────────────────────────────────────────────
-              AbsorbPointer(
-                absorbing: !_agendaStepCompleto,
-                child: Opacity(
-                  opacity: _agendaStepCompleto ? 1.0 : 0.4,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Notas (opcional)',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
+                const SizedBox(height: 12),
+                _cargandoPacientes
+                    ? const Center(
+                        child: CircularProgressIndicator(
                           color: Color(0xFF00B5C8),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _notasController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          hintText: 'Escribe alguna nota...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                        ),
-                      ),
-                    ],
+                      )
+                    : _usarPacienteNuevo
+                    ? _buildPacienteNuevoForm()
+                    : _buildTypeAheadPaciente(),
+
+                const SizedBox(height: 24),
+
+                // ── PASO 2: Ciudad (habilitado solo cuando hay paciente) ──
+                _buildStepHeader('2', 'Ciudad', activo: _pacienteStepCompleto),
+                const SizedBox(height: 8),
+                AbsorbPointer(
+                  absorbing: !_pacienteStepCompleto,
+                  child: Opacity(
+                    opacity: _pacienteStepCompleto ? 1.0 : 0.4,
+                    child: _buildDropdown(
+                      hint: 'Seleccionar ciudad',
+                      value: _ciudadSeleccionada,
+                      items: _ciudades,
+                      label: (c) => c['nombreCiudad'],
+                      onChanged: (value) {
+                        setState(() {
+                          _ciudadSeleccionada = value;
+                          _resetDesdeFecha();
+                        });
+                        _cargarDiasDisponibles();
+                      },
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
 
-              // ── Pago adelantado ───────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade200),
+                const SizedBox(height: 24),
+
+                // ── PASO 3: Fecha (habilitado solo cuando hay ciudad) ─────
+                _buildStepHeader(
+                  '3',
+                  'Fecha disponible',
+                  activo: _ciudadStepCompleto,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.payments_outlined, color: Color(0xFF00B5C8), size: 20),
-                        const SizedBox(width: 8),
-                        const Expanded(
+                const SizedBox(height: 8),
+                if (!_ciudadStepCompleto)
+                  _buildInfoBanner(
+                    'Selecciona una ciudad primero',
+                    Icons.info_outline,
+                  )
+                else if (_cargandoCalendario)
+                  _buildLoadingState('Cargando disponibilidad...')
+                else if (_sinAgendasEnCiudad)
+                  _buildInfoBanner(
+                    'No hay agendas configuradas para esta ciudad',
+                    Icons.event_busy_outlined,
+                    isWarning: true,
+                  )
+                else if (_diasDisponibles.isEmpty)
+                  _buildInfoBanner(
+                    'No hay fechas disponibles en esta ciudad',
+                    Icons.calendar_today_outlined,
+                    isWarning: true,
+                  )
+                else
+                  _buildCalendario(),
+
+                const SizedBox(height: 24),
+
+                // ── PASO 4: Tipo de agenda + Servicios ────────────────────
+                // Selector tipo (solo si hay ambas agendas en el día elegido)
+                if (_fechaStepCompleto &&
+                    _tieneAgendaDoctora &&
+                    _tieneAgendaAsistente) ...[
+                  _buildStepHeader('4', 'Tipo de agenda', activo: true),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'Doctora',
+                        icon: Icon(Icons.medical_services_outlined),
+                        label: Text('Doctora'),
+                      ),
+                      ButtonSegment(
+                        value: 'Asistente',
+                        icon: Icon(Icons.support_agent_outlined),
+                        label: Text('Asistente'),
+                      ),
+                    ],
+                    selected: _rolCreadorSeleccionado != null
+                        ? {_rolCreadorSeleccionado!}
+                        : {},
+                    emptySelectionAllowed: true,
+                    onSelectionChanged: (selection) {
+                      if (selection.isNotEmpty) {
+                        _seleccionarRolAgenda(selection.first);
+                      }
+                    },
+                    style: _segmentedStyle(),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                // Servicios
+                _buildStepHeader(
+                  _tieneAgendaDoctora && _tieneAgendaAsistente ? '5' : '4',
+                  'Servicio',
+                  activo: _fechaStepCompleto && _agendaStepCompleto,
+                ),
+                const SizedBox(height: 8),
+                if (!_fechaStepCompleto)
+                  _buildInfoBanner(
+                    'Selecciona una fecha primero',
+                    Icons.info_outline,
+                  )
+                else if (!_agendaStepCompleto)
+                  _buildInfoBanner(
+                    'Selecciona el tipo de agenda primero',
+                    Icons.info_outline,
+                  )
+                else if (_cargandoServicios)
+                  _buildLoadingState('Cargando servicios...')
+                else if (_servicios.isEmpty)
+                  _buildInfoBanner(
+                    'No hay servicios disponibles para esta agenda',
+                    Icons.info_outline,
+                    isWarning: true,
+                  )
+                else
+                  AbsorbPointer(
+                    absorbing: false,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<Servicio>(
+                          isExpanded: true,
+                          hint: const Text('Seleccionar servicio'),
+                          value: _servicioSeleccionado,
+                          items: _servicios
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(
+                                    '${s.nombreServicio} (${s.tiempoMin} min)',
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) =>
+                              setState(() => _servicioSeleccionado = value),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 24),
+
+                // ── PASO 5/6: Hora ────────────────────────────────────────
+                _buildStepHeader(
+                  _tieneAgendaDoctora && _tieneAgendaAsistente ? '6' : '5',
+                  'Hora disponible',
+                  activo: _agendaStepCompleto,
+                ),
+                const SizedBox(height: 8),
+                if (!_agendaStepCompleto)
+                  _buildInfoBanner(
+                    'Selecciona el servicio primero',
+                    Icons.info_outline,
+                  )
+                else if (_cargandoHoras)
+                  const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00B5C8)),
+                  )
+                else if (_horasDisponibles.isEmpty)
+                  _buildInfoBanner(
+                    'No hay horas disponibles para este día',
+                    Icons.access_time_outlined,
+                    isWarning: true,
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _horasDisponibles.map((hora) {
+                      final seleccionada = _horaSeleccionada == hora;
+                      return GestureDetector(
+                        onTap: () => setState(() => _horaSeleccionada = hora),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: seleccionada
+                                ? const Color(0xFF00B5C8)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: seleccionada
+                                  ? const Color(0xFF00B5C8)
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
                           child: Text(
-                            '¿Se realizó un pago adelantado?',
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                            hora,
+                            style: TextStyle(
+                              color: seleccionada ? Colors.white : Colors.black,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        Switch(
-                          value: _tieneAdelanto,
-                          activeColor: const Color(0xFF00B5C8),
-                          onChanged: (v) => setState(() => _tieneAdelanto = v),
+                      );
+                    }).toList(),
+                  ),
+
+                const SizedBox(height: 24),
+
+                // ── Notas ────────────────────────────────────────────────
+                AbsorbPointer(
+                  absorbing: !_agendaStepCompleto,
+                  child: Opacity(
+                    opacity: _agendaStepCompleto ? 1.0 : 0.4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Notas (opcional)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF00B5C8),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _notasController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText: 'Escribe alguna nota...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
                         ),
                       ],
                     ),
-                    if (_tieneAdelanto) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        'Monto: Bs. ${_adelantoMonto.toStringAsFixed(0)}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 13),
-                      ),
-                      const SizedBox(height: 8),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Pago adelantado ───────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(
                         children: [
-                          const Text('Método: ', style: TextStyle(fontSize: 13)),
-                          _buildMetodoOption('efectivo', 'Efectivo'),
+                          const Icon(
+                            Icons.payments_outlined,
+                            color: Color(0xFF00B5C8),
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
-                          _buildMetodoOption('qr', 'QR / Transferencia'),
+                          const Expanded(
+                            child: Text(
+                              '¿Se realizó un pago adelantado?',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          Switch(
+                            value: _tieneAdelanto,
+                            activeColor: const Color(0xFF00B5C8),
+                            onChanged: (v) =>
+                                setState(() => _tieneAdelanto = v),
+                          ),
                         ],
                       ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Botón ────────────────────────────────────────────────
-              BlocBuilder<CitaBloc, CitaState>(
-                builder: (context, state) {
-                  return SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: state is CitaLoading || _creandoPaciente
-                          ? null
-                          : _onReservar,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8DC63F),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                      if (_tieneAdelanto) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'Monto: Bs. ${_adelantoMonto.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                      child: state is CitaLoading || _creandoPaciente
-                          ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
-                          : const Text(
-                              'Reservar Cita',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Text(
+                              'Método: ',
+                              style: TextStyle(fontSize: 13),
                             ),
-                    ),
-                  );
-                },
-              ),
-            ],
+                            _buildMetodoOption('efectivo', 'Efectivo'),
+                            const SizedBox(width: 8),
+                            _buildMetodoOption('qr', 'QR / Transferencia'),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Botón ────────────────────────────────────────────────
+                BlocBuilder<CitaBloc, CitaState>(
+                  builder: (context, state) {
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: state is CitaLoading || _creandoPaciente
+                            ? null
+                            : _onReservar,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8DC63F),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: state is CitaLoading || _creandoPaciente
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : const Text(
+                                'Reservar Cita',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -835,7 +899,11 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
   }
 
   /// Encabezado de paso con número y color según estado activo
-  Widget _buildStepHeader(String numero, String titulo, {required bool activo}) {
+  Widget _buildStepHeader(
+    String numero,
+    String titulo, {
+    required bool activo,
+  }) {
     return Row(
       children: [
         Container(
@@ -884,7 +952,9 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
         children: [
           Icon(icon, color: color),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: TextStyle(color: color))),
+          Expanded(
+            child: Text(text, style: TextStyle(color: color)),
+          ),
         ],
       ),
     );
@@ -927,15 +997,10 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
             suffixIcon: _pacienteSeleccionado != null
                 ? const Icon(Icons.check_circle, color: Color(0xFF8DC63F))
                 : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: Color(0xFF00B5C8),
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: Color(0xFF00B5C8), width: 2),
             ),
             filled: true,
             fillColor: Colors.white,
@@ -1030,10 +1095,8 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
           value: value,
           items: items
               .map(
-                (item) => DropdownMenuItem(
-                  value: item,
-                  child: Text(label(item)),
-                ),
+                (item) =>
+                    DropdownMenuItem(value: item, child: Text(label(item))),
               )
               .toList(),
           onChanged: onChanged,
@@ -1047,33 +1110,15 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: TableCalendar(
         locale: 'es_ES',
-        firstDay: DateTime.now().add(const Duration(days: 1)),
-        lastDay: DateTime.now().add(const Duration(days: 60)),
+        firstDay: _hoy,
+        lastDay: _hoy.add(const Duration(days: 60)),
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_fechaSeleccionada, day),
         enabledDayPredicate: (day) {
           final normalDay = DateTime(day.year, day.month, day.day);
           return _diasDisponibles.contains(normalDay);
         },
-        onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            _fechaSeleccionada = selectedDay;
-            _focusedDay = focusedDay;
-            _horaSeleccionada = null;
-            _horasDisponibles = [];
-            _cargandoHoras = true;
-            _rolCreadorSeleccionado = null;
-            _servicios = [];
-            _servicioSeleccionado = null;
-          });
-          _detectarTiposAgendaParaDia(selectedDay);
-          context.read<CitaBloc>().add(
-            CargarDisponibilidadEvent(
-              ciudadId: _ciudadSeleccionada['id'],
-              fecha: DateFormat('yyyy-MM-dd').format(selectedDay),
-            ),
-          );
-        },
+        onDaySelected: (selectedDay, focusedDay) => _seleccionarFecha(selectedDay),
         onPageChanged: (focusedDay) => _focusedDay = focusedDay,
         calendarBuilders: CalendarBuilders(
           defaultBuilder: (context, day, focusedDay) {
@@ -1102,6 +1147,39 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
               );
             }
             return null;
+          },
+          // table_calendar NO pasa por defaultBuilder para "hoy": usa
+          // todayBuilder (o calendarStyle.todayDecoration si no se define).
+          // Sin esto, hoy nunca muestra el color de la agenda del día.
+          todayBuilder: (context, day, focusedDay) {
+            final normalDay = DateTime(day.year, day.month, day.day);
+            final esDoctora = _diasDoctora.contains(normalDay);
+            final esAsistente = _diasAsistente.contains(normalDay);
+            final tieneAgenda = esDoctora || esAsistente;
+            final color = !tieneAgenda
+                ? const Color(0xFF00B5C8)
+                : (esDoctora && esAsistente)
+                ? const Color(0xFF7B5EA7)
+                : esDoctora
+                ? const Color(0xFF00B5C8)
+                : const Color(0xFF8DC63F);
+            return Container(
+              margin: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: tieneAgenda ? color : Colors.transparent,
+                shape: BoxShape.circle,
+                border: Border.all(color: color, width: 2),
+              ),
+              child: Center(
+                child: Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    color: tieneAgenda ? Colors.white : color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
           },
           disabledBuilder: (context, day, focusedDay) => Container(
             margin: const EdgeInsets.all(4),
@@ -1132,10 +1210,7 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
             fontWeight: FontWeight.bold,
           ),
           leftChevronIcon: Icon(Icons.chevron_left, color: Color(0xFF00B5C8)),
-          rightChevronIcon: Icon(
-            Icons.chevron_right,
-            color: Color(0xFF00B5C8),
-          ),
+          rightChevronIcon: Icon(Icons.chevron_right, color: Color(0xFF00B5C8)),
         ),
       ),
     );
@@ -1154,15 +1229,10 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
               Icons.person_add_alt_1_outlined,
               color: Color(0xFF00B5C8),
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: Color(0xFF00B5C8),
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: Color(0xFF00B5C8), width: 2),
             ),
             filled: true,
             fillColor: Colors.white,
@@ -1179,15 +1249,10 @@ class _ReservarCitaDoctoraPageState extends State<ReservarCitaDoctoraPage> {
               Icons.phone_outlined,
               color: Color(0xFF00B5C8),
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: Color(0xFF00B5C8),
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: Color(0xFF00B5C8), width: 2),
             ),
             filled: true,
             fillColor: Colors.white,

@@ -12,11 +12,7 @@ class CrearAgendaPage extends StatefulWidget {
   final Usuario usuario;
   final DateTime? fechaInicial;
 
-  const CrearAgendaPage({
-    super.key,
-    required this.usuario,
-    this.fechaInicial,
-  });
+  const CrearAgendaPage({super.key, required this.usuario, this.fechaInicial});
 
   @override
   State<CrearAgendaPage> createState() => _CrearAgendaPageState();
@@ -39,6 +35,9 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
   bool _guardando = false;
 
   bool get _esAsistente => widget.usuario.rol == 'Asistente';
+  // Un Asistente con veTodasCiudades elige ciudad libremente, igual que
+  // la Doctora.
+  bool get _ciudadFija => _esAsistente && !widget.usuario.veTodasCiudades;
 
   final List<String> _diasSemana = [
     'LUNES',
@@ -56,16 +55,21 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
     if (widget.fechaInicial != null) {
       final f = widget.fechaInicial!;
       final normalized = DateTime(f.year, f.month, f.day);
-      final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      final today = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+      );
       _fechaSeleccionada = normalized.isBefore(today) ? today : normalized;
       _focusedDay = _fechaSeleccionada!;
     }
 
-    if (_esAsistente) {
+    if (_ciudadFija) {
       // Ciudad fija: la del asistente
       _ciudadSeleccionada = widget.usuario.ciudad;
     } else {
-      // Doctora: cargar todas las ciudades via BLoC
+      // Doctora (o asistente con veTodasCiudades): cargar todas las
+      // ciudades via BLoC
       context.read<AgendaBloc>().add(CargarCiudadesAgendaEvent());
     }
   }
@@ -99,7 +103,9 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
   }
 
   void _guardar() {
-    if (_ciudadSeleccionada == null || _horaInicio == null || _horaFin == null) {
+    if (_ciudadSeleccionada == null ||
+        _horaInicio == null ||
+        _horaFin == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Ciudad, hora inicio y hora fin son requeridos'),
@@ -200,10 +206,7 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (_esAsistente)
-                _buildCiudadFija()
-              else
-                _buildCiudadDropdown(),
+              if (_ciudadFija) _buildCiudadFija() else _buildCiudadDropdown(),
               const SizedBox(height: 16),
 
               // Tipo
@@ -290,8 +293,16 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
                   ),
                   child: TableCalendar(
                     locale: 'es_ES',
-                    firstDay: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
-                    lastDay: DateTime(DateTime.now().year + 1, DateTime.now().month, DateTime.now().day),
+                    firstDay: DateTime(
+                      DateTime.now().year,
+                      DateTime.now().month,
+                      DateTime.now().day,
+                    ),
+                    lastDay: DateTime(
+                      DateTime.now().year + 1,
+                      DateTime.now().month,
+                      DateTime.now().day,
+                    ),
                     focusedDay: _focusedDay,
                     selectedDayPredicate: (day) =>
                         isSameDay(_fechaSeleccionada, day),
@@ -568,10 +579,7 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.location_city_outlined,
-            color: Color(0xFF8DC63F),
-          ),
+          const Icon(Icons.location_city_outlined, color: Color(0xFF8DC63F)),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,10 +641,7 @@ class _CrearAgendaPageState extends State<CrearAgendaPage> {
           value: _ciudadSeleccionada,
           items: _ciudades
               .map(
-                (c) => DropdownMenuItem(
-                  value: c,
-                  child: Text(c.nombreCiudad),
-                ),
+                (c) => DropdownMenuItem(value: c, child: Text(c.nombreCiudad)),
               )
               .toList(),
           onChanged: (value) => setState(() => _ciudadSeleccionada = value),

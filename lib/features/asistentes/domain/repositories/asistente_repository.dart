@@ -21,6 +21,7 @@ abstract class AsistenteRepository {
     required String apellido,
     required String email,
     required int ciudadId,
+    required bool veTodasCiudades,
   });
 
   Future<void> cambiarEstado(int id, bool estado);

@@ -224,10 +224,12 @@ class HomeDrawer extends StatelessWidget {
             label: 'Traslados',
             subtitle: 'Entre sucursales',
             onTap: () {
-              final ciudadId = usuario.rol == 'Asistente'
+              final ciudadFija =
+                  usuario.rol == 'Asistente' && !usuario.veTodasCiudades;
+              final ciudadId = ciudadFija
                   ? usuario.ciudad?.id
                   : ciudadIdInventario;
-              final ciudadNombre = usuario.rol == 'Asistente'
+              final ciudadNombre = ciudadFija
                   ? usuario.ciudad?.nombreCiudad
                   : ciudadNombreInventario;
 

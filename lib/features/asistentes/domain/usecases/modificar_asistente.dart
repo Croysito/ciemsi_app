@@ -11,11 +11,13 @@ class ModificarAsistenteUseCase {
     required String apellido,
     required String email,
     required int ciudadId,
+    required bool veTodasCiudades,
   }) => repository.modificarAsistente(
     id: id,
     nombre: nombre,
     apellido: apellido,
     email: email,
     ciudadId: ciudadId,
+    veTodasCiudades: veTodasCiudades,
   );
 }

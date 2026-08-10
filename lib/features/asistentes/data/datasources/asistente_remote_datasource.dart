@@ -52,6 +52,7 @@ class AsistenteRemoteDatasource {
     required String apellido,
     required String email,
     required int ciudadId,
+    required bool veTodasCiudades,
   }) async {
     try {
       await apiClient.dio.put(
@@ -61,6 +62,7 @@ class AsistenteRemoteDatasource {
           'apellido': apellido,
           'email': email,
           'ciudadId': ciudadId,
+          'veTodasCiudades': veTodasCiudades,
         },
       );
     } on DioException catch (e) {

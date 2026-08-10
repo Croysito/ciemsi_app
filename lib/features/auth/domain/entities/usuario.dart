@@ -9,6 +9,9 @@ class Usuario extends Equatable {
   final String rol;
   final Ciudad? ciudad;
   final Map<String, bool> permisos;
+  // Asistente puntual habilitado para ver/operar en todas las ciudades,
+  // igual que la Doctora, sin dejar de tener una ciudad propia asignada.
+  final bool veTodasCiudades;
 
   const Usuario({
     required this.id,
@@ -18,10 +21,20 @@ class Usuario extends Equatable {
     required this.rol,
     this.ciudad,
     this.permisos = const {},
+    this.veTodasCiudades = false,
   });
 
   String get nombreCompleto => '$nombre $apellido';
 
   @override
-  List<Object?> get props => [id, nombre, apellido, email, rol, ciudad, permisos];
+  List<Object?> get props => [
+    id,
+    nombre,
+    apellido,
+    email,
+    rol,
+    ciudad,
+    permisos,
+    veTodasCiudades,
+  ];
 }
