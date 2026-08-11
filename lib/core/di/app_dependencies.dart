@@ -22,6 +22,7 @@ import 'package:ciemsi_app/features/citas/domain/usecases/obtener_horas_disponib
 import 'package:ciemsi_app/features/citas/domain/usecases/obtener_qr_pago.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/reservar_cita.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/subir_comprobante_cita.dart';
+import 'package:ciemsi_app/features/citas/domain/usecases/subir_qr_pago_imagen.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/suministros/data/datasources/suministro_remote_datasource.dart';
 import 'package:ciemsi_app/features/suministros/data/repositories/suministro_repository_impl.dart';
@@ -97,6 +98,7 @@ class AppDependencies {
       obtenerHorasDisponiblesUseCase: ObtenerHorasDisponiblesUseCase(repository),
       obtenerQrPagoUseCase:          ObtenerQrPagoUseCase(repository),
       actualizarQrPagoUseCase:       ActualizarQrPagoUseCase(repository),
+      subirQrPagoImagenUseCase:      SubirQrPagoImagenUseCase(repository),
       subirComprobanteUseCase:       SubirComprobanteCitaUseCase(repository),
       confirmarPagoUseCase:          ConfirmarPagoCitaUseCase(repository),
     );

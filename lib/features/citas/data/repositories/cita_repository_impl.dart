@@ -83,6 +83,19 @@ class CitaRepositoryImpl implements CitaRepository {
       remoteDatasource.actualizarQrPago(qrLink);
 
   @override
+  Future<String> subirQrPagoImagen({
+    required Uint8List bytes,
+    required String fileName,
+    required String mimeType,
+    required String tokens,
+  }) => remoteDatasource.subirQrPagoImagen(
+    bytes: bytes,
+    fileName: fileName,
+    mimeType: mimeType,
+    tokens: tokens,
+  );
+
+  @override
   Future<String> subirComprobante({
     required int citaId,
     required Uint8List bytes,

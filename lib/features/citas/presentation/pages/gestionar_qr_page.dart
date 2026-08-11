@@ -1,5 +1,7 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/services/google_auth_service.dart';
 import '../bloc/cita_bloc.dart';
 import '../bloc/cita_event.dart';
 import '../bloc/cita_state.dart';
@@ -38,6 +40,54 @@ class _GestionarQrPageState extends State<GestionarQrPage> {
   void dispose() {
     _linkController.dispose();
     super.dispose();
+  }
+
+  Future<void> _subirImagenQr() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty || !mounted) return;
+    final file = result.files.first;
+    final extension = file.extension?.toLowerCase() ?? 'jpg';
+    final mimeType = extension == 'png' ? 'image/png' : 'image/jpeg';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Autenticando con Google...'),
+        backgroundColor: Color(0xFF00B5C8),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final tokens = await GoogleAuthService.obtenerTokens();
+      if (tokens == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Autenticación cancelada'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      if (!mounted) return;
+      context.read<CitaBloc>().add(
+        SubirQrPagoImagenEvent(
+          bytes: file.bytes!.toList(),
+          fileName: file.name,
+          mimeType: mimeType,
+          tokens: tokens,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -150,8 +200,49 @@ class _GestionarQrPageState extends State<GestionarQrPage> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Sube la imagen del QR a Google Drive, copia el link de visualización y pégalo aquí.',
+                'Sube la imagen directamente, o pega el link de Google Drive.',
                 style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              BlocBuilder<CitaBloc, CitaState>(
+                builder: (context, state) {
+                  final cargando = state is CitaLoading;
+                  return SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: cargando ? null : _subirImagenQr,
+                      icon: const Icon(
+                        Icons.upload_file,
+                        color: Color(0xFF8DC63F),
+                      ),
+                      label: const Text(
+                        'Subir imagen del QR',
+                        style: TextStyle(color: Color(0xFF8DC63F)),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF8DC63F)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'o pega el link',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                ],
               ),
               const SizedBox(height: 12),
               TextField(

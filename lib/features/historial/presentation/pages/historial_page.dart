@@ -125,7 +125,10 @@ class _HistorialPageState extends State<HistorialPage> {
             MaterialPageRoute(
               builder: (_) => BlocProvider.value(
                 value: context.read<HistorialBloc>(),
-                child: NotaDetallePage(nota: nota),
+                child: NotaDetallePage(
+                  nota: nota,
+                  pacienteId: widget.paciente.id,
+                ),
               ),
             ),
           );

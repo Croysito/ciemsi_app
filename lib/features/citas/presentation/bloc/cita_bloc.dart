@@ -8,6 +8,7 @@ import '../../domain/usecases/modificar_cita.dart';
 import '../../domain/usecases/obtener_horas_disponibles.dart';
 import '../../domain/usecases/actualizar_qr_pago.dart';
 import '../../domain/usecases/obtener_qr_pago.dart';
+import '../../domain/usecases/subir_qr_pago_imagen.dart';
 import '../../domain/usecases/reservar_cita.dart';
 import '../../domain/usecases/subir_comprobante_cita.dart';
 import '../../domain/utils/horas_disponibles_utils.dart';
@@ -23,6 +24,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
   final ObtenerHorasDisponiblesUseCase obtenerHorasDisponiblesUseCase;
   final ObtenerQrPagoUseCase obtenerQrPagoUseCase;
   final ActualizarQrPagoUseCase actualizarQrPagoUseCase;
+  final SubirQrPagoImagenUseCase subirQrPagoImagenUseCase;
   final SubirComprobanteCitaUseCase subirComprobanteUseCase;
   final ConfirmarPagoCitaUseCase confirmarPagoUseCase;
 
@@ -35,6 +37,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     required this.obtenerHorasDisponiblesUseCase,
     required this.obtenerQrPagoUseCase,
     required this.actualizarQrPagoUseCase,
+    required this.subirQrPagoImagenUseCase,
     required this.subirComprobanteUseCase,
     required this.confirmarPagoUseCase,
   }) : super(CitaInitial()) {
@@ -46,6 +49,7 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     on<CargarDisponibilidadEvent>(_onCargarDisponibilidad);
     on<ObtenerQrPagoEvent>(_onObtenerQr);
     on<ActualizarQrPagoEvent>(_onActualizarQr);
+    on<SubirQrPagoImagenEvent>(_onSubirQrPagoImagen);
     on<SubirComprobanteEvent>(_onSubirComprobante);
     on<ConfirmarPagoEvent>(_onConfirmarPago);
   }
@@ -189,6 +193,24 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     emit(CitaLoading());
     try {
       await actualizarQrPagoUseCase.execute(event.qrLink);
+      emit(QrPagoActualizado());
+    } catch (e) {
+      emit(CitaError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onSubirQrPagoImagen(
+    SubirQrPagoImagenEvent event,
+    Emitter<CitaState> emit,
+  ) async {
+    emit(CitaLoading());
+    try {
+      await subirQrPagoImagenUseCase.execute(
+        bytes: Uint8List.fromList(event.bytes),
+        fileName: event.fileName,
+        mimeType: event.mimeType,
+        tokens: event.tokens,
+      );
       emit(QrPagoActualizado());
     } catch (e) {
       emit(CitaError(e.toString().replaceAll('Exception: ', '')));

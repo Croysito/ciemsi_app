@@ -87,6 +87,21 @@ class ActualizarQrPagoEvent extends CitaEvent {
   List<Object?> get props => [qrLink];
 }
 
+class SubirQrPagoImagenEvent extends CitaEvent {
+  final List<int> bytes;
+  final String fileName;
+  final String mimeType;
+  final String tokens;
+  SubirQrPagoImagenEvent({
+    required this.bytes,
+    required this.fileName,
+    required this.mimeType,
+    required this.tokens,
+  });
+  @override
+  List<Object?> get props => [bytes, fileName, mimeType, tokens];
+}
+
 class SubirComprobanteEvent extends CitaEvent {
   final int citaId;
   final List<int> bytes;

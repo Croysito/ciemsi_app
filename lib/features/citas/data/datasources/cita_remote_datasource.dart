@@ -169,6 +169,32 @@ class CitaRemoteDatasource {
     }
   }
 
+  Future<String> subirQrPagoImagen({
+    required Uint8List bytes,
+    required String fileName,
+    required String mimeType,
+    required String tokens,
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'tokens': tokens,
+        'archivo': MultipartFile.fromBytes(
+          bytes,
+          filename: fileName,
+          contentType: DioMediaType.parse(mimeType),
+        ),
+      });
+      final response = await apiClient.dio.post(
+        '/citas/config/qr-pago/upload',
+        data: formData,
+        options: Options(receiveTimeout: const Duration(seconds: 60)),
+      );
+      return (response.data as Map<String, dynamic>)['qrLink'] as String;
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['mensaje'] ?? 'Error al subir el QR');
+    }
+  }
+
   Future<String> subirComprobante({
     required int citaId,
     required Uint8List bytes,

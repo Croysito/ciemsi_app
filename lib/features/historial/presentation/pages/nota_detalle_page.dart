@@ -13,7 +13,12 @@ import '../../../../core/services/google_auth_service.dart';
 
 class NotaDetallePage extends StatefulWidget {
   final NotaEvolucion nota;
-  const NotaDetallePage({super.key, required this.nota});
+  final int pacienteId;
+  const NotaDetallePage({
+    super.key,
+    required this.nota,
+    required this.pacienteId,
+  });
 
   @override
   State<NotaDetallePage> createState() => _NotaDetallePageState();
@@ -240,8 +245,11 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
                 backgroundColor: Colors.green,
               ),
             );
+            // Ojo: pide el historial por pacienteId, no por historialId
+            // (son IDs de tablas distintas) — si no, el backend responde
+            // "Historial no encontrado" aunque el archivo sí se haya subido.
             context.read<HistorialBloc>().add(
-              ObtenerHistorialEvent(widget.nota.historialId),
+              ObtenerHistorialEvent(widget.pacienteId),
             );
           }
           if (state is HistorialError) {

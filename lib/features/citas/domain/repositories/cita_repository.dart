@@ -39,6 +39,15 @@ abstract class CitaRepository {
 
   Future<void> actualizarQrPago(String qrLink);
 
+  /// Sube la imagen del QR directo a Drive (sin pasar por copiar/pegar un
+  /// link) y actualiza la configuración de la clínica con el resultado.
+  Future<String> subirQrPagoImagen({
+    required Uint8List bytes,
+    required String fileName,
+    required String mimeType,
+    required String tokens,
+  });
+
   Future<String> subirComprobante({
     required int citaId,
     required Uint8List bytes,
