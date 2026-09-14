@@ -449,11 +449,28 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
         break;
     }
 
+    final fileId = _extraerFileId(link.link);
+    final tienePreview =
+        fileId.isNotEmpty &&
+        (link.tipo == TipoLink.IMAGEN || link.tipo == TipoLink.VIDEO);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: Icon(icon, color: color),
+        leading: tienePreview
+            ? GestureDetector(
+                onTap: link.tipo == TipoLink.IMAGEN
+                    ? () => _verImagenCompleta(fileId, link.nombre)
+                    : () => _abrirEnDrive(fileId, link.tipo),
+                child: _LinkThumbnail(
+                  fileId: fileId,
+                  esVideo: link.tipo == TipoLink.VIDEO,
+                  fallbackIcon: icon,
+                  fallbackColor: color,
+                ),
+              )
+            : Icon(icon, color: color),
         title: Text(
           link.nombre,
           style: const TextStyle(fontWeight: FontWeight.w500),
@@ -464,23 +481,69 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
         ),
         trailing: IconButton(
           icon: const Icon(Icons.open_in_new, color: Colors.grey),
-          onPressed: () async {
-            if (link.tipo == TipoLink.VIDEO) {
-              // Para videos extraer el fileId y abrir con app de Drive
-              final fileId = _extraerFileId(link.link);
-              final driveUri = Uri.parse(
-                'https://drive.google.com/file/d/$fileId/view',
-              );
-              if (await canLaunchUrl(driveUri)) {
-                await launchUrl(driveUri, mode: LaunchMode.externalApplication);
-              }
-            } else {
-              final uri = Uri.parse(link.link);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            }
-          },
+          onPressed: () => _abrirEnDrive(fileId, link.tipo, urlOriginal: link.link),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _abrirEnDrive(
+    String fileId,
+    TipoLink tipo, {
+    String? urlOriginal,
+  }) async {
+    if (tipo == TipoLink.VIDEO && fileId.isNotEmpty) {
+      // Para videos extraer el fileId y abrir con app de Drive
+      final driveUri = Uri.parse('https://drive.google.com/file/d/$fileId/view');
+      if (await canLaunchUrl(driveUri)) {
+        await launchUrl(driveUri, mode: LaunchMode.externalApplication);
+      }
+    } else if (urlOriginal != null) {
+      final uri = Uri.parse(urlOriginal);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+  }
+
+  void _verImagenCompleta(String fileId, String nombre) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            InteractiveViewer(
+              child: Image.network(
+                'https://drive.google.com/thumbnail?id=$fileId&sz=w1600',
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                },
+                errorBuilder: (_, _, _) => const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Text(
+                    'No se pudo cargar la imagen',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -490,5 +553,63 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
     final regex = RegExp(r'/d/([a-zA-Z0-9_-]+)');
     final match = regex.firstMatch(url);
     return match?.group(1) ?? '';
+  }
+}
+
+/// Miniatura pública de Drive para un adjunto de tipo imagen o video
+/// (el backend deja los archivos subidos como "cualquiera con el link
+/// puede ver", así que este endpoint no necesita auth). Si falla la carga
+/// (link roto, o no es realmente un archivo de Drive) cae al ícono.
+class _LinkThumbnail extends StatelessWidget {
+  final String fileId;
+  final bool esVideo;
+  final IconData fallbackIcon;
+  final Color fallbackColor;
+
+  const _LinkThumbnail({
+    required this.fileId,
+    required this.esVideo,
+    required this.fallbackIcon,
+    required this.fallbackColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              'https://drive.google.com/thumbnail?id=$fileId&sz=w200',
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return Container(
+                  color: fallbackColor.withValues(alpha: 0.1),
+                  child: Icon(fallbackIcon, color: fallbackColor, size: 20),
+                );
+              },
+              errorBuilder: (_, _, _) => Container(
+                color: fallbackColor.withValues(alpha: 0.1),
+                child: Icon(fallbackIcon, color: fallbackColor, size: 20),
+              ),
+            ),
+            if (esVideo)
+              Container(
+                color: Colors.black26,
+                child: const Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

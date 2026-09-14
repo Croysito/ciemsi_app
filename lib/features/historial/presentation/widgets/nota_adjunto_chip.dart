@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:ciemsi_app/core/theme/app_colors.dart';
 
@@ -21,9 +22,23 @@ class AdjuntoPendiente {
 
 class NotaAdjuntoChip extends StatelessWidget {
   final String nombre;
+
+  /// 'IMAGEN' | 'VIDEO' | 'DRIVE' — para elegir el ícono/miniatura.
+  final String? tipo;
+
+  /// Bytes del archivo aún en memoria (no subido). Si `tipo` es 'IMAGEN'
+  /// se usan para mostrar una miniatura real en vez del ícono genérico.
+  final Uint8List? bytes;
+
   final VoidCallback? onQuitar;
 
-  const NotaAdjuntoChip({super.key, required this.nombre, this.onQuitar});
+  const NotaAdjuntoChip({
+    super.key,
+    required this.nombre,
+    this.tipo,
+    this.bytes,
+    this.onQuitar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +51,7 @@ class NotaAdjuntoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.attach_file, size: 16, color: AppColors.green),
+          _buildMiniatura(),
           const SizedBox(width: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 120),
@@ -61,6 +76,28 @@ class NotaAdjuntoChip extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildMiniatura() {
+    if (tipo == 'IMAGEN' && bytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Image.memory(
+          bytes!,
+          width: 20,
+          height: 20,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) =>
+              const Icon(Icons.image_outlined, size: 16, color: AppColors.green),
+        ),
+      );
+    }
+    final icono = switch (tipo) {
+      'IMAGEN' => Icons.image_outlined,
+      'VIDEO' => Icons.videocam_outlined,
+      _ => Icons.attach_file,
+    };
+    return Icon(icono, size: 16, color: AppColors.green);
   }
 }
 

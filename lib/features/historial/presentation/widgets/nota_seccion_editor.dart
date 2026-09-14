@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:ciemsi_app/core/theme/app_colors.dart';
 import 'package:ciemsi_app/features/historial/domain/entities/nota_plantilla.dart';
@@ -62,6 +63,8 @@ class NotaSeccionEditor extends StatelessWidget {
               for (var i = 0; i < adjuntos.length; i++)
                 NotaAdjuntoChip(
                   nombre: adjuntos[i].nombre,
+                  tipo: adjuntos[i].tipo,
+                  bytes: Uint8List.fromList(adjuntos[i].bytes),
                   onQuitar: () => onQuitarAdjunto(i),
                 ),
               NotaAdjuntarChip(onTap: onAdjuntar),
