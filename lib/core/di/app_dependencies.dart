@@ -101,6 +101,13 @@ import 'package:ciemsi_app/features/servicios/domain/usecases/modificar_servicio
 import 'package:ciemsi_app/features/servicios/presentation/bloc/servicio_bloc.dart';
 import 'package:ciemsi_app/features/recetas/presentation/bloc/receta_bloc.dart';
 import 'package:ciemsi_app/features/auth/presentation/bloc/dashboard_bloc.dart';
+import 'package:ciemsi_app/features/actualizacion/data/datasources/actualizacion_instalador_datasource.dart';
+import 'package:ciemsi_app/features/actualizacion/data/datasources/actualizacion_remote_datasource.dart';
+import 'package:ciemsi_app/features/actualizacion/data/repositories/actualizacion_repository_impl.dart';
+import 'package:ciemsi_app/features/actualizacion/domain/usecases/descargar_actualizacion.dart';
+import 'package:ciemsi_app/features/actualizacion/domain/usecases/instalar_actualizacion.dart';
+import 'package:ciemsi_app/features/actualizacion/domain/usecases/verificar_actualizacion.dart';
+import 'package:ciemsi_app/features/actualizacion/presentation/bloc/actualizacion_bloc.dart';
 
 class AppDependencies {
   const AppDependencies._();
@@ -270,6 +277,18 @@ class AppDependencies {
       ),
       listarCiudadesUseCase: ListarCiudadesUseCase(repository),
       obtenerMiPerfilPacienteUseCase: ObtenerMiPerfilPacienteUseCase(repository),
+    );
+  }
+
+  static ActualizacionBloc createActualizacionBloc() {
+    final repository = ActualizacionRepositoryImpl(
+      remoteDatasource: ActualizacionRemoteDatasource(),
+      instaladorDatasource: ActualizacionInstaladorDatasource(),
+    );
+    return ActualizacionBloc(
+      verificarActualizacionUseCase: VerificarActualizacionUseCase(repository),
+      descargarActualizacionUseCase: DescargarActualizacionUseCase(repository),
+      instalarActualizacionUseCase: InstalarActualizacionUseCase(repository),
     );
   }
 }

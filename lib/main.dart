@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:ciemsi_app/core/di/app_dependencies.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
+import 'package:ciemsi_app/features/actualizacion/presentation/bloc/actualizacion_bloc.dart';
+import 'package:ciemsi_app/features/actualizacion/presentation/bloc/actualizacion_event.dart';
+import 'package:ciemsi_app/features/actualizacion/presentation/bloc/actualizacion_state.dart';
+import 'package:ciemsi_app/features/actualizacion/presentation/widgets/dialogo_actualizacion.dart';
 import 'package:ciemsi_app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:ciemsi_app/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:ciemsi_app/features/auth/domain/usecases/iniciar_sesion.dart';
@@ -30,6 +35,8 @@ void main() async {
   runApp(const MyApp());
 }
 
+final navigatorKey = GlobalKey<NavigatorState>();
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -45,6 +52,10 @@ class MyApp extends StatelessWidget {
 
     return MultiBlocProvider(
       providers: [
+        BlocProvider(
+          create: (_) => AppDependencies.createActualizacionBloc()
+            ..add(const VerificarActualizacionEvent()),
+        ),
         BlocProvider(
           create: (_) => AuthBloc(
             iniciarSesionUseCase: IniciarSesionUseCase(authRepository),
@@ -73,6 +84,25 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'CIEMSI',
         debugShowCheckedModeBanner: false,
+        navigatorKey: navigatorKey,
+        builder: (context, child) {
+          return BlocListener<ActualizacionBloc, ActualizacionState>(
+            listener: (context, state) {
+              final navContext = navigatorKey.currentContext;
+              if (state is ActualizacionDisponible && navContext != null) {
+                showDialog(
+                  context: navContext,
+                  barrierDismissible: false,
+                  builder: (dialogContext) => BlocProvider.value(
+                    value: context.read<ActualizacionBloc>(),
+                    child: const DialogoActualizacion(),
+                  ),
+                );
+              }
+            },
+            child: child!,
+          );
+        },
         locale: const Locale('es', 'ES'),
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
