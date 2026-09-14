@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 class ApiClient {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.8:3000/api',
+    defaultValue: 'https://api-ciemsi.atenzabo.com/api',
   );
+  // Para probar contra un backend local, compilar/correr con:
+  // --dart-define=API_BASE_URL=http://TU-IP-LOCAL:3000/api
 
   final Dio _dio;
 
