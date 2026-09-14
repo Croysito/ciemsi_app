@@ -10,7 +10,9 @@ abstract class TrasladoRepository {
     required int itemId,
     required int ciudadOrigenId,
   });
-  Future<void> crear({
+  /// Devuelve el id del traslado creado, para poder deshacerlo (devolverlo)
+  /// mientras siga pendiente.
+  Future<int> crear({
     required String tipo,
     int? suministroId,
     int? productoId,

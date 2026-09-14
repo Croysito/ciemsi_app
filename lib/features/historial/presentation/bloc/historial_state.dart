@@ -28,6 +28,14 @@ class NotaAgregada extends HistorialState {
   List<Object?> get props => [nota];
 }
 
+class NotaActualizada extends HistorialState {
+  final NotaEvolucion nota;
+  NotaActualizada(this.nota);
+
+  @override
+  List<Object?> get props => [nota];
+}
+
 class LinkAgregado extends HistorialState {
   final LinkArchivo link;
   LinkAgregado(this.link);

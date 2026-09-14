@@ -17,6 +17,12 @@ class HistorialRepositoryImpl implements HistorialRepository {
       remoteDatasource.agregarNota(pacienteId, detalle);
 
   @override
+  Future<NotaEvolucion> actualizarNota({
+    required int notaId,
+    required String detalle,
+  }) => remoteDatasource.actualizarNota(notaId: notaId, detalle: detalle);
+
+  @override
   Future<LinkArchivo> agregarLink({
     required int notaId,
     required String nombre,

@@ -10,6 +10,7 @@ import '../bloc/historial_event.dart';
 import '../bloc/historial_state.dart';
 import '../widgets/bold_markdown_text.dart';
 import '../../../../core/services/google_auth_service.dart';
+import 'editar_nota_page.dart';
 
 class NotaDetallePage extends StatefulWidget {
   final NotaEvolucion nota;
@@ -28,6 +29,30 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
   final _linkController = TextEditingController();
   final _nombreController = TextEditingController();
   String _tipoSeleccionado = 'IMAGEN';
+  late NotaEvolucion _nota = widget.nota;
+
+  Future<void> _editarNota() async {
+    final actualizada = await Navigator.push<NotaEvolucion>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<HistorialBloc>(),
+          child: EditarNotaPage(nota: _nota),
+        ),
+      ),
+    );
+    if (!mounted || actualizada == null) return;
+    setState(() => _nota = actualizada);
+    // Refresca el historial completo para que la lista también muestre
+    // el texto editado al volver (comparte la misma instancia del bloc).
+    context.read<HistorialBloc>().add(ObtenerHistorialEvent(widget.pacienteId));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Nota actualizada'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -112,7 +137,7 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
                     }
                     context.read<HistorialBloc>().add(
                       AgregarLinkEvent(
-                        notaId: widget.nota.id,
+                        notaId: _nota.id,
                         nombre: _nombreController.text.trim(),
                         link: _linkController.text.trim(),
                         tipo: _tipoSeleccionado,
@@ -209,7 +234,7 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
 
       context.read<HistorialBloc>().add(
         SubirArchivoDriveEvent(
-          notaId: widget.nota.id,
+          notaId: _nota.id,
           tipo: tipo,
           tokens: tokens,
           bytes: file.bytes!.toList(),
@@ -235,6 +260,13 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
         ),
         backgroundColor: const Color(0xFF00B5C8),
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, color: Colors.white),
+            tooltip: 'Editar nota',
+            onPressed: _editarNota,
+          ),
+        ],
       ),
       body: BlocConsumer<HistorialBloc, HistorialState>(
         listener: (context, state) {
@@ -263,10 +295,10 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
         },
         builder: (context, state) {
           // Obtener links actualizados del estado
-          List links = widget.nota.links;
+          List links = _nota.links;
           if (state is HistorialObtenido) {
             final notaActualizada = state.historial.notas
-                .where((n) => n.id == widget.nota.id)
+                .where((n) => n.id == _nota.id)
                 .toList();
             if (notaActualizada.isNotEmpty) {
               links = notaActualizada.first.links;
@@ -288,13 +320,24 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      DateFormat('dd/MM/yyyy').format(widget.nota.fecha),
+                      DateFormat('dd/MM/yyyy').format(_nota.fecha),
                       style: const TextStyle(
                         color: Color(0xFF00B5C8),
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
+                    if (_nota.editadoEn != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '(editada el ${DateFormat('dd/MM/yyyy HH:mm').format(_nota.editadoEn!)})',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -307,7 +350,7 @@ class _NotaDetallePageState extends State<NotaDetallePage> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: BoldMarkdownText(
-                      widget.nota.detalle,
+                      _nota.detalle,
                       style: const TextStyle(fontSize: 15, height: 1.5),
                     ),
                   ),

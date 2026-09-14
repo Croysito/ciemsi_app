@@ -4,7 +4,7 @@ class CrearTrasladoUseCase {
   final TrasladoRepository repository;
   CrearTrasladoUseCase(this.repository);
 
-  Future<void> execute({
+  Future<int> execute({
     required String tipo,
     int? suministroId,
     int? productoId,

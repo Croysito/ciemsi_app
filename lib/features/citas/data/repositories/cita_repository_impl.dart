@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
+import 'package:ciemsi_app/features/citas/domain/entities/disponibilidad_dia.dart';
 import 'package:ciemsi_app/features/citas/domain/repositories/cita_repository.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
 
@@ -12,6 +13,26 @@ class CitaRepositoryImpl implements CitaRepository {
 
   @override
   Future<List<CitaMedica>> listarCitas() => remoteDatasource.listarCitas();
+
+  @override
+  Future<CitaMedica> obtenerCita(int id) => remoteDatasource.obtenerCita(id);
+
+  @override
+  Future<List<DisponibilidadDia>> obtenerDisponibilidadMes({
+    required int ciudadId,
+    required int anio,
+    required int mes,
+  }) async {
+    final resultado = await remoteDatasource.obtenerDisponibilidadMes(
+      ciudadId: ciudadId,
+      anio: anio,
+      mes: mes,
+    );
+    final dias = resultado['dias'] as List? ?? [];
+    return dias
+        .map((d) => DisponibilidadDia.fromJson(d as Map<String, dynamic>))
+        .toList();
+  }
 
   @override
   Future<int> reservarCita({

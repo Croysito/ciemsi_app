@@ -18,6 +18,17 @@ class CitaRemoteDatasource {
     }
   }
 
+  /// Una sola cita actualizada, para parchar un solo ítem en una lista ya
+  /// cargada en vez de recargarla completa (`listarCitas()`).
+  Future<CitaModel> obtenerCita(int id) async {
+    try {
+      final response = await apiClient.dio.get('/citas/$id');
+      return CitaModel.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['mensaje'] ?? 'Error al obtener la cita');
+    }
+  }
+
   Future<Map<String, dynamic>> reservarCita({
     required String fecha,
     required String hora,
@@ -109,6 +120,26 @@ class CitaRemoteDatasource {
     } on DioException catch (e) {
       throw Exception(
         e.response?.data['mensaje'] ?? 'Error al obtener disponibilidad',
+      );
+    }
+  }
+
+  /// Disponibilidad de un mes completo en una sola llamada (sustituye al
+  /// patrón de ~60 llamadas por día que usaban las pantallas de reserva).
+  Future<Map<String, dynamic>> obtenerDisponibilidadMes({
+    required int ciudadId,
+    required int anio,
+    required int mes,
+  }) async {
+    try {
+      final response = await apiClient.dio.get(
+        '/agenda/disponibilidad-mes',
+        queryParameters: {'ciudadId': ciudadId, 'anio': anio, 'mes': mes},
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw Exception(
+        e.response?.data['mensaje'] ?? 'Error al obtener disponibilidad del mes',
       );
     }
   }

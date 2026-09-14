@@ -5,6 +5,8 @@ import '../../domain/usecases/confirmar_pago_cita.dart';
 import '../../domain/usecases/listar_citas.dart';
 import '../../domain/usecases/listar_servicios_cita.dart';
 import '../../domain/usecases/modificar_cita.dart';
+import '../../domain/usecases/obtener_cita.dart';
+import '../../domain/usecases/obtener_disponibilidad_mes.dart';
 import '../../domain/usecases/obtener_horas_disponibles.dart';
 import '../../domain/usecases/actualizar_qr_pago.dart';
 import '../../domain/usecases/obtener_qr_pago.dart';
@@ -22,6 +24,8 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
   final CambiarEstadoCitaUseCase cambiarEstadoCitaUseCase;
   final ListarServiciosCitaUseCase listarServiciosCitaUseCase;
   final ObtenerHorasDisponiblesUseCase obtenerHorasDisponiblesUseCase;
+  final ObtenerCitaUseCase obtenerCitaUseCase;
+  final ObtenerDisponibilidadMesUseCase obtenerDisponibilidadMesUseCase;
   final ObtenerQrPagoUseCase obtenerQrPagoUseCase;
   final ActualizarQrPagoUseCase actualizarQrPagoUseCase;
   final SubirQrPagoImagenUseCase subirQrPagoImagenUseCase;
@@ -35,6 +39,8 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     required this.cambiarEstadoCitaUseCase,
     required this.listarServiciosCitaUseCase,
     required this.obtenerHorasDisponiblesUseCase,
+    required this.obtenerCitaUseCase,
+    required this.obtenerDisponibilidadMesUseCase,
     required this.obtenerQrPagoUseCase,
     required this.actualizarQrPagoUseCase,
     required this.subirQrPagoImagenUseCase,
@@ -47,6 +53,8 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
     on<CambiarEstadoCitaEvent>(_onCambiarEstado);
     on<CargarServiciosEvent>(_onCargarServicios);
     on<CargarDisponibilidadEvent>(_onCargarDisponibilidad);
+    on<ObtenerCitaEvent>(_onObtenerCita);
+    on<CargarDisponibilidadMesEvent>(_onCargarDisponibilidadMes);
     on<ObtenerQrPagoEvent>(_onObtenerQr);
     on<ActualizarQrPagoEvent>(_onActualizarQr);
     on<SubirQrPagoImagenEvent>(_onSubirQrPagoImagen);
@@ -163,6 +171,37 @@ class CitaBloc extends Bloc<CitaEvent, CitaState> {
           fecha: event.fecha,
         ),
       );
+    } catch (e) {
+      emit(CitaError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  /// Sin `CitaLoading()`: es una actualización puntual en segundo plano (una
+  /// tarjeta en una lista ya visible), no debe tapar la pantalla del listener
+  /// que esté escuchando el mismo bloc compartido.
+  Future<void> _onObtenerCita(
+    ObtenerCitaEvent event,
+    Emitter<CitaState> emit,
+  ) async {
+    try {
+      final cita = await obtenerCitaUseCase.execute(event.id);
+      emit(CitaObtenida(cita));
+    } catch (e) {
+      emit(CitaError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onCargarDisponibilidadMes(
+    CargarDisponibilidadMesEvent event,
+    Emitter<CitaState> emit,
+  ) async {
+    try {
+      final dias = await obtenerDisponibilidadMesUseCase.execute(
+        ciudadId: event.ciudadId,
+        anio: event.anio,
+        mes: event.mes,
+      );
+      emit(DisponibilidadMesCargada(dias: dias, anio: event.anio, mes: event.mes));
     } catch (e) {
       emit(CitaError(e.toString().replaceAll('Exception: ', '')));
     }

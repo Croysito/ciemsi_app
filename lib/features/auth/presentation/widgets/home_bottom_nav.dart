@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Barra de navegación inferior del home (Citas, Pagos, Inicio, Tratamientos, Inventario).
+/// Barra de navegación inferior del home (Calendario, Pagos, Inicio, Tratamientos, Inventario).
 class HomeBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -24,7 +24,7 @@ class HomeBottomNav extends StatelessWidget {
         BottomNavigationBarItem(
           icon: Icon(Icons.calendar_today_outlined),
           activeIcon: Icon(Icons.calendar_today),
-          label: 'Citas',
+          label: 'Calendario',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.payments_outlined),

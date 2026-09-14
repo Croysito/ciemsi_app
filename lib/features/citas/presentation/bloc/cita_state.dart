@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
+import 'package:ciemsi_app/features/citas/domain/entities/disponibilidad_dia.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
 
 abstract class CitaState extends Equatable {
@@ -17,6 +18,23 @@ class CitasListadas extends CitaState {
 
   @override
   List<Object?> get props => [citas];
+}
+
+/// Una sola cita actualizada (respuesta de [ObtenerCitaEvent]).
+class CitaObtenida extends CitaState {
+  final CitaMedica cita;
+  CitaObtenida(this.cita);
+  @override
+  List<Object?> get props => [cita];
+}
+
+class DisponibilidadMesCargada extends CitaState {
+  final List<DisponibilidadDia> dias;
+  final int anio;
+  final int mes;
+  DisponibilidadMesCargada({required this.dias, required this.anio, required this.mes});
+  @override
+  List<Object?> get props => [dias, anio, mes];
 }
 
 class CitaReservada extends CitaState {}

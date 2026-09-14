@@ -1,6 +1,8 @@
 import 'package:ciemsi_app/core/di/app_dependencies.dart';
-import 'package:ciemsi_app/features/agenda/presentation/pages/agenda_page.dart';
+import 'package:ciemsi_app/features/agenda/presentation/bloc/agenda_bloc.dart';
 import 'package:ciemsi_app/features/asistentes/presentation/pages/asistentes_page.dart';
+import 'package:ciemsi_app/features/calendario/presentation/pages/calendario_page.dart';
+import 'package:ciemsi_app/features/calendario/presentation/widgets/modo_switch.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/pages/gestionar_qr_page.dart';
 import 'package:ciemsi_app/features/cuentas/presentation/pages/cuentas_page.dart';
@@ -23,6 +25,7 @@ import '../bloc/auth_event.dart';
 class HomeDrawer extends StatelessWidget {
   final Usuario usuario;
   final CitaBloc citaBloc;
+  final AgendaBloc agendaBloc;
   final TrasladoBloc trasladoBloc;
   final int? ciudadIdInventario;
   final String? ciudadNombreInventario;
@@ -31,6 +34,7 @@ class HomeDrawer extends StatelessWidget {
     super.key,
     required this.usuario,
     required this.citaBloc,
+    required this.agendaBloc,
     required this.trasladoBloc,
     required this.ciudadIdInventario,
     required this.ciudadNombreInventario,
@@ -271,9 +275,15 @@ class HomeDrawer extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => BlocProvider(
-                    create: (_) => AppDependencies.createAgendaBloc(),
-                    child: AgendaPage(usuario: usuario),
+                  builder: (_) => MultiBlocProvider(
+                    providers: [
+                      BlocProvider.value(value: citaBloc),
+                      BlocProvider.value(value: agendaBloc),
+                    ],
+                    child: CalendarioPage(
+                      usuario: usuario,
+                      modoInicial: ModoCalendario.horarios,
+                    ),
                   ),
                 ),
               );

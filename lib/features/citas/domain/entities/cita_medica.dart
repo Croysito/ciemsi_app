@@ -38,6 +38,30 @@ class CitaMedica extends Equatable {
 
   bool get tieneComprobante => comprobantePath != null && comprobantePath!.isNotEmpty;
 
+  CitaMedica copyWith({
+    EstadoCita? estado,
+    String? notas,
+    double? adelantoMonto,
+    String? adelantoMetodo,
+    String? comprobantePath,
+  }) {
+    return CitaMedica(
+      id: id,
+      fecha: fecha,
+      hora: hora,
+      paciente: paciente,
+      servicio: servicio,
+      ciudad: ciudad,
+      estado: estado ?? this.estado,
+      notas: notas ?? this.notas,
+      creadoPor: creadoPor,
+      createdAt: createdAt,
+      adelantoMonto: adelantoMonto ?? this.adelantoMonto,
+      adelantoMetodo: adelantoMetodo ?? this.adelantoMetodo,
+      comprobantePath: comprobantePath ?? this.comprobantePath,
+    );
+  }
+
   @override
   List<Object?> get props => [
     id,

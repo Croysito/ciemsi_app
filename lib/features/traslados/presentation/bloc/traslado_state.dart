@@ -42,9 +42,12 @@ class TrasladosListados extends TrasladoState {
 
 class TrasladoOperacionExitosa extends TrasladoState {
   final int ciudadId;
-  TrasladoOperacionExitosa(this.ciudadId);
+  /// Sólo viene poblado cuando la operación fue crear — el panel inline de
+  /// P4 lo necesita para ofrecer "Deshacer".
+  final int? trasladoId;
+  TrasladoOperacionExitosa(this.ciudadId, {this.trasladoId});
   @override
-  List<Object?> get props => [ciudadId];
+  List<Object?> get props => [ciudadId, trasladoId];
 }
 
 class TrasladoError extends TrasladoState {

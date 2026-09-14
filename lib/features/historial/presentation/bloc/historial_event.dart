@@ -24,6 +24,15 @@ class AgregarNotaEvent extends HistorialEvent {
   List<Object?> get props => [pacienteId, detalle];
 }
 
+class ActualizarNotaEvent extends HistorialEvent {
+  final int notaId;
+  final String detalle;
+  ActualizarNotaEvent({required this.notaId, required this.detalle});
+
+  @override
+  List<Object?> get props => [notaId, detalle];
+}
+
 class AgregarLinkEvent extends HistorialEvent {
   final int notaId;
   final String nombre;

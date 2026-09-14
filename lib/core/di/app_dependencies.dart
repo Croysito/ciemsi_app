@@ -18,6 +18,8 @@ import 'package:ciemsi_app/features/citas/domain/usecases/confirmar_pago_cita.da
 import 'package:ciemsi_app/features/citas/domain/usecases/listar_citas.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/listar_servicios_cita.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/modificar_cita.dart';
+import 'package:ciemsi_app/features/citas/domain/usecases/obtener_cita.dart';
+import 'package:ciemsi_app/features/citas/domain/usecases/obtener_disponibilidad_mes.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/obtener_horas_disponibles.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/obtener_qr_pago.dart';
 import 'package:ciemsi_app/features/citas/domain/usecases/reservar_cita.dart';
@@ -27,9 +29,11 @@ import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/suministros/data/datasources/suministro_remote_datasource.dart';
 import 'package:ciemsi_app/features/suministros/data/repositories/suministro_repository_impl.dart';
 import 'package:ciemsi_app/features/suministros/domain/usecases/crear_suministro.dart';
+import 'package:ciemsi_app/features/suministros/domain/usecases/listar_ciudades_inventario.dart';
 import 'package:ciemsi_app/features/suministros/domain/usecases/listar_suministros.dart';
 import 'package:ciemsi_app/features/suministros/domain/usecases/obtener_alertas_suministro.dart';
 import 'package:ciemsi_app/features/suministros/domain/usecases/obtener_inventario.dart';
+import 'package:ciemsi_app/features/suministros/domain/usecases/obtener_inventario_comparado.dart';
 import 'package:ciemsi_app/features/suministros/domain/usecases/registrar_compra.dart';
 import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_bloc.dart';
 import 'package:ciemsi_app/features/tratamientos/data/datasources/tratamiento_remote_datasource.dart';
@@ -72,7 +76,23 @@ import 'package:ciemsi_app/features/cuentas/data/repositories/cuenta_repository_
 import 'package:ciemsi_app/features/cuentas/presentation/bloc/cuenta_bloc.dart';
 import 'package:ciemsi_app/features/asistente/data/datasources/asistente_datasource.dart';
 import 'package:ciemsi_app/features/asistente/presentation/bloc/asistente_bloc.dart';
+import 'package:ciemsi_app/features/agenda/data/datasources/agenda_remote_datasource.dart';
+import 'package:ciemsi_app/features/agenda/data/repositories/agenda_repository_impl.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/cambiar_estado_agenda.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/crear_agenda_usecase.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/eliminar_agenda.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/listar_agendas.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/listar_ciudades_agenda.dart';
 import 'package:ciemsi_app/features/agenda/presentation/bloc/agenda_bloc.dart';
+import 'package:ciemsi_app/features/historial/data/datasources/historial_remote_datasource.dart';
+import 'package:ciemsi_app/features/historial/data/repositories/historial_repository_impl.dart';
+import 'package:ciemsi_app/features/historial/domain/usecases/agregar_link.dart';
+import 'package:ciemsi_app/features/historial/domain/usecases/agregar_nota.dart';
+import 'package:ciemsi_app/features/historial/domain/usecases/actualizar_nota.dart';
+import 'package:ciemsi_app/features/historial/domain/usecases/obtener_historial.dart';
+import 'package:ciemsi_app/features/historial/domain/usecases/obtener_mi_historial.dart';
+import 'package:ciemsi_app/features/historial/domain/usecases/subir_archivo_drive.dart';
+import 'package:ciemsi_app/features/historial/presentation/bloc/historial_bloc.dart';
 import 'package:ciemsi_app/features/servicios/data/datasources/servicio_remote_datasource.dart';
 import 'package:ciemsi_app/features/servicios/data/repositories/servicio_repository_impl.dart';
 import 'package:ciemsi_app/features/servicios/domain/usecases/listar_servicios.dart';
@@ -96,6 +116,8 @@ class AppDependencies {
       cambiarEstadoCitaUseCase:      CambiarEstadoCitaUseCase(repository),
       listarServiciosCitaUseCase:    ListarServiciosCitaUseCase(repository),
       obtenerHorasDisponiblesUseCase: ObtenerHorasDisponiblesUseCase(repository),
+      obtenerCitaUseCase:             ObtenerCitaUseCase(repository),
+      obtenerDisponibilidadMesUseCase: ObtenerDisponibilidadMesUseCase(repository),
       obtenerQrPagoUseCase:          ObtenerQrPagoUseCase(repository),
       actualizarQrPagoUseCase:       ActualizarQrPagoUseCase(repository),
       subirQrPagoImagenUseCase:      SubirQrPagoImagenUseCase(repository),
@@ -134,6 +156,8 @@ class AppDependencies {
         repository,
       ),
       registrarCompraUseCase: RegistrarCompraUseCase(repository),
+      listarCiudadesInventarioUseCase: ListarCiudadesInventarioUseCase(repository),
+      obtenerInventarioComparadoUseCase: ObtenerInventarioComparadoUseCase(repository),
     );
   }
 
@@ -174,7 +198,28 @@ class AppDependencies {
   }
 
   static AgendaBloc createAgendaBloc() {
-    return AgendaBloc();
+    final datasource = AgendaRemoteDatasource(ApiClientProvider.instance);
+    final repository = AgendaRepositoryImpl(datasource);
+    return AgendaBloc(
+      listarAgendasUseCase: ListarAgendasUseCase(repository),
+      crearAgendaUseCase: CrearAgendaUseCase(repository),
+      cambiarEstadoAgendaUseCase: CambiarEstadoAgendaUseCase(repository),
+      eliminarAgendaUseCase: EliminarAgendaUseCase(repository),
+      listarCiudadesAgendaUseCase: ListarCiudadesAgendaUseCase(repository),
+    );
+  }
+
+  static HistorialBloc createHistorialBloc() {
+    final datasource = HistorialRemoteDatasource(ApiClientProvider.instance);
+    final repository = HistorialRepositoryImpl(datasource);
+    return HistorialBloc(
+      obtenerHistorialUseCase: ObtenerHistorialUseCase(repository),
+      obtenerMiHistorialUseCase: ObtenerMiHistorialUseCase(repository),
+      agregarNotaUseCase: AgregarNotaUseCase(repository),
+      actualizarNotaUseCase: ActualizarNotaUseCase(repository),
+      agregarLinkUseCase: AgregarLinkUseCase(repository),
+      subirArchivoDriveUseCase: SubirArchivoDriveUseCase(repository),
+    );
   }
 
   static ServicioBloc createServicioBloc() {

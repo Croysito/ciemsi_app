@@ -1,6 +1,7 @@
+import 'package:ciemsi_app/features/agenda/presentation/bloc/agenda_bloc.dart';
 import 'package:ciemsi_app/features/auth/presentation/pages/splash_page.dart';
+import 'package:ciemsi_app/features/calendario/presentation/pages/calendario_page.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
-import 'package:ciemsi_app/features/citas/presentation/pages/citas_page.dart';
 import 'package:ciemsi_app/features/pagos/presentation/bloc/pago_bloc.dart';
 import 'package:ciemsi_app/features/suministros/presentation/bloc/suministro_bloc.dart';
 import 'package:ciemsi_app/features/traslados/presentation/bloc/traslado_bloc.dart';
@@ -32,6 +33,7 @@ class _HomePageState extends State<HomePage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final CitaBloc _citaBloc;
+  late final AgendaBloc _agendaBloc;
   late final TratamientoBloc _tratamientoBloc;
   late final SuministroBloc _suministroBloc;
   late final TrasladoBloc _trasladoBloc;
@@ -51,6 +53,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _citaBloc = AppDependencies.createCitaBloc();
+    _agendaBloc = AppDependencies.createAgendaBloc();
     _tratamientoBloc = AppDependencies.createTratamientoBloc();
     _suministroBloc = AppDependencies.createSuministroBloc();
     _trasladoBloc = AppDependencies.createTrasladoBloc();
@@ -68,6 +71,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _citaBloc.close();
+    _agendaBloc.close();
     _tratamientoBloc.close();
     _suministroBloc.close();
     _trasladoBloc.close();
@@ -93,6 +97,7 @@ class _HomePageState extends State<HomePage> {
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _citaBloc),
+        BlocProvider.value(value: _agendaBloc),
         BlocProvider.value(value: _tratamientoBloc),
         BlocProvider.value(value: _suministroBloc),
         BlocProvider.value(value: _trasladoBloc),
@@ -129,6 +134,7 @@ class _HomePageState extends State<HomePage> {
             drawer: HomeDrawer(
               usuario: widget.usuario,
               citaBloc: _citaBloc,
+              agendaBloc: _agendaBloc,
               trasladoBloc: _trasladoBloc,
               ciudadIdInventario: _ciudadIdInventario,
               ciudadNombreInventario: _ciudadNombreInventario,
@@ -140,7 +146,7 @@ class _HomePageState extends State<HomePage> {
             body: IndexedStack(
               index: _currentIndex,
               children: [
-                CitasPage(usuario: widget.usuario, onMenuTap: _openDrawer),
+                CalendarioPage(usuario: widget.usuario, onMenuTap: _openDrawer),
                 PagosTab(usuario: widget.usuario, onMenuTap: _openDrawer),
                 DashboardTab(usuario: widget.usuario, onMenuTap: _openDrawer),
                 TratamientosAsignadosPage(onMenuTap: _openDrawer),

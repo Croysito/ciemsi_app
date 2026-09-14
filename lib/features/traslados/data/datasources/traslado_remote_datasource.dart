@@ -101,7 +101,10 @@ class TrasladoRemoteDatasource {
     }
   }
 
-  Future<void> crear({
+  /// Devuelve el id del traslado recién creado — lo necesita el panel
+  /// inline de P4 para poder ofrecer "Deshacer" mientras siga pendiente
+  /// (equivale a devolverlo).
+  Future<int> crear({
     required String tipo,
     int? suministroId,
     int? productoId,
@@ -110,7 +113,7 @@ class TrasladoRemoteDatasource {
     required double cantidad,
   }) async {
     try {
-      await apiClient.dio.post(
+      final res = await apiClient.dio.post(
         '/traslados',
         data: {
           'tipo': tipo,
@@ -121,6 +124,7 @@ class TrasladoRemoteDatasource {
           'cantidad': cantidad,
         },
       );
+      return int.tryParse(res.data['id'].toString()) ?? 0;
     } on DioException catch (e) {
       throw Exception(e.response?.data['mensaje'] ?? 'Error al crear traslado');
     }

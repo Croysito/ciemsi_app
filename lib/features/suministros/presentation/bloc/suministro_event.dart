@@ -61,3 +61,8 @@ class RegistrarCompraEvent extends SuministroEvent {
 }
 
 class CargarSuministrosCatalogoEvent extends SuministroEvent {}
+
+/// P4 · Modo Comparar: carga ciudades visibles + inventario unido. Vive en
+/// un solo evento (en vez de dos pasos manuales desde la página) para que
+/// el pull-to-refresh y el primer load compartan el mismo camino.
+class ObtenerInventarioComparadoEvent extends SuministroEvent {}

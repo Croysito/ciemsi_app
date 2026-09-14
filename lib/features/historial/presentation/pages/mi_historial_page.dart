@@ -2,16 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/network/api_client_provider.dart';
-import '../../data/datasources/historial_remote_datasource.dart';
-import '../../data/repositories/historial_repository_impl.dart';
+import '../../../../core/di/app_dependencies.dart';
 import '../../domain/entities/link_archivo.dart';
 import '../../domain/entities/nota_evolucion.dart';
-import '../../domain/usecases/obtener_historial.dart';
-import '../../domain/usecases/obtener_mi_historial.dart';
-import '../../domain/usecases/agregar_nota.dart';
-import '../../domain/usecases/agregar_link.dart';
-import '../../domain/usecases/subir_archivo_drive.dart';
 import '../bloc/historial_bloc.dart';
 import '../bloc/historial_event.dart';
 import '../bloc/historial_state.dart';
@@ -42,18 +35,9 @@ class _MiHistorialPageState extends State<MiHistorialPage>
 
   @override
   Widget build(BuildContext context) {
-    final apiClient = ApiClientProvider.instance;
-    final datasource = HistorialRemoteDatasource(apiClient);
-    final repository = HistorialRepositoryImpl(datasource);
-
     return BlocProvider(
-      create: (_) => HistorialBloc(
-        obtenerHistorialUseCase: ObtenerHistorialUseCase(repository),
-        obtenerMiHistorialUseCase: ObtenerMiHistorialUseCase(repository),
-        agregarNotaUseCase: AgregarNotaUseCase(repository),
-        agregarLinkUseCase: AgregarLinkUseCase(repository),
-        subirArchivoDriveUseCase: SubirArchivoDriveUseCase(repository),
-      )..add(ObtenerMiHistorialEvent()),
+      create: (_) =>
+          AppDependencies.createHistorialBloc()..add(ObtenerMiHistorialEvent()),
       child: _MiHistorialView(tabController: _tabController),
     );
   }

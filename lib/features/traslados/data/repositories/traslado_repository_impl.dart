@@ -27,7 +27,7 @@ class TrasladoRepositoryImpl implements TrasladoRepository {
   );
 
   @override
-  Future<void> crear({
+  Future<int> crear({
     required String tipo,
     int? suministroId,
     int? productoId,

@@ -45,18 +45,39 @@ class _HistorialPageState extends State<HistorialPage> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: const Color(0xFF8DC63F),
         onPressed: () async {
-          final agregada = await Navigator.push(
+          final resultado = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => BlocProvider.value(
                 value: context.read<HistorialBloc>(),
-                child: AgregarNotaPage(pacienteId: widget.paciente.id),
+                child: AgregarNotaPage(paciente: widget.paciente),
               ),
             ),
           );
-          if (agregada == true) {
-            context.read<HistorialBloc>().add(
-              ObtenerHistorialEvent(widget.paciente.id),
+          if (!context.mounted || resultado == null) return;
+          context.read<HistorialBloc>().add(
+            ObtenerHistorialEvent(widget.paciente.id),
+          );
+          if (resultado is NotaEvolucion) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Nota guardada'),
+                action: SnackBarAction(
+                  label: 'Ver',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider.value(
+                        value: context.read<HistorialBloc>(),
+                        child: NotaDetallePage(
+                          nota: resultado,
+                          pacienteId: widget.paciente.id,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             );
           }
         },

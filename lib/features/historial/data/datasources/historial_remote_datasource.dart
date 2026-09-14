@@ -29,6 +29,21 @@ class HistorialRemoteDatasource {
     }
   }
 
+  Future<NotaModel> actualizarNota({
+    required int notaId,
+    required String detalle,
+  }) async {
+    try {
+      final response = await apiClient.dio.put(
+        '/historial/notas/$notaId',
+        data: {'detalle': detalle},
+      );
+      return NotaModel.fromJson(response.data['nota']);
+    } on DioException catch (e) {
+      throw Exception(ApiClient.errorMessage(e, 'Error al actualizar nota'));
+    }
+  }
+
   Future<LinkModel> agregarLink({
     required int notaId,
     required String nombre,

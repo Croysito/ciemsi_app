@@ -1,8 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/crear_suministro.dart';
+import '../../domain/usecases/listar_ciudades_inventario.dart';
 import '../../domain/usecases/listar_suministros.dart';
 import '../../domain/usecases/obtener_alertas_suministro.dart';
 import '../../domain/usecases/obtener_inventario.dart';
+import '../../domain/usecases/obtener_inventario_comparado.dart';
 import '../../domain/usecases/registrar_compra.dart';
 import 'suministro_event.dart';
 import 'suministro_state.dart';
@@ -13,6 +15,8 @@ class SuministroBloc extends Bloc<SuministroEvent, SuministroState> {
   final ObtenerInventarioUseCase obtenerInventarioUseCase;
   final ObtenerAlertasSuministroUseCase obtenerAlertasSuministroUseCase;
   final RegistrarCompraUseCase registrarCompraUseCase;
+  final ListarCiudadesInventarioUseCase listarCiudadesInventarioUseCase;
+  final ObtenerInventarioComparadoUseCase obtenerInventarioComparadoUseCase;
 
   SuministroBloc({
     required this.listarSuministrosUseCase,
@@ -20,6 +24,8 @@ class SuministroBloc extends Bloc<SuministroEvent, SuministroState> {
     required this.obtenerInventarioUseCase,
     required this.obtenerAlertasSuministroUseCase,
     required this.registrarCompraUseCase,
+    required this.listarCiudadesInventarioUseCase,
+    required this.obtenerInventarioComparadoUseCase,
   }) : super(SuministroInitial()) {
     on<ListarSuministrosEvent>(_onListar);
     on<CrearSuministroEvent>(_onCrear);
@@ -27,6 +33,7 @@ class SuministroBloc extends Bloc<SuministroEvent, SuministroState> {
     on<ObtenerAlertasEvent>(_onAlertas);
     on<RegistrarCompraEvent>(_onCompra);
     on<CargarSuministrosCatalogoEvent>(_onCargarCatalogo);
+    on<ObtenerInventarioComparadoEvent>(_onInventarioComparado);
   }
 
   Future<void> _onListar(
@@ -113,6 +120,23 @@ class SuministroBloc extends Bloc<SuministroEvent, SuministroState> {
         fecha: event.fecha,
       );
       emit(CompraRegistrada());
+    } catch (e) {
+      emit(SuministroError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onInventarioComparado(
+    ObtenerInventarioComparadoEvent event,
+    Emitter<SuministroState> emit,
+  ) async {
+    // Refresco (pull-to-refresh o vuelta de una compra/traslado): se
+    // mantienen los datos viejos en pantalla y el progreso va en la
+    // cabecera de la página, no en un spinner que borre la tabla.
+    if (state is! InventarioComparadoCargado) emit(SuministroLoading());
+    try {
+      final ciudades = await listarCiudadesInventarioUseCase.execute();
+      final comparado = await obtenerInventarioComparadoUseCase.execute(ciudades);
+      emit(InventarioComparadoCargado(comparado));
     } catch (e) {
       emit(SuministroError(e.toString().replaceAll('Exception: ', '')));
     }

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:ciemsi_app/features/auth/domain/entities/usuario.dart';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
+import 'package:ciemsi_app/features/citas/domain/entities/estado_cita_extension.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_event.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_state.dart';
@@ -13,14 +14,6 @@ import 'package:ciemsi_app/features/tratamientos/presentation/pages/asignar_trat
 import 'package:ciemsi_app/features/pacientes/presentation/bloc/paciente_bloc.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/pages/completar_paciente_page.dart';
 import 'package:ciemsi_app/features/historial/presentation/pages/historial_page.dart';
-import 'package:ciemsi_app/features/historial/presentation/bloc/historial_bloc.dart';
-import 'package:ciemsi_app/features/historial/data/datasources/historial_remote_datasource.dart';
-import 'package:ciemsi_app/features/historial/data/repositories/historial_repository_impl.dart';
-import 'package:ciemsi_app/features/historial/domain/usecases/obtener_historial.dart';
-import 'package:ciemsi_app/features/historial/domain/usecases/obtener_mi_historial.dart';
-import 'package:ciemsi_app/features/historial/domain/usecases/agregar_nota.dart';
-import 'package:ciemsi_app/features/historial/domain/usecases/agregar_link.dart';
-import 'package:ciemsi_app/features/historial/domain/usecases/subir_archivo_drive.dart';
 import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/core/di/app_dependencies.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -33,60 +26,9 @@ class DetalleCitaPage extends StatelessWidget {
   static const _primario = Color(0xFF00B5C8);
   static const _verde = Color(0xFF8DC63F);
 
-  Color _colorEstado(EstadoCita e) {
-    switch (e) {
-      case EstadoCita.PENDIENTE:
-        return Colors.orange;
-      case EstadoCita.PENDIENTE_PAGO:
-        return Colors.deepOrange;
-      case EstadoCita.MODIFICADA:
-        return Colors.purple;
-      case EstadoCita.CONFIRMADA:
-        return _primario;
-      case EstadoCita.CANCELADA:
-        return Colors.red;
-      case EstadoCita.COMPLETADA:
-        return _verde;
-    }
-  }
-
-  IconData _iconoEstado(EstadoCita e) {
-    switch (e) {
-      case EstadoCita.PENDIENTE:
-        return Icons.schedule_rounded;
-      case EstadoCita.PENDIENTE_PAGO:
-        return Icons.payment_rounded;
-      case EstadoCita.MODIFICADA:
-        return Icons.edit_calendar_rounded;
-      case EstadoCita.CONFIRMADA:
-        return Icons.check_circle_rounded;
-      case EstadoCita.CANCELADA:
-        return Icons.cancel_rounded;
-      case EstadoCita.COMPLETADA:
-        return Icons.task_alt_rounded;
-    }
-  }
-
-  String _textoEstado(EstadoCita e) {
-    switch (e) {
-      case EstadoCita.PENDIENTE:
-        return 'En espera de confirmación';
-      case EstadoCita.PENDIENTE_PAGO:
-        return 'Esperando comprobante de pago';
-      case EstadoCita.MODIFICADA:
-        return 'Solicitud de modificación pendiente';
-      case EstadoCita.CONFIRMADA:
-        return 'Cita médica confirmada';
-      case EstadoCita.CANCELADA:
-        return 'Esta cita fue cancelada';
-      case EstadoCita.COMPLETADA:
-        return 'Cita realizada con éxito';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final colorEstado = _colorEstado(cita.estado);
+    final colorEstado = cita.estado.color;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
@@ -168,7 +110,7 @@ class DetalleCitaPage extends StatelessWidget {
               color: color.withValues(alpha: 0.14),
               shape: BoxShape.circle,
             ),
-            child: Icon(_iconoEstado(cita.estado), color: color, size: 26),
+            child: Icon(cita.estado.icono, color: color, size: 26),
           ),
           const SizedBox(width: 16),
           Column(
@@ -185,7 +127,7 @@ class DetalleCitaPage extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                _textoEstado(cita.estado),
+                cita.estado.descripcion,
                 style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ],
@@ -752,21 +694,11 @@ class DetalleCitaPage extends StatelessWidget {
   // ─── Navegación ───────────────────────────────────────────────────────────
 
   void _navigateToHistorial(BuildContext context) {
-    final apiClient = ApiClientProvider.instance;
-    final datasource = HistorialRemoteDatasource(apiClient);
-    final repository = HistorialRepositoryImpl(datasource);
-
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => BlocProvider(
-          create: (_) => HistorialBloc(
-            obtenerHistorialUseCase: ObtenerHistorialUseCase(repository),
-            obtenerMiHistorialUseCase: ObtenerMiHistorialUseCase(repository),
-            agregarNotaUseCase: AgregarNotaUseCase(repository),
-            agregarLinkUseCase: AgregarLinkUseCase(repository),
-            subirArchivoDriveUseCase: SubirArchivoDriveUseCase(repository),
-          ),
+          create: (_) => AppDependencies.createHistorialBloc(),
           child: HistorialPage(paciente: cita.paciente),
         ),
       ),

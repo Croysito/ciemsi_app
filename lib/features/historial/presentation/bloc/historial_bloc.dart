@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/obtener_historial.dart';
 import '../../domain/usecases/obtener_mi_historial.dart';
 import '../../domain/usecases/agregar_nota.dart';
+import '../../domain/usecases/actualizar_nota.dart';
 import '../../domain/usecases/agregar_link.dart';
 import '../../domain/usecases/subir_archivo_drive.dart';
 import 'historial_event.dart';
@@ -11,6 +12,7 @@ class HistorialBloc extends Bloc<HistorialEvent, HistorialState> {
   final ObtenerHistorialUseCase obtenerHistorialUseCase;
   final ObtenerMiHistorialUseCase obtenerMiHistorialUseCase;
   final AgregarNotaUseCase agregarNotaUseCase;
+  final ActualizarNotaUseCase actualizarNotaUseCase;
   final AgregarLinkUseCase agregarLinkUseCase;
   final SubirArchivoDriveUseCase subirArchivoDriveUseCase;
 
@@ -18,11 +20,13 @@ class HistorialBloc extends Bloc<HistorialEvent, HistorialState> {
     required this.obtenerHistorialUseCase,
     required this.obtenerMiHistorialUseCase,
     required this.agregarNotaUseCase,
+    required this.actualizarNotaUseCase,
     required this.agregarLinkUseCase,
     required this.subirArchivoDriveUseCase,
   }) : super(HistorialInitial()) {
     on<ObtenerHistorialEvent>(_onObtener);
     on<AgregarNotaEvent>(_onAgregarNota);
+    on<ActualizarNotaEvent>(_onActualizarNota);
     on<AgregarLinkEvent>(_onAgregarLink);
     on<SubirArchivoDriveEvent>(_onSubirArchivo);
     on<ObtenerMiHistorialEvent>(_onObtenerMiHistorial);
@@ -52,6 +56,22 @@ class HistorialBloc extends Bloc<HistorialEvent, HistorialState> {
         event.detalle,
       );
       emit(NotaAgregada(nota));
+    } catch (e) {
+      emit(HistorialError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onActualizarNota(
+    ActualizarNotaEvent event,
+    Emitter<HistorialState> emit,
+  ) async {
+    emit(HistorialLoading());
+    try {
+      final nota = await actualizarNotaUseCase.execute(
+        notaId: event.notaId,
+        detalle: event.detalle,
+      );
+      emit(NotaActualizada(nota));
     } catch (e) {
       emit(HistorialError(e.toString().replaceAll('Exception: ', '')));
     }

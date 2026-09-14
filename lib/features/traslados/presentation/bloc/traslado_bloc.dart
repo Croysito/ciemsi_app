@@ -83,7 +83,7 @@ class TrasladoBloc extends Bloc<TrasladoEvent, TrasladoState> {
   ) async {
     emit(TrasladoLoading());
     try {
-      await crearUseCase.execute(
+      final id = await crearUseCase.execute(
         tipo: event.tipo,
         suministroId: event.suministroId,
         productoId: event.productoId,
@@ -91,7 +91,7 @@ class TrasladoBloc extends Bloc<TrasladoEvent, TrasladoState> {
         ciudadDestinoId: event.ciudadDestinoId,
         cantidad: event.cantidad,
       );
-      emit(TrasladoOperacionExitosa(event.ciudadOrigenId));
+      emit(TrasladoOperacionExitosa(event.ciudadOrigenId, trasladoId: id));
     } catch (e) {
       emit(TrasladoError(e.toString().replaceAll('Exception: ', '')));
     }

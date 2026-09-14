@@ -4,15 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../domain/entities/paciente.dart';
 import '../../../historial/presentation/pages/historial_page.dart';
-import '../../../historial/presentation/bloc/historial_bloc.dart';
-import '../../../historial/data/datasources/historial_remote_datasource.dart';
-import '../../../historial/data/repositories/historial_repository_impl.dart';
-import '../../../historial/domain/usecases/obtener_historial.dart';
-import '../../../historial/domain/usecases/obtener_mi_historial.dart';
-import '../../../historial/domain/usecases/agregar_nota.dart';
-import '../../../historial/domain/usecases/agregar_link.dart';
-import '../../../historial/domain/usecases/subir_archivo_drive.dart';
-import '../../../../core/network/api_client_provider.dart';
+import '../../../../core/di/app_dependencies.dart';
 import 'package:ciemsi_app/features/pacientes/presentation/pages/modificar_paciente_page.dart';
 import 'package:ciemsi_app/features/pagos/presentation/pages/estado_cuenta_page.dart';
 
@@ -115,27 +107,11 @@ class DetallePacientePage extends StatelessWidget {
               height: 52,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  final apiClient = ApiClientProvider.instance;
-                  final datasource = HistorialRemoteDatasource(apiClient);
-                  final repository = HistorialRepositoryImpl(datasource);
-
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => BlocProvider(
-                        create: (_) => HistorialBloc(
-                          obtenerHistorialUseCase: ObtenerHistorialUseCase(
-                            repository,
-                          ),
-                          obtenerMiHistorialUseCase: ObtenerMiHistorialUseCase(
-                            repository,
-                          ),
-                          agregarNotaUseCase: AgregarNotaUseCase(repository),
-                          agregarLinkUseCase: AgregarLinkUseCase(repository),
-                          subirArchivoDriveUseCase: SubirArchivoDriveUseCase(
-                            repository,
-                          ),
-                        ),
+                        create: (_) => AppDependencies.createHistorialBloc(),
                         child: HistorialPage(paciente: paciente),
                       ),
                     ),

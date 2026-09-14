@@ -5,7 +5,14 @@ abstract class AgendaEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class CargarAgendasEvent extends AgendaEvent {}
+class CargarAgendasEvent extends AgendaEvent {
+  final int? ciudadId;
+
+  CargarAgendasEvent({this.ciudadId});
+
+  @override
+  List<Object?> get props => [ciudadId];
+}
 
 class CambiarEstadoAgendaEvent extends AgendaEvent {
   final int id;

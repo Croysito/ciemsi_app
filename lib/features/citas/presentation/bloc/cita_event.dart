@@ -7,6 +7,29 @@ abstract class CitaEvent extends Equatable {
 
 class ListarCitasEvent extends CitaEvent {}
 
+/// Trae una sola cita actualizada, para parchar un ítem en una lista ya
+/// cargada sin recargarla completa.
+class ObtenerCitaEvent extends CitaEvent {
+  final int id;
+  ObtenerCitaEvent(this.id);
+  @override
+  List<Object?> get props => [id];
+}
+
+/// Disponibilidad de un mes completo (una llamada, no una por día).
+class CargarDisponibilidadMesEvent extends CitaEvent {
+  final int ciudadId;
+  final int anio;
+  final int mes;
+  CargarDisponibilidadMesEvent({
+    required this.ciudadId,
+    required this.anio,
+    required this.mes,
+  });
+  @override
+  List<Object?> get props => [ciudadId, anio, mes];
+}
+
 class ReservarCitaEvent extends CitaEvent {
   final String fecha;
   final String hora;

@@ -5,6 +5,10 @@ import '../entities/link_archivo.dart';
 abstract class HistorialRepository {
   Future<HistorialClinico> obtenerHistorial(int pacienteId);
   Future<NotaEvolucion> agregarNota(int pacienteId, String detalle);
+  Future<NotaEvolucion> actualizarNota({
+    required int notaId,
+    required String detalle,
+  });
   Future<LinkArchivo> agregarLink({
     required int notaId,
     required String nombre,

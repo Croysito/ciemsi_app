@@ -8,9 +8,11 @@ class NotaModel extends NotaEvolucion {
     required super.detalle,
     required super.historialId,
     super.links,
+    super.editadoEn,
   });
 
   factory NotaModel.fromJson(Map<String, dynamic> json) {
+    final editadoEnRaw = json['editadoEn'] ?? json['editado_en'];
     return NotaModel(
       id: json['id'],
       fecha: DateTime.parse(json['fecha']),
@@ -21,6 +23,7 @@ class NotaModel extends NotaEvolucion {
               ?.map((l) => LinkModel.fromJson(l))
               .toList() ??
           [],
+      editadoEn: editadoEnRaw != null ? DateTime.parse(editadoEnRaw) : null,
     );
   }
 }

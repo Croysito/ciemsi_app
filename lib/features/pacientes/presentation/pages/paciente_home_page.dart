@@ -11,8 +11,9 @@ import 'package:ciemsi_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ciemsi_app/features/auth/presentation/bloc/auth_event.dart';
 import 'package:ciemsi_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:ciemsi_app/features/auth/presentation/pages/splash_page.dart';
+import 'package:ciemsi_app/features/agenda/presentation/bloc/agenda_bloc.dart';
+import 'package:ciemsi_app/features/calendario/presentation/pages/calendario_page.dart';
 import 'package:ciemsi_app/features/citas/presentation/bloc/cita_bloc.dart';
-import 'package:ciemsi_app/features/citas/presentation/pages/citas_page.dart';
 import 'package:ciemsi_app/features/historial/presentation/pages/mi_historial_page.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/bloc/tratamiento_bloc.dart';
 import 'package:ciemsi_app/features/tratamientos/presentation/pages/tratamientos_asignados_page.dart';
@@ -35,6 +36,7 @@ class PacienteHomePage extends StatefulWidget {
 class _PacienteHomePageState extends State<PacienteHomePage> {
   int _currentIndex = 0;
   late final CitaBloc _citaBloc;
+  late final AgendaBloc _agendaBloc;
   late final TratamientoBloc _tratamientoBloc;
   late final PagoBloc _pagoBloc;
   StreamSubscription<List<SharedMediaFile>>? _sharingSubscription;
@@ -43,6 +45,7 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
   void initState() {
     super.initState();
     _citaBloc = AppDependencies.createCitaBloc();
+    _agendaBloc = AppDependencies.createAgendaBloc();
     _tratamientoBloc = AppDependencies.createTratamientoBloc();
     _pagoBloc = AppDependencies.createPagoBloc();
 
@@ -103,6 +106,7 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
   void dispose() {
     _sharingSubscription?.cancel();
     _citaBloc.close();
+    _agendaBloc.close();
     _tratamientoBloc.close();
     _pagoBloc.close();
     super.dispose();
@@ -113,6 +117,7 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
     return MultiBlocProvider(
       providers: [
         BlocProvider.value(value: _citaBloc),
+        BlocProvider.value(value: _agendaBloc),
         BlocProvider.value(value: _tratamientoBloc),
         BlocProvider.value(value: _pagoBloc),
       ],
@@ -131,7 +136,7 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
           body: IndexedStack(
             index: _currentIndex,
             children: [
-              CitasPage(
+              CalendarioPage(
                 usuario: widget.usuario,
                 onAsistenteIA: () => Navigator.push(
                   context,
@@ -166,7 +171,7 @@ class _PacienteHomePageState extends State<PacienteHomePage> {
         BottomNavigationBarItem(
           icon: Icon(Icons.calendar_today_outlined),
           activeIcon: Icon(Icons.calendar_today),
-          label: 'Citas',
+          label: 'Calendario',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.folder_outlined),

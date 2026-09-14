@@ -83,6 +83,22 @@ class SuministroRemoteDatasource {
     }
   }
 
+  /// Ciudades visibles para armar las columnas del modo Comparar (P4). El
+  /// mismo `/ciudades` que ya usan traslados, pagos y agenda.
+  Future<List<({int id, String nombre})>> listarCiudades() async {
+    try {
+      final response = await apiClient.dio.get('/ciudades');
+      return (response.data as List).map((item) {
+        final m = item as Map<String, dynamic>;
+        final id = int.tryParse(m['id'].toString()) ?? 0;
+        final nombre = m['nombreCiudad']?.toString() ?? m['nombre_ciudad']?.toString() ?? '';
+        return (id: id, nombre: nombre);
+      }).toList();
+    } on DioException catch (e) {
+      throw Exception(e.response?.data['mensaje'] ?? 'Error al listar ciudades');
+    }
+  }
+
   Future<Map<String, dynamic>> obtenerAlertas(int ciudadId) async {
     try {
       final response = await apiClient.dio.get(

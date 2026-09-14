@@ -1,9 +1,13 @@
 import 'dart:typed_data';
 import 'package:ciemsi_app/features/citas/domain/entities/cita_medica.dart';
+import 'package:ciemsi_app/features/citas/domain/entities/disponibilidad_dia.dart';
 import 'package:ciemsi_app/features/servicios/domain/entities/servicio.dart';
 
 abstract class CitaRepository {
   Future<List<CitaMedica>> listarCitas();
+
+  /// Una sola cita, para parchar un ítem sin recargar toda la lista.
+  Future<CitaMedica> obtenerCita(int id);
 
   /// Devuelve el citaId de la cita creada
   Future<int> reservarCita({
@@ -33,6 +37,12 @@ abstract class CitaRepository {
   Future<List<String>> obtenerHorasDisponibles({
     required int ciudadId,
     required String fecha,
+  });
+
+  Future<List<DisponibilidadDia>> obtenerDisponibilidadMes({
+    required int ciudadId,
+    required int anio,
+    required int mes,
   });
 
   Future<Map<String, dynamic>> obtenerQrPago();

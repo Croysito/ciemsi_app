@@ -1,13 +1,27 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ciemsi_app/core/network/api_client_provider.dart';
 import 'package:ciemsi_app/features/agenda/data/models/agenda_model.dart';
-import 'package:ciemsi_app/features/pacientes/data/models/ciudad_model.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/cambiar_estado_agenda.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/crear_agenda_usecase.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/eliminar_agenda.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/listar_agendas.dart';
+import 'package:ciemsi_app/features/agenda/domain/usecases/listar_ciudades_agenda.dart';
 import 'agenda_event.dart';
 import 'agenda_state.dart';
 
 class AgendaBloc extends Bloc<AgendaEvent, AgendaState> {
-  AgendaBloc() : super(AgendaInitial()) {
+  final ListarAgendasUseCase listarAgendasUseCase;
+  final CrearAgendaUseCase crearAgendaUseCase;
+  final CambiarEstadoAgendaUseCase cambiarEstadoAgendaUseCase;
+  final EliminarAgendaUseCase eliminarAgendaUseCase;
+  final ListarCiudadesAgendaUseCase listarCiudadesAgendaUseCase;
+
+  AgendaBloc({
+    required this.listarAgendasUseCase,
+    required this.crearAgendaUseCase,
+    required this.cambiarEstadoAgendaUseCase,
+    required this.eliminarAgendaUseCase,
+    required this.listarCiudadesAgendaUseCase,
+  }) : super(AgendaInitial()) {
     on<CargarAgendasEvent>(_onCargarAgendas);
     on<CambiarEstadoAgendaEvent>(_onCambiarEstado);
     on<EliminarAgendaEvent>(_onEliminar);
@@ -21,32 +35,11 @@ class AgendaBloc extends Bloc<AgendaEvent, AgendaState> {
   ) async {
     emit(AgendaLoading());
     try {
-      final response = await ApiClientProvider.instance.dio.get('/agenda');
-      debugPrint('[AgendaBloc] Raw response: ${response.data}');
-
-      final lista = response.data;
-      if (lista is! List) {
-        emit(AgendaError('Respuesta inesperada del servidor: ${lista.runtimeType}'));
-        return;
-      }
-
-      final agendas = <AgendaModel>[];
-      for (final item in lista) {
-        try {
-          agendas.add(AgendaModel.fromJson(item));
-        } catch (e) {
-          debugPrint('[AgendaBloc] Error parseando item: $item → $e');
-        }
-      }
-
-      debugPrint(
-        '[AgendaBloc] Total: ${agendas.length}, '
-        'activas: ${agendas.where((a) => a.estado).length}, '
-        'inactivas: ${agendas.where((a) => !a.estado).length}',
+      final agendas = await listarAgendasUseCase.execute(
+        ciudadId: event.ciudadId,
       );
-      emit(AgendasCargadas(agendas));
+      emit(AgendasCargadas(agendas.cast<AgendaModel>()));
     } catch (e) {
-      debugPrint('[AgendaBloc] Error cargando: $e');
       emit(AgendaError(e.toString().replaceAll('Exception: ', '')));
     }
   }
@@ -57,17 +50,9 @@ class AgendaBloc extends Bloc<AgendaEvent, AgendaState> {
   ) async {
     emit(AgendaLoading());
     try {
-      debugPrint(
-        '[AgendaBloc] PATCH /agenda/${event.id}/estado → estado=${event.estado}',
-      );
-      final res = await ApiClientProvider.instance.dio.patch(
-        '/agenda/${event.id}/estado',
-        data: {'estado': event.estado},
-      );
-      debugPrint('[AgendaBloc] PATCH ok: ${res.statusCode} ${res.data}');
+      await cambiarEstadoAgendaUseCase.execute(event.id, event.estado);
       emit(AgendaOperacionExitosa());
     } catch (e) {
-      debugPrint('[AgendaBloc] PATCH error: $e');
       emit(AgendaError(e.toString().replaceAll('Exception: ', '')));
     }
   }
@@ -78,7 +63,7 @@ class AgendaBloc extends Bloc<AgendaEvent, AgendaState> {
   ) async {
     emit(AgendaLoading());
     try {
-      await ApiClientProvider.instance.dio.delete('/agenda/${event.id}');
+      await eliminarAgendaUseCase.execute(event.id);
       emit(AgendaOperacionExitosa());
     } catch (e) {
       emit(AgendaError(e.toString().replaceAll('Exception: ', '')));
@@ -91,13 +76,9 @@ class AgendaBloc extends Bloc<AgendaEvent, AgendaState> {
   ) async {
     emit(AgendaLoading());
     try {
-      final response = await ApiClientProvider.instance.dio.get('/ciudades');
-      final lista = (response.data as List)
-          .map((c) => CiudadModel(id: c['id'], nombreCiudad: c['nombreCiudad']))
-          .toList();
-      emit(CiudadesAgendaCargadas(lista));
+      final ciudades = await listarCiudadesAgendaUseCase.execute();
+      emit(CiudadesAgendaCargadas(ciudades));
     } catch (e) {
-      debugPrint('[AgendaBloc] Error cargando ciudades: $e');
       emit(AgendaError(e.toString().replaceAll('Exception: ', '')));
     }
   }
@@ -108,7 +89,7 @@ class AgendaBloc extends Bloc<AgendaEvent, AgendaState> {
   ) async {
     emit(AgendaLoading());
     try {
-      await ApiClientProvider.instance.dio.post('/agenda', data: event.datos);
+      await crearAgendaUseCase.execute(event.datos);
       emit(AgendaOperacionExitosa());
     } catch (e) {
       emit(AgendaError(e.toString().replaceAll('Exception: ', '')));

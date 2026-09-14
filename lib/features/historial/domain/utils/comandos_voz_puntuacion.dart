@@ -27,6 +27,12 @@ class ComandosVozPuntuacion {
     MapEntry(RegExp(r'\s*\bpunto\b\s*', caseSensitive: false), '. '),
   ];
 
+  /// "siguiente" es un comando de navegación, no de puntuación: cuando el
+  /// usuario lo dice solo (aislado por una pausa), salta a la siguiente
+  /// sección de la plantilla en vez de insertarse como texto.
+  static bool esComandoSiguiente(String texto) =>
+      texto.trim().toLowerCase() == 'siguiente';
+
   static String aplicar(String texto) {
     var resultado = texto;
     for (final comando in _comandos) {
