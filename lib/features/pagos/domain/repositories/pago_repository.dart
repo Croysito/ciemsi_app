@@ -12,17 +12,32 @@ abstract class PagoRepository {
     required int deudaId,
     required int pacienteId,
     required int ciudadId,
-    required double monto,
-    required String metodo,
+    required double montoEfectivo,
+    required double montoQr,
     String? notas,
   });
   Future<Ingreso> registrarVentaProducto({
     required int pacienteId,
     required int ciudadId,
     required List<Map<String, dynamic>> items,
-    required String metodo,
+    required double montoEfectivo,
+    required double montoQr,
     String? notas,
   });
+  Future<Ingreso> editarCobroDeuda({
+    required int id,
+    required double montoEfectivo,
+    required double montoQr,
+    String? notas,
+  });
+  Future<Ingreso> editarVentaProducto({
+    required int id,
+    required List<Map<String, dynamic>> items,
+    required double montoEfectivo,
+    required double montoQr,
+    String? notas,
+  });
+  Future<void> eliminarIngreso(int id);
   Future<List<Producto>> listarProductos();
   Future<List<ProductoInventarioItem>> listarInventarioProductos(int ciudadId);
   Future<Producto> crearProducto({

@@ -1,21 +1,17 @@
 import '../entities/ingreso.dart';
 import '../repositories/pago_repository.dart';
 
-class RegistrarCobroDeudaUseCase {
+class EditarCobroDeudaUseCase {
   final PagoRepository repository;
-  RegistrarCobroDeudaUseCase(this.repository);
+  EditarCobroDeudaUseCase(this.repository);
 
   Future<Ingreso> execute({
-    required int deudaId,
-    required int pacienteId,
-    required int ciudadId,
+    required int id,
     required double montoEfectivo,
     required double montoQr,
     String? notas,
-  }) => repository.registrarCobroDeuda(
-        deudaId: deudaId,
-        pacienteId: pacienteId,
-        ciudadId: ciudadId,
+  }) => repository.editarCobroDeuda(
+        id: id,
         montoEfectivo: montoEfectivo,
         montoQr: montoQr,
         notas: notas,

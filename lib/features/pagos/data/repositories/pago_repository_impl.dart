@@ -24,15 +24,15 @@ class PagoRepositoryImpl implements PagoRepository {
     required int deudaId,
     required int pacienteId,
     required int ciudadId,
-    required double monto,
-    required String metodo,
+    required double montoEfectivo,
+    required double montoQr,
     String? notas,
   }) => remoteDatasource.registrarCobroDeuda(
     deudaId: deudaId,
     pacienteId: pacienteId,
     ciudadId: ciudadId,
-    monto: monto,
-    metodo: metodo,
+    montoEfectivo: montoEfectivo,
+    montoQr: montoQr,
     notas: notas,
   );
 
@@ -41,15 +41,48 @@ class PagoRepositoryImpl implements PagoRepository {
     required int pacienteId,
     required int ciudadId,
     required List<Map<String, dynamic>> items,
-    required String metodo,
+    required double montoEfectivo,
+    required double montoQr,
     String? notas,
   }) => remoteDatasource.registrarVentaProducto(
     pacienteId: pacienteId,
     ciudadId: ciudadId,
     items: items,
-    metodo: metodo,
+    montoEfectivo: montoEfectivo,
+    montoQr: montoQr,
     notas: notas,
   );
+
+  @override
+  Future<Ingreso> editarCobroDeuda({
+    required int id,
+    required double montoEfectivo,
+    required double montoQr,
+    String? notas,
+  }) => remoteDatasource.editarCobroDeuda(
+    id: id,
+    montoEfectivo: montoEfectivo,
+    montoQr: montoQr,
+    notas: notas,
+  );
+
+  @override
+  Future<Ingreso> editarVentaProducto({
+    required int id,
+    required List<Map<String, dynamic>> items,
+    required double montoEfectivo,
+    required double montoQr,
+    String? notas,
+  }) => remoteDatasource.editarVentaProducto(
+    id: id,
+    items: items,
+    montoEfectivo: montoEfectivo,
+    montoQr: montoQr,
+    notas: notas,
+  );
+
+  @override
+  Future<void> eliminarIngreso(int id) => remoteDatasource.eliminarIngreso(id);
 
   @override
   Future<List<Producto>> listarProductos() =>

@@ -30,6 +30,16 @@ class IngresoRegistrado extends PagoState {
   List<Object?> get props => [ingreso];
 }
 
+class IngresoActualizado extends PagoState {
+  final Ingreso ingreso;
+  IngresoActualizado(this.ingreso);
+
+  @override
+  List<Object?> get props => [ingreso];
+}
+
+class IngresoEliminado extends PagoState {}
+
 class ProductosListados extends PagoState {
   final List<Producto> productos;
   ProductosListados(this.productos);

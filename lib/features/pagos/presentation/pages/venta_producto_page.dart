@@ -2,19 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../domain/entities/producto.dart';
+import '../../domain/entities/ingreso.dart';
 import '../bloc/pago_bloc.dart';
 import '../bloc/pago_event.dart';
 import '../bloc/pago_state.dart';
+import '../widgets/monto_mixto_field.dart';
 
 class VentaProductoPage extends StatefulWidget {
   final int pacienteId;
   final int ciudadId;
+  /// Si se provee, la página edita esta venta ya registrada en vez de crear una nueva.
+  final Ingreso? ingresoAEditar;
 
   const VentaProductoPage({
     super.key,
     required this.pacienteId,
     required this.ciudadId,
+    this.ingresoAEditar,
   });
+
+  bool get esEdicion => ingresoAEditar != null;
 
   @override
   State<VentaProductoPage> createState() => _VentaProductoPageState();
@@ -22,15 +29,31 @@ class VentaProductoPage extends StatefulWidget {
 
 class _VentaProductoPageState extends State<VentaProductoPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _notasCtrl = TextEditingController();
-  String _metodo = 'efectivo';
-  final List<_ItemVenta> _items = [_ItemVenta()];
+  late final TextEditingController _notasCtrl;
+  late final MontoMixtoController _montoMixtoCtrl;
+  late final List<_ItemVenta> _items;
   List<Producto> _productos = [];
   bool _cargandoProductos = true;
 
   @override
   void initState() {
     super.initState();
+    final editando = widget.ingresoAEditar;
+    _notasCtrl = TextEditingController(text: editando?.notas ?? '');
+    _montoMixtoCtrl = MontoMixtoController(
+      efectivoInicial: editando?.montoEfectivo ?? 0,
+      qrInicial: editando?.montoQr ?? 0,
+    );
+    _items = editando != null && editando.items.isNotEmpty
+        ? editando.items
+            .map((i) => _ItemVenta(
+                  productoId: i.producto['id'] as int,
+                  productoNombre: i.producto['nombre'] as String? ?? '',
+                  precioVenta: i.precioUnitario,
+                  cantidadInicial: i.cantidad,
+                ))
+            .toList()
+        : [_ItemVenta()];
     context.read<PagoBloc>().add(ListarProductosEvent());
   }
 
@@ -40,12 +63,13 @@ class _VentaProductoPageState extends State<VentaProductoPage> {
       item.dispose();
     }
     _notasCtrl.dispose();
+    _montoMixtoCtrl.dispose();
     super.dispose();
   }
 
   double get _total => _items.fold(0, (sum, item) {
         final cant = double.tryParse(item.cantidadCtrl.text) ?? 0;
-        final precio = item.producto?.precioVenta ?? 0;
+        final precio = item.producto?.precioVenta ?? item.precioVenta ?? 0;
         return sum + cant * precio;
       });
 
@@ -59,8 +83,15 @@ class _VentaProductoPageState extends State<VentaProductoPage> {
           setState(() {
             _productos = state.productos;
             _cargandoProductos = false;
+            // Empareja los productos precargados (modo edición) con la lista real
+            for (final item in _items) {
+              if (item.producto == null && item.productoId != null) {
+                final match = _productos.where((p) => p.id == item.productoId);
+                if (match.isNotEmpty) item.producto = match.first;
+              }
+            }
           });
-        } else if (state is IngresoRegistrado) {
+        } else if (state is IngresoRegistrado || state is IngresoActualizado) {
           Navigator.pop(context, true);
         } else if (state is PagoError) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -71,9 +102,9 @@ class _VentaProductoPageState extends State<VentaProductoPage> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF4F4F4),
         appBar: AppBar(
-          title: const Text(
-            'Venta de Producto',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          title: Text(
+            widget.esEdicion ? 'Editar Venta' : 'Venta de Producto',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           backgroundColor: const Color(0xFF8DC63F),
           iconTheme: const IconThemeData(color: Colors.white),
@@ -125,33 +156,10 @@ class _VentaProductoPageState extends State<VentaProductoPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Método de pago
-                      const Text('Método de pago',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      const SizedBox(height: 8),
-                      RadioGroup<String>(
-                        groupValue: _metodo,
-                        onChanged: (v) => setState(() => _metodo = v!),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: RadioListTile<String>(
-                                value: 'efectivo',
-                                title: const Text('Efectivo'),
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                            Expanded(
-                              child: RadioListTile<String>(
-                                value: 'qr',
-                                title: const Text('QR'),
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ],
-                        ),
+                      // Método de pago (efectivo + QR)
+                      MontoMixtoField(
+                        controller: _montoMixtoCtrl,
+                        total: _total,
                       ),
                       const SizedBox(height: 12),
 
@@ -179,9 +187,9 @@ class _VentaProductoPageState extends State<VentaProductoPage> {
                             ),
                             child: state is PagoLoading
                                 ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    'Confirmar Venta',
-                                    style: TextStyle(
+                                : Text(
+                                    widget.esEdicion ? 'Guardar Cambios' : 'Confirmar Venta',
+                                    style: const TextStyle(
                                       fontSize: 16,
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
@@ -200,7 +208,7 @@ class _VentaProductoPageState extends State<VentaProductoPage> {
 
   Widget _buildItemCard(int index, _ItemVenta item, NumberFormat fmt, VoidCallback onUpdate) {
     final subtotal = (double.tryParse(item.cantidadCtrl.text) ?? 0) *
-        (item.producto?.precioVenta ?? 0);
+        (item.producto?.precioVenta ?? item.precioVenta ?? 0);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -289,25 +297,62 @@ class _VentaProductoPageState extends State<VentaProductoPage> {
       );
       return;
     }
+
+    final diferencia = (_total - _montoMixtoCtrl.total).abs();
+    if (diferencia > 0.01) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El efectivo + QR debe sumar el total de la venta'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final items = _items.map((item) => {
           'productoId': item.producto!.id,
           'cantidad': double.parse(item.cantidadCtrl.text),
           'precioUnitario': item.producto!.precioVenta,
         }).toList();
 
-    context.read<PagoBloc>().add(RegistrarVentaProductoEvent(
-          pacienteId: widget.pacienteId,
-          ciudadId: widget.ciudadId,
-          items: items,
-          metodo: _metodo,
-          notas: _notasCtrl.text.isEmpty ? null : _notasCtrl.text,
-        ));
+    if (widget.esEdicion) {
+      context.read<PagoBloc>().add(EditarVentaProductoEvent(
+            id: widget.ingresoAEditar!.id,
+            items: items,
+            montoEfectivo: _montoMixtoCtrl.efectivo,
+            montoQr: _montoMixtoCtrl.qr,
+            notas: _notasCtrl.text.isEmpty ? null : _notasCtrl.text,
+          ));
+    } else {
+      context.read<PagoBloc>().add(RegistrarVentaProductoEvent(
+            pacienteId: widget.pacienteId,
+            ciudadId: widget.ciudadId,
+            items: items,
+            montoEfectivo: _montoMixtoCtrl.efectivo,
+            montoQr: _montoMixtoCtrl.qr,
+            notas: _notasCtrl.text.isEmpty ? null : _notasCtrl.text,
+          ));
+    }
   }
 }
 
 class _ItemVenta {
   Producto? producto;
-  final TextEditingController cantidadCtrl = TextEditingController(text: '1');
+  final int? productoId;
+  final String? productoNombre;
+  final double? precioVenta;
+  final TextEditingController cantidadCtrl;
+
+  _ItemVenta({
+    this.productoId,
+    this.productoNombre,
+    this.precioVenta,
+    double cantidadInicial = 1,
+  }) : cantidadCtrl = TextEditingController(
+          text: cantidadInicial == cantidadInicial.roundToDouble()
+              ? cantidadInicial.toStringAsFixed(0)
+              : cantidadInicial.toString(),
+        );
 
   void dispose() => cantidadCtrl.dispose();
 }

@@ -293,8 +293,7 @@ class _HistorialPagosPacienteView extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
         subtitle: Text(
-          '${dateFmt.format(ingreso.fecha)}  •  '
-          '${ingreso.metodo == 'efectivo' ? 'Efectivo' : 'QR'}',
+          '${dateFmt.format(ingreso.fecha)}  •  ${ingreso.metodoLabel}',
           style: const TextStyle(fontSize: 12),
         ),
         trailing: Text(

@@ -52,6 +52,9 @@ import 'package:ciemsi_app/features/pagos/data/repositories/pago_repository_impl
 import 'package:ciemsi_app/features/pagos/domain/usecases/obtener_estado_cuenta.dart';
 import 'package:ciemsi_app/features/pagos/domain/usecases/registrar_cobro_deuda.dart';
 import 'package:ciemsi_app/features/pagos/domain/usecases/registrar_venta_producto.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/editar_cobro_deuda.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/editar_venta_producto.dart';
+import 'package:ciemsi_app/features/pagos/domain/usecases/eliminar_ingreso.dart';
 import 'package:ciemsi_app/features/pagos/domain/usecases/listar_productos.dart';
 import 'package:ciemsi_app/features/pagos/domain/usecases/listar_inventario_productos.dart';
 import 'package:ciemsi_app/features/pagos/domain/usecases/crear_producto.dart';
@@ -264,6 +267,9 @@ class AppDependencies {
       obtenerEstadoCuentaUseCase: ObtenerEstadoCuentaUseCase(repository),
       registrarCobroDeudaUseCase: RegistrarCobroDeudaUseCase(repository),
       registrarVentaProductoUseCase: RegistrarVentaProductoUseCase(repository),
+      editarCobroDeudaUseCase: EditarCobroDeudaUseCase(repository),
+      editarVentaProductoUseCase: EditarVentaProductoUseCase(repository),
+      eliminarIngresoUseCase: EliminarIngresoUseCase(repository),
       listarProductosUseCase: ListarProductosUseCase(repository),
       listarInventarioProductosUseCase: ListarInventarioProductosUseCase(
         repository,

@@ -17,40 +17,86 @@ class RegistrarCobroDeudaEvent extends PagoEvent {
   final int deudaId;
   final int pacienteId;
   final int ciudadId;
-  final double monto;
-  final String metodo;
+  final double montoEfectivo;
+  final double montoQr;
   final String? notas;
 
   RegistrarCobroDeudaEvent({
     required this.deudaId,
     required this.pacienteId,
     required this.ciudadId,
-    required this.monto,
-    required this.metodo,
+    required this.montoEfectivo,
+    required this.montoQr,
     this.notas,
   });
 
   @override
-  List<Object?> get props => [deudaId, monto, metodo];
+  List<Object?> get props => [deudaId, montoEfectivo, montoQr];
 }
 
 class RegistrarVentaProductoEvent extends PagoEvent {
   final int pacienteId;
   final int ciudadId;
   final List<Map<String, dynamic>> items;
-  final String metodo;
+  final double montoEfectivo;
+  final double montoQr;
   final String? notas;
 
   RegistrarVentaProductoEvent({
     required this.pacienteId,
     required this.ciudadId,
     required this.items,
-    required this.metodo,
+    required this.montoEfectivo,
+    required this.montoQr,
     this.notas,
   });
 
   @override
-  List<Object?> get props => [pacienteId, ciudadId, items, metodo];
+  List<Object?> get props => [pacienteId, ciudadId, items, montoEfectivo, montoQr];
+}
+
+class EditarCobroDeudaEvent extends PagoEvent {
+  final int id;
+  final double montoEfectivo;
+  final double montoQr;
+  final String? notas;
+
+  EditarCobroDeudaEvent({
+    required this.id,
+    required this.montoEfectivo,
+    required this.montoQr,
+    this.notas,
+  });
+
+  @override
+  List<Object?> get props => [id, montoEfectivo, montoQr];
+}
+
+class EditarVentaProductoEvent extends PagoEvent {
+  final int id;
+  final List<Map<String, dynamic>> items;
+  final double montoEfectivo;
+  final double montoQr;
+  final String? notas;
+
+  EditarVentaProductoEvent({
+    required this.id,
+    required this.items,
+    required this.montoEfectivo,
+    required this.montoQr,
+    this.notas,
+  });
+
+  @override
+  List<Object?> get props => [id, items, montoEfectivo, montoQr];
+}
+
+class EliminarIngresoEvent extends PagoEvent {
+  final int id;
+  EliminarIngresoEvent(this.id);
+
+  @override
+  List<Object?> get props => [id];
 }
 
 class ListarProductosEvent extends PagoEvent {}

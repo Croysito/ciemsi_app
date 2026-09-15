@@ -42,8 +42,8 @@ class PagoRemoteDatasource {
     required int deudaId,
     required int pacienteId,
     required int ciudadId,
-    required double monto,
-    required String metodo,
+    required double montoEfectivo,
+    required double montoQr,
     String? notas,
   }) async {
     try {
@@ -53,8 +53,8 @@ class PagoRemoteDatasource {
           'deudaId': deudaId,
           'pacienteId': pacienteId,
           'ciudadId': ciudadId,
-          'monto': monto,
-          'metodo': metodo,
+          'montoEfectivo': montoEfectivo,
+          'montoQr': montoQr,
           'notas': ?notas,
         },
       );
@@ -70,7 +70,8 @@ class PagoRemoteDatasource {
     required int pacienteId,
     required int ciudadId,
     required List<Map<String, dynamic>> items,
-    required String metodo,
+    required double montoEfectivo,
+    required double montoQr,
     String? notas,
   }) async {
     try {
@@ -80,7 +81,8 @@ class PagoRemoteDatasource {
           'pacienteId': pacienteId,
           'ciudadId': ciudadId,
           'items': items,
-          'metodo': metodo,
+          'montoEfectivo': montoEfectivo,
+          'montoQr': montoQr,
           'notas': ?notas,
         },
       );
@@ -89,6 +91,62 @@ class PagoRemoteDatasource {
       );
     } on DioException catch (e) {
       throw Exception(ApiClient.errorMessage(e, 'Error al registrar venta'));
+    }
+  }
+
+  Future<IngresoModel> editarCobroDeuda({
+    required int id,
+    required double montoEfectivo,
+    required double montoQr,
+    String? notas,
+  }) async {
+    try {
+      final response = await apiClient.dio.put(
+        '/ingresos/$id/cobro-deuda',
+        data: {
+          'montoEfectivo': montoEfectivo,
+          'montoQr': montoQr,
+          'notas': ?notas,
+        },
+      );
+      return IngresoModel.fromJson(
+        response.data['ingreso'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw Exception(ApiClient.errorMessage(e, 'Error al editar el pago'));
+    }
+  }
+
+  Future<IngresoModel> editarVentaProducto({
+    required int id,
+    required List<Map<String, dynamic>> items,
+    required double montoEfectivo,
+    required double montoQr,
+    String? notas,
+  }) async {
+    try {
+      final response = await apiClient.dio.put(
+        '/ingresos/$id/venta-producto',
+        data: {
+          'items': items,
+          'montoEfectivo': montoEfectivo,
+          'montoQr': montoQr,
+          'notas': ?notas,
+        },
+      );
+      return IngresoModel.fromJson(
+        response.data['ingreso'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw Exception(ApiClient.errorMessage(e, 'Error al editar la venta'));
+    }
+  }
+
+  Future<void> eliminarIngreso(int id) async {
+    try {
+      await apiClient.dio.delete('/ingresos/$id');
+    } on DioException catch (e) {
+      throw Exception(ApiClient.errorMessage(e, 'Error al eliminar el pago'));
     }
   }
 

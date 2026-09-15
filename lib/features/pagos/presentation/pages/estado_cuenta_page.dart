@@ -106,9 +106,24 @@ class _EstadoCuentaView extends StatelessWidget {
         label: const Text('Venta'),
         backgroundColor: const Color(0xFF8DC63F),
       ),
-      body: BlocBuilder<PagoBloc, PagoState>(
+      body: BlocConsumer<PagoBloc, PagoState>(
+        listener: (context, state) {
+          if (state is IngresoEliminado) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Pago eliminado'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            context.read<PagoBloc>().add(ObtenerEstadoCuentaEvent(pacienteId));
+          } else if (state is PagoError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.mensaje), backgroundColor: Colors.red),
+            );
+          }
+        },
         builder: (context, state) {
-          if (state is PagoLoading) {
+          if (state is PagoLoading || state is IngresoEliminado) {
             return const Center(child: CircularProgressIndicator());
           }
           if (state is PagoError) {
@@ -155,7 +170,7 @@ class _EstadoCuentaView extends StatelessWidget {
                     _sectionTitle('Historial de pagos'),
                     const SizedBox(height: 8),
                     ...ec.ingresos.map(
-                      (i) => _ingresoCard(i, moneyFmt, dateFmt),
+                      (i) => _ingresoCard(context, i, ec.deudas, moneyFmt, dateFmt),
                     ),
                   ],
                   if (ec.deudas.isEmpty && ec.ingresos.isEmpty)
@@ -342,7 +357,21 @@ class _EstadoCuentaView extends StatelessWidget {
     );
   }
 
-  Widget _ingresoCard(Ingreso ingreso, NumberFormat fmt, DateFormat dateFmt) {
+  Widget _ingresoCard(
+    BuildContext context,
+    Ingreso ingreso,
+    List<Deuda> deudas,
+    NumberFormat fmt,
+    DateFormat dateFmt,
+  ) {
+    final subtitulo = StringBuffer('${dateFmt.format(ingreso.fecha)}  •  ${ingreso.metodoLabel}');
+    if (ingreso.esMixto) {
+      subtitulo.write(
+        ' (Ef. ${fmt.format(ingreso.montoEfectivo)} + QR ${fmt.format(ingreso.montoQr)})',
+      );
+    }
+    if (ingreso.fueEditado) subtitulo.write('  •  editado');
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -357,19 +386,117 @@ class _EstadoCuentaView extends StatelessWidget {
           ingreso.esCobroDeuda ? 'Cobro de deuda' : 'Venta de producto',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
-        subtitle: Text(
-          '${dateFmt.format(ingreso.fecha)}  •  ${ingreso.metodo == 'efectivo' ? 'Efectivo' : 'QR'}',
-          style: const TextStyle(fontSize: 12),
-        ),
-        trailing: Text(
-          'Bs. ${fmt.format(ingreso.monto)}',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
-          ),
+        subtitle: Text(subtitulo.toString(), style: const TextStyle(fontSize: 12)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Bs. ${fmt.format(ingreso.monto)}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            PopupMenuButton<String>(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
+              onSelected: (accion) {
+                if (accion == 'editar') {
+                  _editarIngreso(context, ingreso, deudas);
+                } else if (accion == 'eliminar') {
+                  _confirmarEliminar(context, ingreso, fmt);
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'editar', child: Text('Editar')),
+                PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
+              ],
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _editarIngreso(
+    BuildContext context,
+    Ingreso ingreso,
+    List<Deuda> deudas,
+  ) async {
+    bool? result;
+    if (ingreso.esCobroDeuda) {
+      final deudaId = ingreso.deuda?['id'];
+      final match = deudas.where((d) => d.id == deudaId);
+      if (match.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se encontró la deuda asociada a este pago')),
+        );
+        return;
+      }
+      result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BlocProvider.value(
+            value: context.read<PagoBloc>(),
+            child: CobrarDeudaPage(
+              deuda: match.first,
+              pacienteId: pacienteId,
+              ciudadId: ciudadId,
+              ingresoAEditar: ingreso,
+            ),
+          ),
+        ),
+      );
+    } else {
+      result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BlocProvider.value(
+            value: context.read<PagoBloc>(),
+            child: VentaProductoPage(
+              pacienteId: pacienteId,
+              ciudadId: ciudadId,
+              ingresoAEditar: ingreso,
+            ),
+          ),
+        ),
+      );
+    }
+    if (result == true && context.mounted) {
+      context.read<PagoBloc>().add(ObtenerEstadoCuentaEvent(pacienteId));
+    }
+  }
+
+  Future<void> _confirmarEliminar(
+    BuildContext context,
+    Ingreso ingreso,
+    NumberFormat fmt,
+  ) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar pago'),
+        content: Text(
+          '¿Seguro que quieres eliminar este ${ingreso.esCobroDeuda ? "cobro" : "venta"} de '
+          'Bs. ${fmt.format(ingreso.monto)}?\n\n'
+          '${ingreso.esCobroDeuda ? 'La deuda volverá a quedar pendiente por ese monto.' : 'El stock de los productos vendidos se restaurará.'}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar == true && context.mounted) {
+      context.read<PagoBloc>().add(EliminarIngresoEvent(ingreso.id));
+    }
   }
 
   Widget _montoCol(

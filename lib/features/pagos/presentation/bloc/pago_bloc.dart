@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/obtener_estado_cuenta.dart';
 import '../../domain/usecases/registrar_cobro_deuda.dart';
 import '../../domain/usecases/registrar_venta_producto.dart';
+import '../../domain/usecases/editar_cobro_deuda.dart';
+import '../../domain/usecases/editar_venta_producto.dart';
+import '../../domain/usecases/eliminar_ingreso.dart';
 import '../../domain/usecases/listar_productos.dart';
 import '../../domain/usecases/listar_inventario_productos.dart';
 import '../../domain/usecases/crear_producto.dart';
@@ -19,6 +22,9 @@ class PagoBloc extends Bloc<PagoEvent, PagoState> {
   final ObtenerEstadoCuentaUseCase obtenerEstadoCuentaUseCase;
   final RegistrarCobroDeudaUseCase registrarCobroDeudaUseCase;
   final RegistrarVentaProductoUseCase registrarVentaProductoUseCase;
+  final EditarCobroDeudaUseCase editarCobroDeudaUseCase;
+  final EditarVentaProductoUseCase editarVentaProductoUseCase;
+  final EliminarIngresoUseCase eliminarIngresoUseCase;
   final ListarProductosUseCase listarProductosUseCase;
   final ListarInventarioProductosUseCase listarInventarioProductosUseCase;
   final CrearProductoUseCase crearProductoUseCase;
@@ -33,6 +39,9 @@ class PagoBloc extends Bloc<PagoEvent, PagoState> {
     required this.obtenerEstadoCuentaUseCase,
     required this.registrarCobroDeudaUseCase,
     required this.registrarVentaProductoUseCase,
+    required this.editarCobroDeudaUseCase,
+    required this.editarVentaProductoUseCase,
+    required this.eliminarIngresoUseCase,
     required this.listarProductosUseCase,
     required this.listarInventarioProductosUseCase,
     required this.crearProductoUseCase,
@@ -46,6 +55,9 @@ class PagoBloc extends Bloc<PagoEvent, PagoState> {
     on<ObtenerEstadoCuentaEvent>(_onObtenerEstadoCuenta);
     on<RegistrarCobroDeudaEvent>(_onRegistrarCobroDeuda);
     on<RegistrarVentaProductoEvent>(_onRegistrarVentaProducto);
+    on<EditarCobroDeudaEvent>(_onEditarCobroDeuda);
+    on<EditarVentaProductoEvent>(_onEditarVentaProducto);
+    on<EliminarIngresoEvent>(_onEliminarIngreso);
     on<ListarProductosEvent>(_onListarProductos);
     on<ListarInventarioProductosEvent>(_onListarInventarioProductos);
     on<CrearProductoEvent>(_onCrearProducto);
@@ -82,8 +94,8 @@ class PagoBloc extends Bloc<PagoEvent, PagoState> {
         deudaId: event.deudaId,
         pacienteId: event.pacienteId,
         ciudadId: event.ciudadId,
-        monto: event.monto,
-        metodo: event.metodo,
+        montoEfectivo: event.montoEfectivo,
+        montoQr: event.montoQr,
         notas: event.notas,
       );
       emit(IngresoRegistrado(ingreso));
@@ -102,10 +114,61 @@ class PagoBloc extends Bloc<PagoEvent, PagoState> {
         pacienteId: event.pacienteId,
         ciudadId: event.ciudadId,
         items: event.items,
-        metodo: event.metodo,
+        montoEfectivo: event.montoEfectivo,
+        montoQr: event.montoQr,
         notas: event.notas,
       );
       emit(IngresoRegistrado(ingreso));
+    } catch (e) {
+      emit(PagoError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onEditarCobroDeuda(
+    EditarCobroDeudaEvent event,
+    Emitter<PagoState> emit,
+  ) async {
+    emit(PagoLoading());
+    try {
+      final ingreso = await editarCobroDeudaUseCase.execute(
+        id: event.id,
+        montoEfectivo: event.montoEfectivo,
+        montoQr: event.montoQr,
+        notas: event.notas,
+      );
+      emit(IngresoActualizado(ingreso));
+    } catch (e) {
+      emit(PagoError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onEditarVentaProducto(
+    EditarVentaProductoEvent event,
+    Emitter<PagoState> emit,
+  ) async {
+    emit(PagoLoading());
+    try {
+      final ingreso = await editarVentaProductoUseCase.execute(
+        id: event.id,
+        items: event.items,
+        montoEfectivo: event.montoEfectivo,
+        montoQr: event.montoQr,
+        notas: event.notas,
+      );
+      emit(IngresoActualizado(ingreso));
+    } catch (e) {
+      emit(PagoError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
+  Future<void> _onEliminarIngreso(
+    EliminarIngresoEvent event,
+    Emitter<PagoState> emit,
+  ) async {
+    emit(PagoLoading());
+    try {
+      await eliminarIngresoUseCase.execute(event.id);
+      emit(IngresoEliminado());
     } catch (e) {
       emit(PagoError(e.toString().replaceAll('Exception: ', '')));
     }

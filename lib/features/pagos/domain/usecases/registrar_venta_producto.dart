@@ -9,13 +9,15 @@ class RegistrarVentaProductoUseCase {
     required int pacienteId,
     required int ciudadId,
     required List<Map<String, dynamic>> items,
-    required String metodo,
+    required double montoEfectivo,
+    required double montoQr,
     String? notas,
   }) => repository.registrarVentaProducto(
         pacienteId: pacienteId,
         ciudadId: ciudadId,
         items: items,
-        metodo: metodo,
+        montoEfectivo: montoEfectivo,
+        montoQr: montoQr,
         notas: notas,
       );
 }

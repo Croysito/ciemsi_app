@@ -28,12 +28,15 @@ class IngresoModel extends Ingreso {
     required super.tipo,
     super.deuda,
     required super.monto,
+    super.montoEfectivo,
+    super.montoQr,
     required super.metodo,
     super.notas,
     required super.items,
     required super.fecha,
     required super.createdAt,
     required super.createdBy,
+    super.editadoEn,
   });
 
   factory IngresoModel.fromJson(Map<String, dynamic> json) {
@@ -44,6 +47,8 @@ class IngresoModel extends Ingreso {
       tipo: json['tipo'],
       deuda: json['deuda'] as Map<String, dynamic>?,
       monto: (json['monto'] as num).toDouble(),
+      montoEfectivo: (json['montoEfectivo'] as num?)?.toDouble() ?? 0,
+      montoQr: (json['montoQr'] as num?)?.toDouble() ?? 0,
       metodo: json['metodo'],
       notas: json['notas'],
       items: (json['items'] as List? ?? [])
@@ -52,6 +57,7 @@ class IngresoModel extends Ingreso {
       fecha: DateTime.parse(json['fecha']),
       createdAt: DateTime.parse(json['createdAt']),
       createdBy: json['createdBy'] as Map<String, dynamic>,
+      editadoEn: json['editadoEn'] != null ? DateTime.tryParse(json['editadoEn']) : null,
     );
   }
 }
