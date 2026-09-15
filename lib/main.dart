@@ -37,6 +37,13 @@ void main() async {
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
+// Overlay del diálogo de actualización: se guarda acá (y no como ruta del
+// Navigator) porque un showDialog quedaría "tapado" por cualquier
+// pushReplacement que haga la app mientras el diálogo está abierto (p. ej.
+// el splash reemplazando su propia pantalla): pushReplacement reemplaza la
+// ruta que esté en el tope del stack, que sería la del diálogo.
+OverlayEntry? _overlayActualizacion;
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -88,17 +95,28 @@ class MyApp extends StatelessWidget {
         builder: (context, child) {
           return BlocListener<ActualizacionBloc, ActualizacionState>(
             listener: (context, state) {
-              final navContext = navigatorKey.currentContext;
-              if (state is ActualizacionDisponible && navContext != null) {
-                showDialog(
-                  context: navContext,
-                  barrierDismissible: false,
-                  builder: (dialogContext) => BlocProvider.value(
-                    value: context.read<ActualizacionBloc>(),
-                    child: const DialogoActualizacion(),
-                  ),
-                );
+              if (state is ActualizacionInicial) {
+                _overlayActualizacion?.remove();
+                _overlayActualizacion = null;
+                return;
               }
+
+              if (_overlayActualizacion != null) return;
+
+              final navContext = navigatorKey.currentContext;
+              if (navContext == null) return;
+
+              final bloc = context.read<ActualizacionBloc>();
+              _overlayActualizacion = OverlayEntry(
+                builder: (_) => BlocProvider.value(
+                  value: bloc,
+                  child: const DialogoActualizacion(),
+                ),
+              );
+              Overlay.of(
+                navContext,
+                rootOverlay: true,
+              ).insert(_overlayActualizacion!);
             },
             child: child!,
           );

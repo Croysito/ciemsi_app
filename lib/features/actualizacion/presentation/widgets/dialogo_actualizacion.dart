@@ -10,6 +10,11 @@ const _colorAcento = Color(0xFF00B5C8);
 /// Diálogo descartable que avisa de una nueva versión disponible, y
 /// acompaña la descarga/instalación. Se muestra sobre cualquier pantalla
 /// en la que esté el usuario cuando se detecta la actualización.
+///
+/// No se aloja como ruta del Navigator (no usa showDialog): se inserta en
+/// el Overlay raíz para que sobreviva a los pushReplacement/navegaciones
+/// que hace el resto de la app (ver main.dart), en vez de ser tapado o
+/// reemplazado por ellos.
 class DialogoActualizacion extends StatelessWidget {
   const DialogoActualizacion({super.key});
 
@@ -17,24 +22,25 @@ class DialogoActualizacion extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ActualizacionBloc, ActualizacionState>(
       builder: (context, state) {
+        Widget? contenido;
         if (state is ActualizacionDisponible) {
-          return _dialogoDisponible(context, state.version);
+          contenido = _dialogoDisponible(context, state.version);
+        } else if (state is ActualizacionDescargando) {
+          contenido = _dialogoDescargando(state.version, state.progreso);
+        } else if (state is ActualizacionListaParaInstalar) {
+          contenido = _dialogoListaParaInstalar(context, state.version);
+        } else if (state is ActualizacionError) {
+          contenido = _dialogoError(context, state.version, state.mensaje);
         }
-        if (state is ActualizacionDescargando) {
-          return _dialogoDescargando(state.version, state.progreso);
-        }
-        if (state is ActualizacionListaParaInstalar) {
-          return _dialogoListaParaInstalar(context, state.version);
-        }
-        if (state is ActualizacionError) {
-          return _dialogoError(context, state.version, state.mensaje);
-        }
-        // Se cerró de este lado (ActualizacionInicial): no queda nada
-        // que mostrar, cerramos el diálogo si sigue abierto.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-        });
-        return const SizedBox.shrink();
+
+        if (contenido == null) return const SizedBox.shrink();
+
+        return Stack(
+          children: [
+            const ModalBarrier(dismissible: false, color: Colors.black54),
+            Center(child: contenido),
+          ],
+        );
       },
     );
   }
@@ -68,7 +74,6 @@ class DialogoActualizacion extends StatelessWidget {
             context.read<ActualizacionBloc>().add(
               const DescartarActualizacionEvent(),
             );
-            Navigator.of(context).pop();
           },
           child: const Text('Ahora no'),
         ),
@@ -114,7 +119,11 @@ class DialogoActualizacion extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            context.read<ActualizacionBloc>().add(
+              const DescartarActualizacionEvent(),
+            );
+          },
           child: const Text('Cerrar'),
         ),
         FilledButton(
@@ -145,7 +154,6 @@ class DialogoActualizacion extends StatelessWidget {
             context.read<ActualizacionBloc>().add(
               const DescartarActualizacionEvent(),
             );
-            Navigator.of(context).pop();
           },
           child: const Text('Cerrar'),
         ),
